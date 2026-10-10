@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<title>Săn Game — Tin nhanh (bản tin sáng)</title>
+<style>
+@font-face{font-family:BVP;src:url(BeVietnamPro-Medium.ttf);font-weight:500}
+@font-face{font-family:BVP;src:url(BeVietnamPro-SemiBold.ttf);font-weight:600}
+@font-face{font-family:BVP;src:url(BeVietnamPro-Bold.ttf);font-weight:700}
+@font-face{font-family:BVP;src:url(BeVietnamPro-ExtraBold.ttf);font-weight:800}
+@font-face{font-family:PF;src:url(PlayfairDisplay-VF.ttf);font-weight:400 900}
+@font-face{font-family:NR;src:url(Newsreader-Italic-VF.ttf);font-weight:200 800;font-style:italic}
+/* --T = mep duoi vung app che phia tren (TikTok 240 / Reels 269 / Shorts 288) — dung.py chen theo nen-tang.json */
+:root{--giay:#F1E8D4;--muc:#1C1512;--do:#C8372D;--vang:#E3A82B;--xanh:#23948D;--kem:#F7EFDD;--T:240px}
+*{margin:0;padding:0;box-sizing:border-box;font-variant-numeric:lining-nums}
+html,body{width:1080px;height:1920px;overflow:hidden;background:transparent;font-family:BVP,sans-serif;color:var(--muc)}
+.a{position:absolute}
+.giay{background-color:var(--giay);background-image:
+  url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' seed='4'/><feColorMatrix values='0 0 0 0 .45  0 0 0 0 .36  0 0 0 0 .22  0 0 0 .55 0'/></filter><rect width='260' height='260' filter='url(%23n)'/></svg>"),
+  url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='600'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='.012 .09' numOctaves='2' seed='9'/><feColorMatrix values='0 0 0 0 .5  0 0 0 0 .4  0 0 0 0 .25  0 0 0 .22 0'/></filter><rect width='600' height='600' filter='url(%23f)'/></svg>");background-blend-mode:multiply}
+.nho{font-weight:800;letter-spacing:5px;font-size:24px;text-transform:uppercase}
+.pf{font-family:PF;font-weight:900}
+.bong{filter:drop-shadow(0 16px 18px rgba(0,0,0,.45)) drop-shadow(0 3px 3px rgba(0,0,0,.35))}
+.muc2{filter:url(#muc2)}
+#luoi{inset:0;background-image:radial-gradient(circle,rgba(20,15,10,.20) 1.3px,transparent 1.9px);background-size:6px 6px}
+#vien{inset:0;background:radial-gradient(115% 85% at 50% 50%,rgba(0,0,0,0) 52%,rgba(28,16,6,.55) 100%)}
+#toi{left:0;right:0;top:1000px;height:920px;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.45))}
+#leak{width:1300px;height:1300px;border-radius:50%;background:radial-gradient(circle,rgba(255,150,60,.30),rgba(255,120,40,0) 62%);mix-blend-mode:screen}
+/* ===== KHOI DAU TRANG (giay bat dau ngay duoi vung app — LOI-SAI N11/N12) ===== */
+#bandS{left:0;top:0;width:1080px;height:1920px;z-index:10}
+#band{left:0;top:0;width:1080px;height:1920px}
+#hdr1,#hdr6{left:120px;top:calc(var(--T) + 24px);width:768px;display:flex;justify-content:space-between}
+#mast{left:120px;top:calc(var(--T) + 66px);color:var(--do);line-height:1;letter-spacing:-3px;white-space:nowrap;text-shadow:4px 3px 0 rgba(35,148,141,.55);transform-origin:0 0}
+.ke{left:120px;width:768px;border-top:7px solid var(--muc)}.ke::after{content:"";position:absolute;left:0;right:0;top:4px;border-top:2px solid var(--muc)}
+.ke1{left:120px;width:768px;border-top:2px solid var(--muc)}
+#ke0,#ke6a{top:calc(var(--T) + 58px)}
+#ke1{top:calc(var(--T) + 226px)}
+#toc{left:560px;top:calc(var(--T) + 36px);width:328px;display:flex;justify-content:space-between;align-items:baseline}
+#toc em{font-style:normal;font-weight:800;font-size:22px;letter-spacing:4px}
+#toc span{font-family:PF;font-weight:900;font-size:40px;line-height:1}
+#tocbar{left:0;top:calc(var(--T) + 82px);width:52px;height:6px;background:var(--do)}
+/* ===== CANH MO (bia ban tin) ===== */
+.loai{display:inline-block;font-weight:800;font-size:22px;letter-spacing:3px;padding:4px 12px;color:var(--kem)}
+.l-xanh{background:var(--xanh)}.l-do{background:var(--do)}.l-vang{background:var(--vang);color:var(--muc)}
+#chip{left:120px;top:calc(var(--T) + 262px);color:var(--kem);background:var(--xanh);padding:8px 18px;font-size:26px;box-shadow:5px 5px 0 var(--muc);z-index:11}
+#so3{left:116px;top:calc(var(--T) + 322px);font-size:210px;line-height:.8;letter-spacing:-6px;color:var(--kem);white-space:nowrap;text-shadow:0 7px 0 var(--muc),0 18px 30px rgba(0,0,0,.6);transform-origin:0 100%}
+#nong{left:640px;top:calc(var(--T) + 334px);font-family:NR;font-style:italic;font-weight:700;font-size:62px;line-height:1.02;color:var(--vang);text-shadow:0 4px 0 var(--muc),0 12px 22px rgba(0,0,0,.6)}
+.mucluc{position:absolute;left:120px;width:768px;height:92px;display:flex;align-items:center;gap:18px;padding:0 22px 0 18px;transform-origin:50% 50%}
+.mucluc .r{font-family:PF;font-weight:900;font-size:58px;color:var(--do);width:70px;line-height:1}
+.mucluc .t{flex:1;min-width:0}
+.mucluc .t b{display:inline-block;font-weight:800;font-size:31px;white-space:nowrap;margin-top:4px}
+.mucluc img{width:72px;height:72px;object-fit:cover;border:3px solid var(--muc)}
+/* ===== CANH TIN: con dau loai tin dap giua khung roi bay ve goc manh bao cat (dai duoi) ===== */
+.tin{position:absolute;inset:0;z-index:12}
+.cat{left:120px;top:888px;width:768px;height:236px}
+.cat .k{position:absolute;left:28px;top:22px;font-weight:800;font-size:22px;letter-spacing:3px;color:var(--xanh)}
+.cat .tit{position:absolute;left:28px;top:60px;font-family:NR;font-style:italic;font-weight:600;font-size:54px;line-height:1.05;white-space:nowrap}
+.cat .dong{position:absolute;left:28px;right:24px;top:128px;height:96px;display:flex;align-items:center;gap:16px;border-top:2px dashed rgba(28,21,18,.4);padding-top:10px}
+.cat .dong img{width:70px;height:70px;object-fit:cover;border:3px solid var(--muc);flex:none}
+.cat .dong .tt{flex:1;min-width:0}
+.cat .dong .tt small{display:block;white-space:nowrap;font-weight:800;font-size:19px;letter-spacing:2px;color:var(--do)}
+.cat .dong .tt b{display:inline-block;font-weight:800;font-size:28px;white-space:nowrap;margin-top:6px}
+.cat .tt.ba b{display:block;font-size:24px;line-height:1.12;margin-top:0}
+.cat .phai{text-align:right;flex:none}
+.cat .g{font-family:PF;font-weight:900;font-size:56px;color:var(--do);letter-spacing:-2px;line-height:1;display:inline-block;transform-origin:100% 70%}
+.cat .gm{display:inline-block;background:var(--vang);font-family:PF;font-weight:900;font-size:34px;padding:0 10px;margin-bottom:4px}
+.dauW{z-index:6;transform-origin:50% 50%}
+.dau{padding:4px 20px 8px;border:8px double currentColor;font-family:PF;font-weight:900;font-size:60px;line-height:1;background:rgba(241,232,212,.72);white-space:nowrap;transform-origin:50% 55%}
+.sao1{width:470px;height:470px;background:var(--vang);opacity:.9;z-index:5}
+/* ===== CANH KET ===== */
+#tieuK{left:120px;top:calc(var(--T) + 244px);font-size:62px;line-height:1;white-space:nowrap}
+#tieuK i{font-family:NR;font-style:italic;font-weight:600;color:var(--do)}
+.dongK{position:absolute;left:120px;width:768px;height:122px;display:flex;align-items:center;gap:16px;border-bottom:2px dashed rgba(28,21,18,.4);transform-origin:0 50%}
+.dongK .r{font-family:PF;font-weight:900;font-size:58px;color:var(--do);width:66px}
+.dongK img{width:86px;height:86px;object-fit:cover;border:3px solid var(--muc)}
+.dongK .t{flex:1;min-width:0}
+.dongK .t b{display:inline-block;font-weight:800;font-size:32px;white-space:nowrap;margin-top:6px}
+#mai{left:120px;font-family:NR;font-style:italic;font-weight:600;font-size:44px}
+#url3{left:120px;width:560px;height:110px;background:var(--muc);display:flex;align-items:center;gap:16px;padding:0 26px}
+#url3 b{font-family:PF;font-weight:900;font-size:58px;color:var(--kem);white-space:nowrap}
+#url3 .con{display:inline-block;width:12px;height:52px;background:var(--vang);margin-left:4px;vertical-align:-6px}
+#logo3{left:712px;width:162px}
+#logo3 img{width:162px;display:block;filter:drop-shadow(3px 0 0 #FBF6EA) drop-shadow(-3px 0 0 #FBF6EA) drop-shadow(0 3px 0 #FBF6EA) drop-shadow(0 -3px 0 #FBF6EA) drop-shadow(0 12px 12px rgba(0,0,0,.35))}
+/* phu de */
+#subW{left:120px;top:1142px;width:768px;z-index:20}
+#sub{position:relative;padding:14px 22px 16px 34px;font-weight:800;font-size:46px;line-height:1.15;white-space:nowrap;min-height:84px}
+#sub::before{content:"";position:absolute;left:0;top:0;bottom:0;width:12px;background:var(--do)}
+#sub span{opacity:.62}#sub span.da{opacity:1}#sub span.nay{opacity:1;color:var(--do)}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<filter id="muc2" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="2" seed="12" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -1.3 0 0 0 1.62" result="m"/><feComposite in="SourceGraphic" in2="m" operator="in" result="c"/><feTurbulence type="fractalNoise" baseFrequency=".05" numOctaves="2" seed="3" result="d"/><feDisplacementMap in="c" in2="d" scale="3" xChannelSelector="R" yChannelSelector="G"/></filter>
+</defs></svg>
+<div id="leak" class="a"></div><div id="toi" class="a"></div><div id="luoi" class="a"></div><div id="vien" class="a"></div>
+
+<!-- KHOI DAU TRANG -->
+<div id="bandS" class="a bong"><div id="band" class="a giay">
+  <div id="hdr1" class="a nho"><span>Bản tin sáng</span><span id="ngay1"></span></div>
+  <div id="ke0" class="a ke1"></div>
+  <div id="mast" class="a pf">SĂN GAME</div>
+  <div id="ke1" class="a ke"></div>
+  <div id="toc" class="a"><em>TIN</em><span>01</span><span>02</span><span>03</span></div>
+  <div id="tocbar" class="a"></div>
+  <div id="hdr6" class="a nho"><span id="ngay6"></span><span>Hết tin</span></div>
+  <div id="ke6a" class="a ke1"></div>
+  <div id="tieuK" class="a pf">Sáng nay có <i>3 tin</i></div>
+  <div id="dongs"></div>
+  <div id="mai" class="a">Mai lại có bản tin mới nhé!</div>
+  <div id="url3" class="a"><svg width="46" height="46" viewBox="0 0 52 52" style="flex:none"><path d="M6 26h32M24 11l15 15-15 15" stroke="#E3A82B" stroke-width="8" fill="none"/></svg><b><span id="urlc"></span><span class="con" id="con"></span></b></div>
+  <div id="logo3" class="a"><img src="logo.svg"></div>
+</div></div>
+
+<!-- CANH MO -->
+<div id="cMo" class="a" style="inset:0;z-index:11">
+  <div id="chip" class="a nho">Tin PlayStation · 25 giây</div>
+  <div id="so3" class="a pf">3 TIN</div>
+  <div id="nong" class="a">nóng hổi<br>sáng nay</div>
+  <div id="ml"></div>
+</div>
+<div id="tins"></div>
+<div id="subW" class="a"><div id="sub" class="giay"></div></div>
+
+<script>
+window.__ready=false;
+var MOC=__MOC__, CANH=__CANH__, D=__TIN__, DAI=__DAI__, NT=__NT__;
+var TT=NT.tren, DD=NT.duoi, TIN=D.tin;
+document.documentElement.style.setProperty('--T',TT+'px');
+function cl(x){return x<0?0:x>1?1:x}
+function p(t,a,d){return cl((t-a)/d)}
+function eo(x){x=cl(x);return 1-Math.pow(1-x,3)}
+function eo5(x){x=cl(x);return 1-Math.pow(1-x,5)}
+function ei(x){x=cl(x);return x*x*x}
+function eio(x){x=cl(x);return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2}
+function L(a,b,k){return a+(b-a)*k}
+function $(i){return document.getElementById(i)}
+function tf(el,s){el.style.transform=s}
+function op(el,v){el.style.opacity=v>=1?'':String(Math.max(0,Math.min(.999,v)))}
+function show(el,on){el.style.display=on?'':'none'}
+function dau(t,a,from){var k=p(t,a,.14);if(t<a)return null;var s=k<1?L(from||2.2,1,eo5(k)):1;var r=p(t,a+.14,.3);var dx=r>0&&r<1?Math.sin(r*26)*14*(1-r):0;return [s,dx]}
+function rnd(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;var t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function vua(el,max,co){el.style.fontSize=co+'px';var w=el.getBoundingClientRect().width;if(w>max)el.style.fontSize=(co*max/w)+'px'}
+var C={}; CANH.forEach(function(c){C[c.k]=c});
+var MAU={xanh:'#23948D',do:'#C8372D',vang:'#1C1512'}, LCLS={xanh:'l-xanh',do:'l-do',vang:'l-vang'};
+/* ===== MOC CHU ===== */
+function tu(k){return MOC.filter(function(w){return w.doan===k})}
+function tim(k,re,sau){var ws=tu(k);for(var i=(sau||0);i<ws.length;i++)if(re.test(ws[i].w))return ws[i].s;return null}
+// m.tin = chu 'Tin'; m.nd = chu dau cua noi dung (sau 'Tin mot:')
+var M={}; for(var i=1;i<=3;i++){var ws=tu('t'+i); M[i]={tin:ws[0].s, nd:ws[2].s, ws:ws}}
+/* ===== MEP RACH (tren + duoi) ===== */
+var R0=rnd(11),R1=rnd(29),JIT=[],JT=[];for(var x=0;x<=1080;x+=12){JIT.push([x,R0()*9+(R0()<.12?R0()*8:0)]);JT.push(R1()*8+(R1()<.1?R1()*6:0))}
+var TOPB=TT+6;
+function rach(H){var s='polygon(';for(var i=0;i<JIT.length;i++)s+=JIT[i][0]+'px '+(TOPB+JT[i]).toFixed(1)+'px,';
+  for(var i=JIT.length-1;i>=0;i--)s+=JIT[i][0]+'px '+(H+JIT[i][1]).toFixed(1)+'px'+(i?',':'');return s+')'}
+function rach2(w,h,seed){var r=rnd(seed),s='polygon(';for(var x=0;x<=w;x+=14)s+=x+'px '+(r()*7).toFixed(1)+'px,';for(var x=w;x>=0;x-=14)s+=x+'px '+(h-r()*7).toFixed(1)+'px'+(x?',':'');return s+')'}
+var C1=C.t1.a, CK=C.ket.a;
+var HB={mo:TT+250, gon:TT+116, ket:Math.min(TT+1000,DD+12)};
+function hBand(t){ if(t<C1)return HB.mo; if(t<CK)return L(HB.mo,HB.gon,eio(p(t,C1-.3,.4))); return L(HB.gon,HB.ket,eo5(p(t,CK,.55))); }
+var MAST={F:150,sm:.4}, TX=[0,0,0];
+var CY=Math.round((TT+116+888)/2);   // tam vung trailer giua dai dau trang va manh bao: con dau dap o day
+var BIG=2.4, DAUN={};
+/* ===== DUNG CANH TU DU LIEU ===== */
+(function(){
+  $('ngay1').textContent=D.thu+' · '+D.ngay; $('ngay6').textContent='Bản tin sáng · '+D.ngay;
+  var h='';TIN.forEach(function(g,i){h+='<div class="a bong" style="inset:0"><div class="mucluc giay" id="m'+i+'" style="top:'+(TT+530+i*100)+'px"><div class="r">0'+(i+1)+'</div><div class="t"><span class="loai '+LCLS[g.mau]+'">'+g.loai+'</span><b>'+g.tieu+'</b></div><img src="'+g.anh[0]+'"></div></div>'});
+  $('ml').innerHTML=h;
+  h='';
+  TIN.forEach(function(g,i){var r=i+1, dong='';
+    if(g.mau==='xanh') dong=g.anh.map(function(a,j){return '<img id="b'+r+'_'+j+'" src="'+a+'">'}).join('')+'<div class="tt ba">'+g.ten_game.map(function(x){return '<b>'+x+'</b>'}).join('')+'</div>';
+    else if(g.mau==='do') dong='<img id="b'+r+'_0" src="'+g.anh[0]+'"><div class="tt"><small>'+g.nhan_dong+'</small><b>'+g.ten_re+'</b></div><div class="phai"><span class="gm" id="gm'+r+'">−'+g.giam+'%</span><br><span class="g" id="g'+r+'">'+g.gia+'</span></div>';
+    else dong='<img id="b'+r+'_0" src="'+g.anh[0]+'"><div class="tt"><small>'+g.nhan_dong+'</small><b>'+g.dong+'</b></div><div class="phai"><span class="g" id="g'+r+'">'+g.moc+'</span></div>';
+    h+='<div class="tin" id="tin'+r+'">'+
+      '<div class="a bong" style="inset:0;z-index:5"><div class="a giay cat" id="cat'+r+'"><div class="k">TIN '+r+'/3 · '+g.nguon+'</div><div class="tit" id="tit'+r+'">'+g.tit+'</div><div class="dong" id="dong'+r+'">'+dong+'</div></div></div>'+
+      '<div class="a dauW" id="dauW'+r+'"><div class="dau muc2" id="dau'+r+'" style="color:'+MAU[g.mau]+'">'+g.loai+'</div></div></div>'});
+  $('tins').innerHTML=h;
+  h='';TIN.forEach(function(g,i){h+='<div class="dongK" id="dk'+i+'"><div class="r">'+(i+1)+'</div><img src="'+g.anh[0]+'"><div class="t"><span class="loai '+LCLS[g.mau]+'">'+g.loai+'</span><br><b>'+g.tieu+'</b></div></div>'});
+  $('dongs').innerHTML=h;
+  var K0=TT+24; for(var i=0;i<3;i++)$('dk'+i).style.top=(K0+288+i*122)+'px';
+  var y=K0+288+3*122+22; $('mai').style.top=y+'px'; $('url3').style.top=(y+70)+'px'; $('logo3').style.top=(y+56)+'px';
+})();
+/* ===== PHU DE ===== */
+var CUM=[];(function(){var cur=[];for(var i=0;i<MOC.length;i++){var thu=cur.concat([i]).map(function(x){return MOC[x].w}).join(' ');
+  if(cur.length&&thu.length>26){CUM.push(cur);cur=[]}
+  cur.push(i); var dur=MOC[i].e-MOC[cur[0]].s, het=(i+1>=MOC.length||MOC[i+1].doan!==MOC[i].doan);
+  if(het||(/[.!?…,:]$/.test(MOC[i].w)&&dur>=0.9)){CUM.push(cur);cur=[]}}if(cur.length)CUM.push(cur)})();
+function phude(t){var html='';
+  for(var k=0;k<CUM.length;k++){var c=CUM[k],a=MOC[c[0]].s,b=k+1<CUM.length?MOC[CUM[k+1][0]].s:DAI;
+    if((k===0?t>=0:t>=a-0.05)&&t<b-0.05){for(var j=0;j<c.length;j++){var m=MOC[c[j]],cls=t>=m.e?'da':(t>=m.s?'nay':'');html+='<span class="'+cls+'">'+m.w.replace(/…/g,'')+'</span> '}}}
+  $('sub').innerHTML=html}
+/* con dau: dap to giua vung trailer (a0, khoang nghi truoc chu 'Tin') -> giu ~0,55 s -> bay ve goc manh bao (a1 .. a1+.3) */
+// bay som de tieng vut nam trong khoang nghi giua 'Tin mot:' va noi dung (A3: lan 1 vut de len chu 'PS' -1,3 dB)
+function moDau(r){var m=M[r],a0=m.tin-.24;return {a0:a0,a1:Math.max(a0+.5,m.nd-.45)}}
+/* ===== VE ===== */
+function ve(t){
+  tf($('leak'),'translate('+(-420+Math.sin(t*.35)*160)+'px,'+(980+Math.cos(t*.27)*220)+'px)'); op($('leak'),.5+.22*Math.sin(t*.8));
+  var H=hBand(t); $('band').style.height=(H+20)+'px'; $('band').style.clipPath=rach(H);
+  var kN=eio(p(t,C1-.3,.4)), kB=eio(p(t,CK+.05,.5)), k=kN*(1-kB);
+  tf($('mast'),'translateY('+L(0,-34,k)+'px) scale('+L(1,MAST.sm,k)+')');
+  tf($('ke1'),'translateY('+L(0,-130,k)+'px)');
+  var moOn=t<C1+.5; ['hdr1','ke0'].forEach(function(id){show($(id),moOn);if(moOn)op($(id),1-p(t,C1-.3,.2))});
+  var gon=t>=C1-.05&&t<CK+.4; ['toc','tocbar'].forEach(function(id){show($(id),gon)});
+  if(gon){var vg=p(t,C1+.15,.3)*(1-p(t,CK,.2)); op($('toc'),vg); op($('tocbar'),vg);
+    var sp=$('toc').querySelectorAll('span'), ac=0;
+    for(var i=0;i<3;i++){ if(t>=C['t'+(i+1)].a-.1) ac=i; }
+    for(var i=0;i<3;i++){sp[i].style.color=i==ac?'var(--do)':''; sp[i].style.opacity=i==ac?'':(i<ac?'.7':'.35')}
+    var xk=TX[0]; for(var i=1;i<3;i++) xk=L(xk,TX[i],eio(p(t,C['t'+(i+1)].a-.15,.35))); tf($('tocbar'),'translateX('+xk+'px)')}
+  var ket=t>=CK; ['hdr6','ke6a','tieuK','dongs','mai','url3','logo3'].forEach(function(id){show($(id),ket)});
+  if(ket){
+    op($('hdr6'),p(t,CK+.3,.3)); $('ke6a').style.width=(768*eo(p(t,CK+.3,.4)))+'px';
+    var q=p(t,CK+.3,.35); op($('tieuK'),q); tf($('tieuK'),'translateY('+((1-eo5(q))*30)+'px)');
+    for(var i=0;i<3;i++){var e=$('dk'+i),d=dau(t,CK+.5+i*.15,1.25); op(e,d?1:0); if(d)tf(e,'translateX('+d[1]*.4+'px) scale('+d[0]+')')}
+    var ws=tu('ket'), iS=ws.findIndex(function(w){return /^săn$/i.test(w.w)}), a1=ws[iS].s, a2=ws[iS+3].s, a3=ws[iS+5].s;   // Săn Game chấm COM chấm VI en
+    var u=p(t,a1-.5,.3); op($('url3'),u); tf($('url3'),'translateY('+((1-eo5(u))*40)+'px)');
+    var n1=Math.floor(cl((t-a1)/.4)*7),n2=Math.floor(cl((t-a2)/.3)*4),n3=Math.floor(cl((t-a3)/.22)*3);
+    $('urlc').textContent='sangame'.slice(0,n1)+'.com'.slice(0,n2)+'.vn'.slice(0,n3);
+    op($('con'),(Math.floor(t*2.4)%2===0||(t>=a1&&t<a3+.3))?1:0);
+    var tmai=MOC[MOC.length-1].e+.15, mq=p(t,tmai,.4); op($('mai'),mq); $('mai').style.clipPath='inset(-10px '+(100-eo(mq)*100)+'% -10px 0)';
+    var lg=dau(t,a3+.1,1.9); op($('logo3'),lg?1:0); if(lg)tf($('logo3'),'translateX('+lg[1]*.5+'px) scale('+lg[0]+') rotate(-5deg)');
+  }
+  // ----- canh mo -----
+  var mo=t<C1+.45; show($('cMo'),mo);
+  if(mo){
+    var ra=ei(p(t,C1-.25,.4));
+    tf($('cMo'),'translateX('+(-ra*1200)+'px) rotate('+(-ra*6)+'deg)'); $('cMo').style.transformOrigin='540px 900px';
+    tf($('so3'),'scale('+L(1.08,1,eo5(p(t,0,.35)))+')');
+    var nq=p(t,.2,.35); op($('nong'),nq); tf($('nong'),'translateX('+((1-eo5(nq))*60)+'px)');
+    for(var i=0;i<3;i++){var e=$('m'+i),d=dau(t,.45+i*.2,1.35); op(e,d?1:0); if(d)tf(e,'translateX('+d[1]*.5+'px) scale('+d[0]+') rotate('+[-1.5,1,-1][i]+'deg)')}
+  }
+  // ----- 3 canh tin -----
+  for(var r=1;r<=3;r++){var c=C['t'+r],m=M[r],el=$('tin'+r),on=t>=c.a-.3&&t<c.b+.35; show(el,on); if(!on)continue;
+    var vao=p(t,c.a-.25,.42), ra=p(t,c.b-.25,.35);
+    tf(el,'translate('+((1-eo5(vao))*1150-ei(ra)*1250)+'px,0px) rotate('+((1-eo5(vao))*5-ei(ra)*7)+'deg)'); el.style.transformOrigin='540px 900px';
+    var md=moDau(r), ds=dau(t,md.a0,1.35), dw=$('dauW'+r), S=DAUN[r];
+    op(dw,ds?1:0);
+    if(ds){var kf=eio(p(t,md.a1,.3));
+      tf(dw,'translate('+L(540-S.cx,0,kf).toFixed(1)+'px,'+L(CY-S.cy,0,kf).toFixed(1)+'px) scale('+L(BIG,1,kf).toFixed(4)+') rotate('+L(-3,-8,kf).toFixed(2)+'deg)');
+      tf($('dau'+r),'translateX('+ds[1]+'px) scale('+ds[0]+')')}
+    var hp=p(t,m.nd-.3,.32); op($('cat'+r),hp*2.5); tf($('cat'+r),'translateY('+((1-eo5(hp))*120)+'px)');
+    $('tit'+r).style.clipPath='inset(-20px '+(100-eo(p(t,m.nd-.05,.55))*100)+'% -20px 0)';
+    var dq=p(t,m.nd+.35,.3); op($('dong'+r),dq);
+    var g=TIN[r-1];
+    if(g.mau==='xanh'){   // bia hien dung chu ten game (F1, Hunt), bia thu 3 (khong doc) theo sau
+      var tF=tim('t'+r,/^F1$/i)||m.nd+.6, tH=tim('t'+r,/^Hunt$/i)||tF+.5, tb=[tF-.05,tH-.05,tH+.3];
+      for(var j=0;j<3;j++){var b=$('b'+r+'_'+j),d=dau(t,tb[j],1.8); op(b,d?1:0); if(d)tf(b,'translateX('+d[1]*.4+'px) scale('+d[0]+') rotate('+[-4,3,-2][j]+'deg)')}
+    } else if(g.mau==='do'){
+      var tS=tim('t'+r,/^Star$/i)||m.nd+1, tG=(function(){var ws=m.ws,i=ws.findIndex(function(w){return /^nghìn/i.test(w.w)});var j=i;while(j>0&&/^(một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|mươi|trăm|lẻ|mốt|tư|lăm)[.,!:]?$/i.test(ws[j-1].w))j--;return ws[j].s})();
+      var db=dau(t,tS-.05,1.8); op($('b'+r+'_0'),db?1:0); if(db)tf($('b'+r+'_0'),'scale('+db[0]+') rotate(-3deg)');
+      var dm=dau(t,tS+.35,1.9); op($('gm'+r),dm?1:0); if(dm)tf($('gm'+r),'scale('+dm[0]+') rotate(-3deg)');
+      var dg=dau(t,tG-.2,1.35); op($('g'+r),dg?1:0); if(dg)tf($('g'+r),'translateX('+dg[1]*.6+'px) scale('+dg[0]+')');
+    } else {
+      var db=dau(t,m.nd+.3,1.8); op($('b'+r+'_0'),db?1:0); if(db)tf($('b'+r+'_0'),'scale('+db[0]+') rotate(-3deg)');
+      var tTh=tim('t'+r,/^tháng$/i)||m.nd+1.5, dg=dau(t,tTh-.2,1.35); op($('g'+r),dg?1:0); if(dg)tf($('g'+r),'translateX('+dg[1]*.6+'px) scale('+dg[0]+')');
+    }
+  }
+  var sw=$('subW'); op(sw,1-p(t,CK-.14,.12)); show(sw,t<CK+.3); if(t<CK+.3)phude(t);
+}
+window.__seek=function(t){ve(t)};
+var FONTS=['italic 600 50px NR','italic 700 50px NR','900 50px PF','700 50px PF','800 20px BVP','700 20px BVP','600 20px BVP'];
+Promise.all(FONTS.map(function(f){return document.fonts.load(f,'ĂÂÊÔƠƯăâêôơưđẠỹ')}))
+ .then(function(){return document.fonts.ready})
+ .then(function(){return Promise.all([].map.call(document.images,function(i){return i.decode().catch(function(){})}))})
+ .then(function(){
+   var m=$('mast');m.style.fontSize='100px';var w=m.getBoundingClientRect().width;MAST.F=100*750/w;m.style.fontSize=MAST.F+'px';MAST.sm=58/MAST.F;
+   ['hdr6','ke6a','tieuK','dongs','mai','url3','logo3','toc','tocbar'].forEach(function(id){show($(id),true)});
+   var tb=$('toc').querySelectorAll('span'); for(var i=0;i<3;i++){var q=tb[i].getBoundingClientRect(); TX[i]=q.left+(q.width-52)/2}
+   [1,2,3].forEach(function(r){show($('tin'+r),true);
+     var cat=$('cat'+r); cat.style.clipPath=rach2(768,236,5+r);
+     vua($('tit'+r),712,54);
+     [].forEach.call(cat.querySelectorAll('.tt b'),function(b){vua(b,b.parentNode.getBoundingClientRect().width,b.parentNode.classList.contains('ba')?24:28)});
+     // con dau: vi tri nghi = goc tren-phai manh bao (de len mep giay), do kich thuoc that
+     var dw=$('dauW'+r), q=$('dau'+r).getBoundingClientRect();
+     // xoay -8 do mo rong ~5 px moi ben: van trong 120-888
+     var L0=888-q.width-12, T0=888-q.height-4;    dw.style.left=L0+'px'; dw.style.top=T0+'px';
+     DAUN[r]={cx:L0+q.width/2, cy:T0+q.height/2}});
+   [].forEach.call(document.querySelectorAll('.mucluc .t b,.dongK .t b'),function(b){vua(b,b.parentNode.getBoundingClientRect().width,b.closest('.dongK')?32:31)});
+   ve(0); window.__ready=true});
+</script></body></html>

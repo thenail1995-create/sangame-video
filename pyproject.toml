@@ -1,0 +1,14 @@
+[project]
+name = "sangame-video"
+version = "0.1.0"
+description = "May dung video Sang Game - moi truong Python khoa cho MOI buoc (Mac va GitHub chay cung phien ban)"
+requires-python = "==3.13.*"
+dependencies = [
+  "faster-whisper==1.2.1",
+  "ctranslate2==4.8.2",
+  "numpy==2.5.3",
+  "pillow==12.3.0",
+]
+
+[tool.uv]
+package = false

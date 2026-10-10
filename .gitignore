@@ -39,3 +39,14 @@ khuon/*/kich-ban.json
 khuon/*/loi.txt
 khuon/*/cau-hinh.json
 khuon/*/trailer.json
+cong-cu/bin/
+ssim-*.json
+do-thoi-gian.txt
+tai-nguyen.txt
+*.mac.json
+.venv/
+khuon/*/dau-vao/
+*_kiem/
+kiem/kiem-*.json
+kiem/bao-cao-*.md
+video-*_kiem/

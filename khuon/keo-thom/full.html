@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<title>Săn Game — Kèo thơm (khuôn v8.3, theo nền tảng)</title>
+<style>
+@font-face{font-family:BVP;src:url(BeVietnamPro-Medium.ttf);font-weight:500}
+@font-face{font-family:BVP;src:url(BeVietnamPro-SemiBold.ttf);font-weight:600}
+@font-face{font-family:BVP;src:url(BeVietnamPro-Bold.ttf);font-weight:700}
+@font-face{font-family:BVP;src:url(BeVietnamPro-ExtraBold.ttf);font-weight:800}
+@font-face{font-family:PF;src:url(PlayfairDisplay-VF.ttf);font-weight:400 900}
+@font-face{font-family:NR;src:url(Newsreader-Italic-VF.ttf);font-weight:200 800;font-style:italic}
+/* ===== MAU (doi o day) ===== */
+:root{--giay:#F1E8D4;--giay2:#E6D8BA;--muc:#1C1512;--do:#C8372D;--vang:#E3A82B;--xanh:#23948D;--nau:#5F0B0F}
+*{margin:0;padding:0;box-sizing:border-box;font-variant-numeric:lining-nums}
+html,body{width:1080px;height:1920px;overflow:hidden;background:transparent;font-family:BVP,sans-serif;color:var(--muc)}
+.a{position:absolute}
+.giay{background-color:var(--giay);background-image:
+  url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' seed='4'/><feColorMatrix values='0 0 0 0 .45  0 0 0 0 .36  0 0 0 0 .22  0 0 0 .55 0'/></filter><rect width='260' height='260' filter='url(%23n)'/></svg>"),
+  url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='600'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='.012 .09' numOctaves='2' seed='9'/><feColorMatrix values='0 0 0 0 .5  0 0 0 0 .4  0 0 0 0 .25  0 0 0 .22 0'/></filter><rect width='600' height='600' filter='url(%23f)'/></svg>");
+  background-blend-mode:multiply}
+.nho{font-weight:800;letter-spacing:5px;font-size:24px;text-transform:uppercase}
+.pf{font-family:PF;font-weight:900}
+.nr{font-family:NR;font-style:italic}
+.bong{filter:drop-shadow(0 16px 18px rgba(0,0,0,.45)) drop-shadow(0 3px 3px rgba(0,0,0,.35))}
+.muc{filter:url(#muc)}
+.muc2{filter:url(#muc2)}
+/* lop phu toan khung */
+#luoi{inset:0;background-image:radial-gradient(circle,rgba(20,15,10,.20) 1.3px,transparent 1.9px);background-size:6px 6px}
+#vien{inset:0;background:radial-gradient(115% 85% at 50% 50%,rgba(0,0,0,0) 52%,rgba(28,16,6,.6) 100%)}
+#leak{width:1300px;height:1300px;border-radius:50%;background:radial-gradient(circle,rgba(255,150,60,.38),rgba(255,120,40,0) 62%);mix-blend-mode:screen}
+#toi5{left:0;top:420px;width:1080px;height:420px;background:radial-gradient(70% 60% at 30% 50%,rgba(0,0,0,.55),rgba(0,0,0,0) 75%)}
+/* dau in: dau cat goc + o mau */
+.goc{width:46px;height:46px;border-color:currentColor}
+/* BANG DAU (bia / dau trang / bia sau) */
+#bandS{left:0;top:0;width:1080px;height:1920px;z-index:10;pointer-events:none}
+#band{left:0;top:0;width:1080px;overflow:hidden}
+#hdr1,#hdr6{left:120px;top:298px;width:768px;display:flex;justify-content:space-between}
+#mast{left:120px;top:348px;white-space:nowrap;color:var(--do);line-height:1;letter-spacing:-3px;transform-origin:0 0;
+  text-shadow:4px 3px 0 rgba(35,148,141,.55)}
+.ke{left:120px;width:768px;border-top:7px solid var(--muc)}
+.ke::after{content:"";position:absolute;left:0;right:0;top:4px;border-top:2px solid var(--muc)}
+.ke1{left:120px;width:768px;border-top:2px solid var(--muc)}
+#issue{left:120px;top:552px;width:768px;display:flex;justify-content:space-between;font-weight:800;font-size:26px;letter-spacing:3px}
+#focus{left:120px;top:592px;color:var(--do)}
+#title{left:122px;top:640px;font-family:NR;font-style:italic;font-weight:600;font-size:80px;line-height:1.05;white-space:nowrap}
+#title .hl{background:linear-gradient(transparent 58%,rgba(227,168,43,.85) 58%,rgba(227,168,43,.85) 90%,transparent 90%) no-repeat 0 0/0% 100%;padding:0 6px}
+#mini{right:192px;top:310px;font-weight:800;font-size:24px;letter-spacing:4px}
+#ke2{top:372px}
+#toc{left:120px;top:386px;width:768px;display:flex}
+#toc div{width:192px;display:flex;align-items:baseline;gap:8px}
+#toc b{font-family:PF;font-weight:900;font-size:32px}
+#toc span{font-weight:800;font-size:24px;letter-spacing:.5px}
+#tocbar{left:120px;top:428px;width:172px;height:6px;background:var(--do)}
+/* bia sau */
+#b6a{left:120px;top:556px;font-size:90px;letter-spacing:-2px;white-space:nowrap;line-height:1}
+#b6a span{display:inline-block}
+#b6b{left:118px;top:660px;font-family:NR;font-style:italic;font-weight:600;font-size:72px;color:var(--do);white-space:nowrap}
+#chips{left:126px;top:776px;width:756px;display:flex;justify-content:space-between}
+#chips div{width:112px;height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--giay);border:3px solid var(--muc);box-shadow:4px 4px 0 var(--muc)}
+#chips b{font-family:PF;font-weight:900;font-size:54px;line-height:1}
+#chips span{font-weight:700;font-size:16px;letter-spacing:1px;margin-top:2px}
+#url{left:120px;top:892px;width:768px;height:120px;background:var(--muc);display:flex;align-items:center;padding:0 30px;gap:18px}
+#url .mt{font-family:PF;font-weight:900;font-size:64px;color:var(--vang)}
+#url .chu{font-family:PF;font-weight:900;font-size:78px;color:var(--giay);white-space:nowrap;letter-spacing:-1px}
+#url .con{display:inline-block;width:14px;height:66px;background:var(--vang);margin-left:4px;vertical-align:-8px}
+#logoW{left:132px;top:1040px;width:214px}
+#logoW img{width:214px;display:block;filter:drop-shadow(0 0 0 #fff) drop-shadow(3px 0 0 #FBF6EA) drop-shadow(-3px 0 0 #FBF6EA) drop-shadow(0 3px 0 #FBF6EA) drop-shadow(0 -3px 0 #FBF6EA) drop-shadow(0 12px 12px rgba(0,0,0,.35))}
+#b6c{left:372px;top:1058px;width:516px}
+#b6c .k{font-family:PF;font-weight:900;font-size:54px;line-height:1.05}
+#b6c .d{font-family:NR;font-style:italic;font-weight:500;font-size:40px;line-height:1.2;margin-top:8px}
+/* CANH 1: sao giam + chip + con dau tron */
+#sao{left:490px;top:690px;width:400px;height:400px;z-index:12}
+#saoIn{position:absolute;inset:0;background:var(--vang);display:flex;align-items:center;justify-content:center}
+#saoIn::before{content:"";position:absolute;inset:58px;border:3px dashed rgba(28,21,18,.55);border-radius:50%}
+#saoIn .c{text-align:center;position:relative;color:var(--muc)}
+#saoIn .c span{display:block;font-weight:800;font-size:30px;letter-spacing:5px}
+#saoIn .c b{display:block;font-family:PF;font-weight:900;font-size:150px;line-height:.86;letter-spacing:-4px}
+#saoIn .c b small{font-size:84px;vertical-align:42px;letter-spacing:0}
+#chip1{left:120px;top:760px;z-index:12;background:var(--xanh);color:var(--giay);padding:12px 22px 12px 16px;display:flex;align-items:center;gap:14px;font-weight:800;font-size:30px;letter-spacing:3px;box-shadow:5px 5px 0 var(--muc)}
+#chip1 img{height:34px;border:2px solid var(--giay)}
+#ronde{left:118px;top:856px;width:220px;height:220px;z-index:12}
+/* CANH 2: the gia treo */
+#tagW{left:0;top:0;width:1080px;height:1920px;z-index:9;transform-origin:540px 440px}
+#day{left:538px;top:440px;width:4px;height:110px;background:linear-gradient(90deg,#7a6a52,#c8b48e,#7a6a52)}
+#tag{left:190px;top:500px;width:700px;height:590px;-webkit-mask:radial-gradient(circle 17px at 350px 52px,transparent 97%,#000 100%);
+  clip-path:polygon(0 96px,96px 0,604px 0,700px 96px,700px 100%,0 100%)}
+#tag .vien{position:absolute;inset:14px;border:3px solid var(--muc);clip-path:polygon(0 84px,84px 0,588px 0,672px 84px,672px 100%,0 100%)}
+#khoen{left:524px;top:536px;width:32px;height:32px;border-radius:50%;border:6px solid #b8a27a;box-shadow:inset 0 2px 3px rgba(0,0,0,.5),0 1px 0 rgba(255,255,255,.4)}
+#t2h{left:190px;top:582px;width:700px;text-align:center;font-size:25px}
+#t2r{left:240px;top:628px;width:600px;border-top:3px dashed var(--muc)}
+.nhan{font-weight:800;font-size:24px;letter-spacing:4px;color:var(--xanh)}
+#t2l1{left:240px;top:648px}
+#t2g{left:236px;top:676px;font-family:PF;font-weight:700;font-size:78px;line-height:1}
+#gach{left:226px;top:690px;width:470px;height:70px;overflow:visible}
+#t2l2{left:240px;top:780px}
+#t2m{left:232px;top:800px;font-family:PF;font-weight:900;color:var(--do);line-height:.92;white-space:nowrap;letter-spacing:-5px}
+#t2m .so{font-size:186px}#t2m .du{font-size:80px;letter-spacing:-2px}
+#saoNho{left:150px;top:470px;width:170px;height:170px}
+#tk{left:452px;top:958px;padding:10px 22px 12px;background:rgba(241,232,212,.9);border:6px double var(--do);color:var(--do);text-align:center;transform-origin:50% 50%}
+#tk span{display:block;font-weight:800;font-size:26px;letter-spacing:4px}
+#tk b{display:block;font-family:PF;font-weight:900;font-size:66px;line-height:1}
+/* CANH 3: hoi - thu ban doc + tem */
+#khoan{left:136px;top:960px;z-index:13;background:var(--vang);padding:14px 30px 14px 24px;display:flex;align-items:center;gap:20px;font-weight:800;font-size:58px;box-shadow:0 10px 18px rgba(0,0,0,.45)}
+#khoan i{display:block;width:14px;height:52px;background:var(--muc);box-shadow:24px 0 0 var(--muc);margin-right:24px}
+#g3{left:0;top:0;width:1080px;height:1920px;z-index:12}
+#thu{left:120px;top:470px;width:768px;height:420px;
+  background:linear-gradient(90deg,transparent 104px,rgba(200,55,45,.7) 104px 107px,transparent 107px),repeating-linear-gradient(180deg,transparent 0 68px,rgba(35,148,141,.38) 68px 70px),var(--giay)}
+#thu .lo{position:absolute;left:34px;width:30px;height:30px;border-radius:50%;background:#3b302a;box-shadow:inset 0 3px 4px rgba(0,0,0,.7)}
+#hoiN{left:250px;top:512px;font-size:104px;color:var(--do);line-height:1}
+#hoiS{right:226px;top:540px;font-size:24px}
+.cau{left:250px;font-family:NR;font-style:italic;font-weight:600;font-size:56px;white-space:nowrap;line-height:1}
+#q1{top:631px}#q2{top:701px}#q3{top:771px}
+.tem{top:906px;width:220px;height:198px;padding:11px;background:var(--giay);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,radial-gradient(circle 7px,transparent 95%,#000 100%) -11px -11px/22px 22px;-webkit-mask-composite:source-over}
+.tem .in{position:absolute;inset:11px;border:3px solid var(--muc);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#F7EFDD}
+.tem img{width:130px;height:98px;object-fit:cover;border:3px solid var(--muc)}
+.tem span{font-weight:800;font-size:25px;letter-spacing:1px}
+.tem em{position:absolute;right:10px;top:4px;font-family:PF;font-weight:900;font-style:normal;font-size:30px;color:var(--do)}
+#buuW{left:150px;top:880px;width:760px;height:260px}
+#khong{left:168px;top:592px;z-index:14;padding:4px 30px 12px;border:10px double var(--do);color:var(--do);font-family:PF;font-weight:900;font-size:150px;line-height:1;transform-origin:50% 50%;background:rgba(241,232,212,.4)}
+/* CANH 4: bang so 3 vung */
+#bangW{left:0;top:0;width:1080px;height:1920px;z-index:12}
+#bang{left:120px;top:460px;width:768px;overflow:hidden}
+#bang .tit{position:absolute;left:34px;top:40px}
+#bang .tit2{position:absolute;left:30px;top:70px;font-family:NR;font-style:italic;font-weight:600;font-size:66px;white-space:nowrap;line-height:1}
+#bang .tit2 b{font-family:PF;font-weight:900;font-style:normal;color:var(--do);margin-right:14px}
+#bang .ke1{left:34px;top:156px;width:700px}
+.dong{position:absolute;left:0;width:768px;height:135px}
+.dong .n{position:absolute;left:34px;top:14px;display:flex;align-items:center;gap:16px;font-weight:800;font-size:34px;letter-spacing:2px}
+.dong .n img{width:64px;height:48px;object-fit:cover;border:3px solid var(--muc)}
+.dong .g{position:absolute;right:34px;top:6px;font-family:PF;font-weight:900;font-size:58px;line-height:1}
+.dong .th{position:absolute;left:34px;top:80px;height:42px;border:3px solid var(--muc);overflow:hidden;display:flex}
+.dong .th i{display:block;height:100%;flex:none}
+.dong .th .nen4{width:434px;background:repeating-linear-gradient(45deg,var(--muc) 0 3px,transparent 3px 11px)}
+.dong .th .them4{background:var(--do)}
+.dong .th.mot .nen4{background:var(--xanh)}
+.dong .pill{position:absolute;right:34px;top:80px;height:44px;line-height:44px;background:var(--do);color:var(--giay);font-weight:800;font-size:30px;letter-spacing:1px;padding:0 14px;transform-origin:100% 50%}
+.dong .pill.re{background:var(--xanh)}
+#bang .chu{position:absolute;left:34px;bottom:16px;font-weight:600;font-size:23px;letter-spacing:1px;opacity:.7}
+.bang-keo{width:150px;height:46px;background:rgba(227,168,43,.72);box-shadow:0 2px 4px rgba(0,0,0,.25)}
+#renhat{width:150px;height:150px}
+/* CANH 5: nhanh tay + phieu */
+#h5{left:120px;top:470px;z-index:5}
+#h5 .l1{font-family:PF;font-weight:900;font-size:124px;line-height:1;color:#F7EFDD;letter-spacing:-3px;text-shadow:0 6px 0 var(--muc),0 14px 24px rgba(0,0,0,.6)}
+#h5 .l2{font-family:NR;font-style:italic;font-weight:700;font-size:118px;line-height:1.05;color:var(--vang);text-shadow:0 5px 0 var(--muc),0 14px 24px rgba(0,0,0,.6)}
+#h5 span{display:inline-block}
+#phieuW{left:0;top:0;width:1080px;height:1920px;z-index:5}
+#catW{left:106px;top:726px;width:796px;height:378px;border:3px dashed rgba(247,239,221,.9)}
+#phieu{left:120px;top:740px;width:768px;height:350px;
+  -webkit-mask:radial-gradient(circle 24px at 210px 0,transparent 96%,#000 100%),radial-gradient(circle 24px at 210px 100%,transparent 96%,#000 100%);-webkit-mask-composite:source-in}
+#phieu .vien{position:absolute;inset:14px;border:4px solid var(--do)}
+#phieu .chia{position:absolute;left:208px;top:30px;bottom:30px;border-left:4px dotted var(--muc)}
+#phieu .dung{position:absolute;left:42px;top:175px;transform:translate(-50%,-50%) rotate(-90deg);white-space:nowrap;font-size:20px;color:var(--do)}
+#dongho{left:190px;top:848px;width:132px;height:132px}
+#p5a{left:356px;top:774px;color:var(--do);font-size:26px}
+#lat{left:350px;top:816px;display:flex;gap:10px;align-items:center}
+.o{width:104px;height:150px;background:var(--muc);color:#F7EFDD;font-family:PF;font-weight:900;font-size:130px;line-height:150px;text-align:center;position:relative;box-shadow:0 6px 0 rgba(0,0,0,.35)}
+.o::after{content:"";position:absolute;left:0;right:0;top:74px;height:3px;background:rgba(0,0,0,.65);box-shadow:0 1px 0 rgba(255,255,255,.12)}
+.hai{font-family:PF;font-weight:900;font-size:110px;color:var(--muc);line-height:1;margin:0 2px}
+#p5b{left:354px;top:986px;font-family:NR;font-style:italic;font-weight:600;font-size:44px}
+#keo{left:0;top:0;width:110px;height:80px;z-index:6}
+/* phu de */
+#subW{left:120px;top:1142px;width:768px;z-index:20}
+#sub{position:relative;padding:14px 22px 16px 34px;font-weight:800;font-size:46px;line-height:1.15;white-space:nowrap;min-height:84px}
+#sub::before{content:"";position:absolute;left:0;top:0;bottom:0;width:12px;background:var(--do)}
+#sub span{opacity:.62}#sub span.da{opacity:1}#sub span.nay{opacity:1;color:var(--do)}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <filter id="muc" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="2" seed="5" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -2.2 0 0 0 1.75" result="m"/>
+      <feComposite in="SourceGraphic" in2="m" operator="in" result="c"/>
+      <feTurbulence type="fractalNoise" baseFrequency=".05" numOctaves="2" seed="8" result="d"/>
+      <feDisplacementMap in="c" in2="d" scale="4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="muc2" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="2" seed="12" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -1.3 0 0 0 1.62" result="m"/>
+      <feComposite in="SourceGraphic" in2="m" operator="in" result="c"/>
+      <feTurbulence type="fractalNoise" baseFrequency=".05" numOctaves="2" seed="3" result="d"/>
+      <feDisplacementMap in="c" in2="d" scale="3" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>
+
+<!-- lop chat lieu tren trailer -->
+<div id="leak" class="a"></div>
+<div id="toi5" class="a"></div>
+<div id="luoi" class="a"></div>
+<div id="vien" class="a"></div>
+
+<!-- ===== CANH 5 (duoi bang dau de bia sau phu len) ===== -->
+<div id="c5" class="a" style="inset:0">
+  <div id="h5" class="a"><div class="l1"><span id="w5a">Nhanh</span> <span id="w5b">tay</span></div><div class="l2"><span id="w5c">kẻo lỡ!</span></div></div>
+  <div id="phieuW" class="a">
+    <div id="catW" class="a"></div>
+    <div class="a bong" style="inset:0"><div id="phieu" class="a giay"><div class="vien"></div><div class="chia"></div><div class="dung nho">Phiếu · Số 001</div></div></div>
+    <svg id="dongho" class="a" viewBox="0 0 140 140">
+      <circle cx="70" cy="70" r="62" fill="#F7EFDD" stroke="#1C1512" stroke-width="6"/>
+      <circle cx="70" cy="70" r="52" fill="none" stroke="#C8372D" stroke-width="2"/>
+      <g id="vach" stroke="#1C1512" stroke-width="4" stroke-linecap="round"></g>
+      <line id="kimG" x1="70" y1="70" x2="70" y2="38" stroke="#1C1512" stroke-width="7" stroke-linecap="round"/>
+      <line id="kimP" x1="70" y1="78" x2="70" y2="24" stroke="#C8372D" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="70" cy="70" r="6" fill="#1C1512"/>
+    </svg>
+    <div id="p5a" class="a nho">Hết giảm trước</div>
+    <div id="lat" class="a"><div class="o" id="o1">–</div><div class="o" id="o2">–</div><div class="hai">:</div><div class="o" id="o3">–</div><div class="o" id="o4">–</div></div>
+    <div id="p5b" class="a">ngày 08/10 · giờ Việt Nam</div>
+  </div>
+  <svg id="keo" class="a" viewBox="0 0 110 80">
+    <g id="keoA"><path d="M52 40 L108 30 L108 36 Z" fill="#d9d4cc" stroke="#1C1512" stroke-width="2"/><circle cx="22" cy="22" r="14" fill="none" stroke="#C8372D" stroke-width="7"/><line x1="33" y1="31" x2="52" y2="40" stroke="#C8372D" stroke-width="7"/></g>
+    <g id="keoB"><path d="M52 40 L108 50 L108 44 Z" fill="#bfb8ae" stroke="#1C1512" stroke-width="2"/><circle cx="22" cy="58" r="14" fill="none" stroke="#C8372D" stroke-width="7"/><line x1="33" y1="49" x2="52" y2="40" stroke="#C8372D" stroke-width="7"/></g>
+    <circle cx="52" cy="40" r="4" fill="#1C1512"/>
+  </svg>
+</div>
+
+<!-- ===== BANG DAU ===== -->
+<div id="bandS" class="a bong">
+  <div id="band" class="a giay">
+    <!-- chu chay + o mau cu nam o y 176-272 = vung app che -> bo (N11/N12); dau cat goc dua vao trong giay -->
+    <div class="a goc" id="goc1" style="left:60px;border-left:3px solid;border-top:3px solid"></div>
+    <div class="a goc" id="goc2" style="right:60px;border-right:3px solid;border-top:3px solid"></div>
+    <!-- bia -->
+    <div id="hdr1" class="a nho"><span>Tạp chí săn giá game</span><span>Số 001</span></div>
+    <div id="ke0" class="a ke1" style="top:336px"></div>
+    <div id="mast" class="a pf">SĂN GAME</div>
+    <div id="ke1" class="a ke" style="top:532px"></div>
+    <div id="issue" class="a"><span>SỐ 001 · THÁNG 10 · 2026</span><span>GIÁ: 0Đ</span></div>
+    <div id="focus" class="a nho">★ Tâm điểm số này</div>
+    <div id="title" class="a">Marvel’s <span class="hl" id="hl">Spider-Man 2</span></div>
+    <!-- dau trang gon -->
+    <div id="mini" class="a">SỐ 001 · 10/2026</div>
+    <div id="ke2" class="a ke"></div>
+    <div id="toc" class="a">
+      <div id="m1"><b>01</b><span>GIÁ SỐC</span></div><div id="m2"><b>02</b><span>SO VÙNG</span></div><div id="m3"><b>03</b><span>HẠN CHÓT</span></div><div id="m4"><b>04</b><span>TRA GIÁ</span></div>
+    </div>
+    <div id="tocbar" class="a"></div>
+    <!-- bia sau -->
+    <div id="hdr6" class="a nho"><span>Săn Game · Số 001</span><span>Trang 04 · Bìa sau</span></div>
+    <div id="ke6" class="a ke" style="top:532px"></div>
+    <div id="b6a" class="a pf"><span id="x1">Tra</span> <span id="x2">giá</span> <span id="x3">mọi</span> <span id="x4">game</span></div>
+    <div id="b6b" class="a">ở 6 vùng PS Store</div>
+    <div id="chips" class="a">
+      <div style="background:#C8372D"><b>SG</b></div><div style="background:#23948D"><b>HK</b></div><div style="background:#E3A82B;color:#1C1512"><b>IN</b></div>
+      <div style="background:#1C1512"><b>ID</b></div><div style="background:#C8372D"><b>US</b></div><div style="background:#23948D"><b>TH</b></div>
+    </div>
+    <div id="url" class="a"><svg width="52" height="52" viewBox="0 0 52 52" style="flex:none"><path d="M6 26h32M24 11l15 15-15 15" stroke="#E3A82B" stroke-width="8" fill="none"/></svg><span class="chu"><span id="urlc"></span><span class="con" id="con"></span></span></div>
+    <div id="logoW" class="a"><img src="logo.svg"></div>
+    <div id="b6c" class="a"><div class="k">Kèo thơm mỗi ngày</div><div class="d">Theo dõi kênh để không lỡ<br>đợt giảm giá nào</div></div>
+  </div>
+</div>
+
+<!-- ===== CANH 1 ===== -->
+<div id="c1" class="a" style="inset:0">
+  <div id="chip1" class="a"><img src="us.svg">PS STORE · MỸ</div>
+  <svg id="ronde" class="a" viewBox="0 0 220 220">
+    <defs><path id="vong" d="M110,110 m-80,0 a80,80 0 1,1 160,0 a80,80 0 1,1 -160,0"/></defs>
+    <g id="rondeG" class="muc">
+      <circle cx="110" cy="110" r="104" fill="rgba(241,232,212,.92)" stroke="#C8372D" stroke-width="5"/>
+      <circle cx="110" cy="110" r="96" fill="none" stroke="#C8372D" stroke-width="2"/>
+      <circle cx="110" cy="110" r="58" fill="none" stroke="#C8372D" stroke-width="3"/>
+      <text fill="#C8372D" font-family="BVP" font-weight="800" font-size="21" letter-spacing="3.2"><textPath href="#vong">KÈO THƠM • SĂN GAME • SỐ 001 • </textPath></text>
+      <text x="110" y="104" text-anchor="middle" fill="#C8372D" font-family="PF" font-weight="900" font-size="40">KÈO</text>
+      <text x="110" y="136" text-anchor="middle" fill="#C8372D" font-family="BVP" font-weight="800" font-size="20" letter-spacing="2">THƠM</text>
+    </g>
+  </svg>
+  <div id="sao" class="a bong"><div id="saoIn"><div class="c"><span>GIẢM</span><b>60<small>%</small></b><span>GIÁ SỐC</span></div></div></div>
+</div>
+
+<!-- ===== CANH 2: the gia ===== -->
+<div id="tagW" class="a">
+  <div id="day" class="a"></div>
+  <div class="a bong" style="inset:0">
+    <div id="tag" class="a giay"><div class="vien"></div></div>
+  </div>
+  <div id="khoen" class="a"></div>
+  <div id="t2h" class="a nho">Spider-Man 2 · PS5</div>
+  <div id="t2r" class="a"></div>
+  <div id="t2l1" class="a nhan">GIÁ GỐC</div>
+  <div id="t2g" class="a">1.960.000đ</div>
+  <svg id="gach" class="a" viewBox="0 0 470 70"><path id="g1" d="M4,40 C80,30 160,46 250,34 S400,42 466,30" fill="none" stroke="#C8372D" stroke-width="9" stroke-linecap="round"/><path id="g2" d="M14,52 C120,44 260,58 456,44" fill="none" stroke="#C8372D" stroke-width="6" stroke-linecap="round"/></svg>
+  <div id="t2l2" class="a nhan">CÒN LẠI · STORE MỸ</div>
+  <div id="t2m" class="a"><span class="so" id="moiso">1.960</span><span class="du" id="du2">.000đ</span></div>
+  <div id="saoNho" class="a"><div class="a" style="inset:0;background:var(--vang);display:flex;align-items:center;justify-content:center" id="saoNhoIn"><div style="text-align:center"><b class="pf" style="display:block;font-size:62px;line-height:.9">60<small style="font-size:34px;vertical-align:18px">%</small></b><span style="font-weight:800;font-size:15px;letter-spacing:2px">GIẢM</span></div></div></div>
+  <div id="tk" class="a muc2"><span>ĐÃ TIẾT KIỆM</span><b>1.176.000đ</b></div>
+</div>
+
+<!-- ===== CANH 3: hoi ===== -->
+<div id="khoan" class="a">KHOAN ĐÃ!</div>
+<div id="g3" class="a">
+  <div class="a bong" style="inset:0"><div id="thu" class="a"><div class="lo" style="top:70px"></div><div class="lo" style="top:195px"></div><div class="lo" style="top:320px"></div></div></div>
+  <div id="hoiN" class="a pf">Hỏi:</div>
+  <div id="hoiS" class="a nho" style="color:var(--xanh)">Thư bạn đọc</div>
+  <div id="q1" class="a cau">Mua store Hồng Kông</div>
+  <div id="q2" class="a cau">hay Singapore</div>
+  <div id="q3" class="a cau">có rẻ hơn không?</div>
+  <div class="a bong tw" id="tw1" style="left:128px;top:906px;width:220px;height:198px"><div class="tem a" style="left:0;top:0"><div class="in"><img src="us.svg"><span>MỸ</span></div><em>?</em></div></div>
+  <div class="a bong tw" id="tw2" style="left:394px;top:906px;width:220px;height:198px"><div class="tem a" style="left:0;top:0"><div class="in"><img src="hk.svg"><span>HỒNG KÔNG</span></div><em>?</em></div></div>
+  <div class="a bong tw" id="tw3" style="left:668px;top:906px;width:220px;height:198px"><div class="tem a" style="left:0;top:0"><div class="in"><img src="sg.svg"><span>SINGAPORE</span></div><em>?</em></div></div>
+  <svg id="buuW" class="a muc" viewBox="0 0 760 260">
+    <g fill="none" stroke="#1C1512" stroke-width="4" stroke-opacity=".75" id="buuL">
+      <path d="M0,96 q30,-14 60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0"/>
+      <path d="M0,118 q30,-14 60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0"/>
+      <path d="M0,140 q30,-14 60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0"/>
+    </g>
+    <g id="buuC" transform="rotate(-12 600 116)">
+      <circle cx="600" cy="116" r="84" fill="none" stroke="#1C1512" stroke-opacity=".8" stroke-width="5"/>
+      <circle cx="600" cy="116" r="66" fill="none" stroke="#1C1512" stroke-opacity=".8" stroke-width="2"/>
+      <text x="600" y="98" text-anchor="middle" font-family="BVP" font-weight="800" font-size="20" letter-spacing="2" fill="#1C1512" fill-opacity=".85">SĂN GAME</text>
+      <text x="600" y="132" text-anchor="middle" font-family="PF" font-weight="900" font-size="30" fill="#1C1512" fill-opacity=".85">07.10.26</text>
+      <text x="600" y="158" text-anchor="middle" font-family="BVP" font-weight="800" font-size="15" letter-spacing="2" fill="#1C1512" fill-opacity=".85">HỎI–ĐÁP</text>
+    </g>
+  </svg>
+  <div id="khong" class="a muc2">KHÔNG!</div>
+</div>
+
+<!-- ===== CANH 4: so 3 vung ===== -->
+<div id="bangW" class="a">
+  <div class="a bong" style="inset:0">
+    <div id="bang" class="a giay">
+      <div class="tit nho" style="color:var(--xanh);font-size:24px">Giá ngày 07/10 · đổi ra đồng</div>
+      <div class="tit2"><b>02</b>Quy ra tiền Việt…</div>
+      <div class="ke1"></div>
+      <div class="dong" id="r1" style="top:170px"><div class="n"><img src="us.svg">MỸ</div><div class="g">784.000đ</div><div class="th mot" id="b1"><i class="nen4"></i></div><span class="pill re" id="d1">✓ RẺ NHẤT</span></div>
+      <div class="dong" id="r2" style="top:305px"><div class="n"><img src="hk.svg">HỒNG KÔNG</div><span class="pill" id="d2">+51.000đ</span><div class="g">835.000đ</div><div class="th" id="b2"><i class="nen4"></i><i class="them4" style="width:28px"></i></div></div>
+      <div class="dong" id="r3" style="top:440px"><div class="n"><img src="sg.svg">SINGAPORE</div><span class="pill" id="d3">+120.000đ</span><div class="g">904.000đ</div><div class="th" id="b3"><i class="nen4"></i><i class="them4" style="width:66px"></i></div></div>
+      <div class="chu" id="chu4">Theo giá thẻ PSN từng vùng · nguồn PS Store</div>
+    </div>
+  </div>
+  <div class="a bang-keo" id="keo1" style="left:92px;top:438px;transform:rotate(-9deg)"></div>
+  <div class="a bang-keo" id="keo2" style="left:766px;top:438px;transform:rotate(8deg)"></div>
+  <svg id="renhat" class="a muc" viewBox="0 0 150 150">
+    <circle cx="75" cy="75" r="70" fill="rgba(241,232,212,.5)" stroke="#23948D" stroke-width="6"/>
+    <circle cx="75" cy="75" r="60" fill="none" stroke="#23948D" stroke-width="2"/>
+    <text x="75" y="70" text-anchor="middle" font-family="PF" font-weight="900" font-size="34" fill="#23948D">RẺ</text>
+    <text x="75" y="104" text-anchor="middle" font-family="PF" font-weight="900" font-size="30" fill="#23948D">NHẤT</text>
+  </svg>
+</div>
+
+<div id="subW" class="a"><div id="sub" class="giay"></div></div>
+
+<script>
+window.__ready=false;
+/* ===== THOI GIAN ===== */
+var MOC=__MOC__, DAI=__DAI__, NT=__NT__;
+/* ===== NEN TANG (Hao 10/10 "thay doi cho phu hop tung nen tang"; LOI-SAI N12) =====
+   TT = mep duoi vung app che phia tren (TikTok 240 / Reels 269 / Shorts 288), DD = mep tren vung app phia duoi.
+   Toa do goc cua ban 08 tinh cho dai dau trang 0-442; nay giay bat dau o TT+6 nen moi khoi doi theo:
+   DYC bia + bia sau (hdr 298 -> TT+24), DYG dai gon + cac canh treo duoi dai (mep duoi 442 -> TT+158),
+   DYB than bia sau (logo khong lan vung app duoi). Trailer net bat dau o S = TT+146 (dung.py ghep). */
+var TT=NT.tren, DD=NT.duoi, DYC=TT-274, DYG=TT-284, DYS=DYG, DYB=Math.min(DYC,DD-1244);
+var HB={bia:752+DYC, gon:442+DYG, sau:Math.min(1262+DYC,DD+14)};
+var C=[0,3.86,8.7,12.45,18.0,21.12];   // C1,C4,C5 roi vao khoang nghi tho (khong lat trang de len chu)
+function W(i){return MOC[i].s}
+function cl(x){return x<0?0:x>1?1:x}
+function p(t,a,d){return cl((t-a)/d)}
+function eo(x){x=cl(x);return 1-Math.pow(1-x,3)}
+function eo5(x){x=cl(x);return 1-Math.pow(1-x,5)}
+function ei(x){x=cl(x);return x*x*x}
+function eio(x){x=cl(x);return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2}
+function eb(x,s){x=cl(x);s=s||1.7;var c3=s+1;return 1+c3*Math.pow(x-1,3)+s*Math.pow(x-1,2)}
+function L(a,b,k){return a+(b-a)*k}
+function $(i){return document.getElementById(i)}
+function tf(el,s){el.style.transform=s}
+function op(el,v){el.style.opacity=v>=1?'':String(Math.max(0,Math.min(.999,v)))}
+function show(el,on){el.style.display=on?'':'none'}
+function rnd(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;var t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+// dong dau: hien nguyen co -> rung tat (stampIn), tra ve [scale, dx]
+function dau(t,a,from){var k=p(t,a,.14);if(t<a)return null;var s=k<1?L(from||2.2,1,eo5(k)):1;var r=p(t,a+.14,.3);var dx=r>0&&r<1?Math.sin(r*26)*14*(1-r):0;return [s,dx]}
+// lac quanh chot (con lac tat dan)
+function lac(t,a,A,k,T){if(t<a)return A;var u=t-a;return A*Math.exp(-k*u)*Math.cos(2*Math.PI*u/T)}
+
+/* ===== MEP RACH ===== */
+var R=rnd(11),R1=rnd(29),JIT=[],JT=[];for(var x=0;x<=1080;x+=12){JIT.push([x,R()*9+(R()<.12?R()*8:0)]);JT.push(R1()*8+(R1()<.1?R1()*6:0))}
+var TOPB=TT+6;   // mep rach TREN: giay bat dau ngay duoi vung app che
+function rach(H){var s='polygon(';for(var i=0;i<JIT.length;i++)s+=JIT[i][0]+'px '+(TOPB+JT[i]).toFixed(1)+'px,';
+  for(var i=JIT.length-1;i>=0;i--)s+=JIT[i][0]+'px '+(H+JIT[i][1]).toFixed(1)+'px'+(i?',':'');return s+')'}
+function hBand(t){
+  if(t<C[1])return HB.bia;
+  if(t<C[5])return L(HB.bia,HB.gon,eio(p(t,C[1],.45)));
+  return L(HB.gon,HB.sau,eo5(p(t,C[5],.55)));
+}
+/* ===== SAO 24 CANH ===== */
+(function(){var s='polygon(';for(var i=0;i<48;i++){var a=Math.PI*2*i/48-Math.PI/2,r=i%2?42:50;s+=(50+r*Math.cos(a)).toFixed(2)+'% '+(50+r*Math.sin(a)).toFixed(2)+'%'+(i<47?',':')')}$('saoIn').style.clipPath=s;$('saoNhoIn').style.clipPath=s})();
+/* vach dong ho */
+(function(){var g=$('vach'),h='';for(var i=0;i<12;i++){var a=i*30*Math.PI/180;h+='<line x1="'+(70+44*Math.sin(a)).toFixed(1)+'" y1="'+(70-44*Math.cos(a)).toFixed(1)+'" x2="'+(70+52*Math.sin(a)).toFixed(1)+'" y2="'+(70-52*Math.cos(a)).toFixed(1)+'"/>'}g.innerHTML=h})();
+
+var MAST={F:150,sm:.4};
+function vua(el,max,co){el.style.fontSize=co+'px';var w=el.getBoundingClientRect().width;if(w>max)el.style.fontSize=(co*max/w)+'px'}
+function doi(ids,dy){ids.forEach(function(id){var e=$(id);e.style.top=(parseFloat(getComputedStyle(e).top)+dy)+'px'})}
+function datNenTang(){
+  doi(['hdr1','ke0','mast','ke1','issue','focus','title','hdr6'],DYC);
+  $('goc1').style.top=$('goc2').style.top=(TT+16)+'px';
+  doi(['mini','ke2','toc','tocbar'],DYG);
+  doi(['ke6','b6a','b6b','chips','url','logoW','b6c'],DYB);
+  doi(['khoan','toi5'],DYS);
+  tf($('c1'),'translateY('+DYC+'px)'); tf($('c5'),'translateY('+DYS+'px)');
+}
+function doMast(){var m=$('mast');m.style.fontSize='100px';var w=m.getBoundingClientRect().width;MAST.F=100*750/w;m.style.fontSize=MAST.F+'px';MAST.sm=64/MAST.F;
+  vua($('title'),764,80); vua($('b6a'),764,90); vua($('b6b'),764,72)}
+
+/* ===== PHU DE ===== */
+var CUM=[];(function(){var cur=[];for(var i=0;i<MOC.length;i++){cur.push(i);var w=MOC[i].w;if(/[.!?…,]$/.test(w)&&cur.length>=2||cur.length>=4||cur.map(function(x){return MOC[x].w}).join(' ').length>=19){CUM.push(cur);cur=[]}}if(cur.length)CUM.push(cur)})();
+function phude(t){
+  var html='';
+  for(var k=0;k<CUM.length;k++){var c=CUM[k],a=MOC[c[0]].s,b=k+1<CUM.length?MOC[CUM[k+1][0]].s:DAI;
+    if((k===0?t>=0:t>=a-0.05)&&t<b-0.05){for(var j=0;j<c.length;j++){var m=MOC[c[j]],cls=t>=m.e?'da':(t>=m.s?'nay':'');html+='<span class="'+cls+'">'+m.w.replace(/…/g,'')+'</span> '}}}
+  $('sub').innerHTML=html;
+}
+
+/* ===== VE ===== */
+function ve(t){
+  // nen: vet sang am troi cham
+  tf($('leak'),'translate('+(-420+Math.sin(t*.35)*160)+'px,'+(980+Math.cos(t*.27)*220)+'px)');
+  op($('leak'),.55+.25*Math.sin(t*.8));
+
+  // ----- BANG DAU -----
+  var H=hBand(t); $('band').style.height=(H+20)+'px'; $('band').style.clipPath=rach(H);
+  var kN=eio(p(t,C[1],.45)), kB=eio(p(t,C[5]+.05,.5)); // kN: bia->gon ; kB: gon->bia sau
+  var k=kN*(1-kB); // 0 = mast to, 1 = mast nho
+  tf($('mast'),'translate('+0+'px,'+L(0,-40+DYG-DYC,k)+'px) scale('+L(1,MAST.sm,k)+')');
+  var c1on=t<C[1]+.5; [ 'hdr1','ke0','ke1','issue','focus','title'].forEach(function(id){var e=$(id);show(e,c1on);if(c1on)op(e,1-p(t,C[1],.22))});
+  tf($('title'),'translateY('+(-eo(p(t,C[1],.3))*30)+'px)');
+  $('hl').style.backgroundSize=(eo(p(t,W(3)-.05,.45))*100)+'% 100%';
+  // giat nhe o "em!!"
+  var j0=p(t,W(2),.25); tf($('bandS'),'translateY('+(j0>0&&j0<1?Math.sin(j0*Math.PI*3)*7*(1-j0):0)+'px)');
+  // dau trang gon
+  var gon=t>=C[1]&&t<C[5]+.4; ['mini','ke2','toc','tocbar'].forEach(function(id){show($(id),gon)});
+  if(gon){var vg=p(t,C[1]+.25,.3)*(1-p(t,C[5],.25)); op($('mini'),vg); op($('ke2'),vg); op($('tocbar'),vg);
+    $('ke2').style.width=(768*eo(p(t,C[1]+.2,.45)))+'px';
+    for(var i=1;i<=4;i++){var e=$('m'+i);op(e,vg*p(t,C[1]+.3+i*.06,.25));tf(e,'translateY('+((1-eo(p(t,C[1]+.3+i*.06,.3)))*16)+'px)')}
+    var muc=t<C[2]?0:t<C[4]?1:t<C[5]?2:3; // muc dang doc
+    var dich=[0,192,384,576], tt=[C[1],C[2],C[4],C[5]];
+    var xk=0; for(var i=1;i<4;i++){xk=L(xk,dich[i],eio(p(t,tt[i]-.1,.35)))} tf($('tocbar'),'translateX('+xk+'px)');
+    for(var i=1;i<=4;i++){var e=$('m'+i),ac=i-1===muc;e.querySelector('b').style.color=ac?'var(--do)':'';if(!ac)op(e,Math.min(e.style.opacity===''?1:+e.style.opacity,.42))}
+  }
+  // bia sau
+  var bs=t>=C[5]; ['hdr6','ke6','b6a','b6b','chips','url','logoW','b6c'].forEach(function(id){show($(id),bs)});
+  if(bs){
+    op($('hdr6'),p(t,C[5]+.35,.3));
+    $('ke6').style.width=(768*eo(p(t,C[5]+.45,.4)))+'px';
+    var xs=[W(78),W(79),W(80),W(81)];
+    for(var i=0;i<4;i++){var e=$('x'+(i+1)),q=p(t,xs[i]-.06,.3);op(e,q);tf(e,'translateY('+((1-eo5(q))*50)+'px)')}
+    var q6=p(t,21.95,.35); op($('b6b'),q6); $('b6b').style.clipPath='inset(0 '+(100-eo(q6)*100)+'% 0 0)';
+    var ch=$('chips').children; for(var i=0;i<6;i++){var d=dau(t,21.85+i*.06,1.8);op(ch[i],d?1:0);if(d)tf(ch[i],'translateX('+d[1]*.4+'px) scale('+d[0]+') rotate('+[-3,2,-2,3,-1,2][i]+'deg)')}
+    var u=p(t,21.65,.3); op($('url'),u); tf($('url'),'translateY('+((1-eo5(u))*40)+'px)');
+    var s='';var a1=W(83),a2=W(85),a3=W(88);
+    var n1=Math.floor(cl((t-a1)/.42)*7),n2=Math.floor(cl((t-a2)/.24)*4),n3=Math.floor(cl((t-a3)/.2)*3);
+    s='sangame'.slice(0,n1)+'.com'.slice(0,n2)+'.vn'.slice(0,n3); $('urlc').textContent=s;
+    op($('con'),(Math.floor(t*2.4)%2===0||(t>=a1&&t<a3+.25))?1:0);
+    var lg=dau(t,22.7,1.9); op($('logoW'),lg?1:0); if(lg)tf($('logoW'),'translateX('+lg[1]*.5+'px) scale('+lg[0]+') rotate(-6deg)');
+    var b6=p(t,22.85,.4); op($('b6c'),b6); tf($('b6c'),'translateX('+((1-eo5(b6))*60)+'px)');
+  }
+
+  // ----- CANH 1 -----
+  var c1=t<C[1]+.9; show($('c1'),c1);
+  if(c1){
+    var ra=eo(p(t,C[1],.4));
+    tf($('chip1'),'translateX('+((1-eo5(p(t,W(12)-.12,.35)))*-560-ra*700)+'px)'); op($('chip1'),t<W(12)-.12?0:1);
+    var rd=dau(t,W(2)-.04,2.0); tf($('ronde'),'translateX('+(-ra*700+(rd?rd[1]:0))+'px) scale('+(rd?rd[0]:1)+')'); $('rondeG').setAttribute('transform','rotate('+(t*22)+' 110 110)');
+    op($('ronde'),rd?1-p(t,C[1],.3):0);
+  }
+  // sao: dong dau o "SAU MUOI", sau do bay ve goc the gia
+  var sa=dau(t,W(6)-.06,2.4), sao=$('sao');
+  var bay=p(t,C[1],.36);
+  show(sao,sa!==null&&bay<1);
+  if(sa&&bay<1){
+    var wob=Math.sin(t*2.2)*1.6;
+    if(bay<=0) tf(sao,'translateX('+sa[1]+'px) rotate('+(-8+wob)+'deg) scale('+sa[0]+')');
+    else { var e=eio(bay),ey=eo(bay); tf(sao,'translate('+L(0,-455,e)+'px,'+L(0,-335+DYS-DYC,ey)+'px) rotate('+L(-8,-16,e)+'deg) scale('+L(1,.425,ey)+')'); }
+  }
+
+  // ----- CANH 2: the gia treo -----
+  var tg=$('tagW'), c2=t>=C[1]+.1&&t<9.6; show(tg,c2);
+  if(c2){
+    var roi=p(t,C[1]+.1,.55), dy=(1-eb(roi,1.2))*-300;
+    var goc=lac(t,C[1]+.1,6,1.9,1.15)+Math.sin(t*2.1)*.6*p(t,C[1]+1.5,.5);
+    var dut=t-8.8; var dy2=0, quay=0;
+    if(dut>0){dy2=.5*9000*dut*dut; quay=dut*55}
+    tg.style.transformOrigin='540px 440px';
+    tf(tg,'translateY('+(dy+dy2+DYS)+'px) rotate('+(goc+quay)+'deg)');
+    // the roi tu tren: giay dau trang nay bat dau o TT+6 (khong con phu tu mep 0) -> cat phan the cao hon TT+100 de the chui ra tu SAU dai giay
+    tg.style.clipPath='inset('+Math.max(0,TT+100-(dy+dy2+DYS)).toFixed(1)+'px -400px -400px -400px)';
+    show($('day'),dut<=0);
+    $('g1').style.strokeDasharray='520';$('g1').style.strokeDashoffset=String(520*(1-eo(p(t,W(18)-.05,.3))));
+    $('g2').style.strokeDasharray='460';$('g2').style.strokeDashoffset=String(460*(1-eo(p(t,W(19),.25))));
+    op($('t2g'),1-.45*p(t,W(19),.3));
+    var lv=p(t,C[1]+.1,.3); op($('t2l2'),lv); op($('t2m'),lv); tf($('t2m'),'translateY('+((1-eo5(lv))*24)+'px)');
+    var c=p(t,W(23)-.05,.95), gt=Math.round(1960-1176*eo(c));
+    $('moiso').textContent=t<W(20)-.1?'???':(gt>=1000?(Math.floor(gt/1000)+'.'+('00'+gt%1000).slice(-3)):(''+gt));
+    show($('du2'),t>=W(20)-.1);
+    var tC=W(23)-.05+.4315*.95; $('moiso').style.fontSize=(t<tC?150:L(150,186,eo(p(t,tC,.18))))+'px';
+    var pu=p(t,W(23)+.9,.18); tf($('moiso'),'scale('+(1+.08*Math.sin(Math.PI*pu))+')'); $('moiso').style.display='inline-block'; $('moiso').style.transformOrigin='0 80%';
+    var sn=p(t,C[1]+.36,.01); show($('saoNho'),sn>=1); tf($('saoNho'),'rotate('+(-16+Math.sin(t*2.2)*1.6)+'deg)');
+    var d=dau(t,W(29)-.06,2.3); op($('tk'),d?1:0); if(d)tf($('tk'),'translateX('+d[1]+'px) rotate(-8deg) scale('+d[0]+')');
+  }
+
+  // ----- CANH 3: KHOAN + thu ban doc -----
+  var kh=$('khoan'), khOn=t>=W(32)&&t<10.07; show(kh,khOn);
+  if(khOn){var d=dau(t,W(32),1.8);tf(kh,'translateX('+d[1]+'px) rotate(-5deg) scale('+d[0]+')');op(kh,1-p(t,9.97,.1))}
+  var g3=$('g3'), c3=t>=9.9&&t<13.35; show(g3,c3);
+  if(c3){
+    var vao=p(t,9.92,.4), ra3=p(t,12.98,.3);
+    var sk=dau(t,W(44)-.04,2.4), rung=sk?sk[1]*.6:0;
+    tf(g3,'translate('+((1-eo5(vao))*-1100+L(0,-1300,ei(ra3))+rung)+'px,'+DYS+'px) rotate('+((1-eo5(vao))*-5-ei(ra3)*9)+'deg)');
+    g3.style.transformOrigin='504px 900px';
+    $('q1').style.clipPath='inset(-20px '+(100-eo(p(t,10.0,.7))*100)+'% -20px 0)';
+    $('q2').style.clipPath='inset(-20px '+(100-eo(p(t,W(37)-.04,.5))*100)+'% -20px 0)';
+    $('q3').style.clipPath='inset(-20px '+(100-eo(p(t,W(39)-.04,.8))*100)+'% -20px 0)';
+    var tems=[['tw1',10.1,-5],['tw2',W(35)-.06,3],['tw3',W(38)-.06,-3]];
+    for(var i=0;i<3;i++){var e=$(tems[i][0]),d=dau(t,tems[i][1],1.7);op(e,d?1:0);if(d)tf(e,'translateX('+d[1]*.5+'px) rotate('+tems[i][2]+'deg) scale('+d[0]+')')}
+    var bu=p(t,W(42)-.08,.3); op($('buuW'),bu>0?.999:0); $('buuL').style.clipPath='inset(0 '+(100-eo(bu)*100)+'% 0 0)';
+    var bc=dau(t,W(42)+.1,1.8); show($('buuC'),!!bc); if(bc)$('buuC').setAttribute('transform','rotate(-12 600 116) translate('+(600*(1-bc[0]))+' '+(116*(1-bc[0]))+') scale('+bc[0]+')');
+    var kg=dau(t,W(44)-.04,2.6); op($('khong'),kg?1:0); if(kg)tf($('khong'),'rotate(-12deg) scale('+kg[0]+')');
+  }
+
+  // ----- CANH 4: bang so -----
+  var bw=$('bangW'), c4=t>=13.15&&t<18.35; show(bw,c4);
+  if(c4){
+    var v4=p(t,13.18,.42), r4=p(t,17.98,.3);
+    tf(bw,'translate('+((1-eo5(v4))*1200-ei(r4)*1300)+'px,'+DYS+'px) rotate('+((1-eo5(v4))*5-ei(r4)*8)+'deg)');
+    bw.style.transformOrigin='504px 760px';
+    var rt=[W(50)-.14,W(54)-.14,W(58)-.14], n=0;
+    for(var i=0;i<3;i++){var q=p(t,rt[i],.3); n+=eo(q); var r=$('r'+(i+1)); op(r,q); tf(r,'translateY('+((1-eo5(q))*30)+'px)');
+      $('b'+(i+1)).style.width=([440,468,506][i]*eo(p(t,rt[i]+.1,.55)))+'px'}
+    $('bang').style.height=(175+135*n+55*p(t,W(60),.3))+'px';
+    op($('chu4'),p(t,W(60),.3));
+    var dd=[['d1',W(52)-.06],['d2',W(56)-.06],['d3',W(62)-.06]]; for(var i=0;i<3;i++){var d=dau(t,dd[i][1],1.9);op($(dd[i][0]),d?1:0);if(d)tf($(dd[i][0]),'translateX('+d[1]*.4+'px) scale('+d[0]+') rotate(-3deg)')}
+    show($('renhat'),false);
+  }
+
+  // ----- CANH 5: nhanh tay + phieu -----
+  var c5=t>=C[4]&&t<22.2; show($('c5'),c5);
+  if(c5){
+    op($('toi5'),p(t,C[4]+.1,.4)*(1-p(t,C[5],.4)));
+    var ws=[['w5a',W(68)-.06],['w5b',W(69)-.06],['w5c',W(70)-.02]];
+    for(var i=0;i<3;i++){var e=$(ws[i][0]),q=p(t,ws[i][1],.32);op(e,q);var y=q<=0?-80:(1-eb(q,2.2))*-80;tf(e,'translateY('+y+'px)')}
+    var pv=p(t,C[4]+.2,.42);   // phieu vao SAU khi bang so da rut (khong luot chong)
+    tf($('phieuW'),'translateX('+((1-eo5(pv))*1100)+'px) rotate('+((1-eo5(pv))*6+1.2)+'deg)'); $('phieuW').style.transformOrigin='504px 915px';
+    // keo cat chay doc net dut phia tren
+    var kc=p(t,W(69)-.05,.75); var ko=$('keo'); show(ko,kc>0&&kc<1);
+    if(kc>0&&kc<1){var xk2=L(70,800,eio(kc)); tf(ko,'translate('+xk2+'px,658px) scale(1.7)'); ko.style.transformOrigin='0 0'; var mo=Math.abs(Math.sin(kc*Math.PI*9))*16;
+      $('keoA').setAttribute('transform','rotate('+(-mo)+' 52 40)'); $('keoB').setAttribute('transform','rotate('+mo+' 52 40)')}
+    $('catW').style.clipPath='inset(0 0 0 '+(kc>0?Math.min(100,kc*100):0)+'%)';
+    // dong ho quay ve 13:59
+    var dq=eo(p(t,19.4,.8)); $('kimP').setAttribute('transform','rotate('+(dq*(720+354))+' 70 70)'); $('kimG').setAttribute('transform','rotate('+(dq*59.5)+' 70 70)');
+    // bang lat so
+    var so=['1','3','5','9'], chot=[19.95,20.03,20.11,20.19], bd=19.6;
+    var fr=Math.round(t*30), rr=rnd(fr*7+3);
+    for(var i=0;i<4;i++){var e=$('o'+(i+1)), ch;
+      if(t<bd) ch='–'; else if(t<chot[i]) ch=String(Math.floor(rnd(fr*13+i*101)()*10)); else ch=so[i];
+      e.textContent=ch; var sq=t>=bd&&t<chot[i]+.08?(fr%2?.86:1):1; tf(e,'scaleY('+sq+')')}
+  }
+
+  // phu de: an o bia sau
+  var sw=$('subW'); op(sw,1-p(t,C[5]-.14,.12)); show(sw,t<C[5]+.3);
+  if(t<C[5]+.3)phude(t);
+}
+window.__seek=function(t){ve(t)};
+var FONTS=['italic 600 50px NR','italic 700 50px NR','italic 500 50px NR','900 50px PF','700 50px PF','800 20px BVP','700 20px BVP','600 20px BVP','500 20px BVP'];
+Promise.all(FONTS.map(function(f){return document.fonts.load(f,'ĂÂÊÔƠƯăâêôơưđẠỹ')}))
+  .then(function(){return document.fonts.ready})
+  .then(function(){return Promise.all([].map.call(document.images,function(i){return i.decode().catch(function(){})}))})
+  .then(function(){datNenTang();doMast();ve(0);window.__ready=true});
+</script></body></html>
