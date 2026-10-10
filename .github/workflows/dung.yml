@@ -272,6 +272,12 @@ jobs:
           set -euo pipefail
           cd cong-cu && npm ci --ignore-scripts
           npx playwright install --with-deps chromium
+      - name: tesseract (OCR bat anh giu cho PS Store - K18)
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq tesseract-ocr
+          tesseract --version | head -1
       - name: uv (ban ghim, cai bang pip trong venv, khong curl | sh)
         run: |
           set -euo pipefail

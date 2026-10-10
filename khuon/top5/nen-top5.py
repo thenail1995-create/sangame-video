@@ -7,7 +7,8 @@
 # Mốc cảnh lấy từ dau-vao/moc-chu.json (đổi cảnh ở GIỮA khoảng nghỉ thở giữa 2 đoạn — LOI-SAI A6).
 #   python3 nen-top5.py [tiktok|reels|shorts|tat-ca]  -> canh.json, nen-doan.json (chọn đoạn 1 lần, dùng lại), nen-<nt>.mp4
 import json,subprocess,re,pathlib,urllib.request,sys
-T=pathlib.Path(__file__).resolve().parent; TS=T/'tai-san'
+import media_hop_le as MH   # K18: loai anh giu cho cua PS Store
+T=pathlib.Path(__file__).resolve().parent; TS=T/'tai-san'; sys.path.insert(0,str(T))
 NT=json.load(open(T/'nen-tang.json'))
 def cao(nt): return (1920-(NT[nt]['tren']+104))//2*2   # chieu cao mang trailer net; S = 1920 - cao = mep tren mang net
 top=json.load(open(T/'top5.json')); moc=json.load(open(T/'dau-vao/moc-chu.json'))
@@ -37,6 +38,9 @@ else:
         tt=sorted(((*thong(u),u) for u in g['trailer']),key=lambda x:(-x[1],-x[2]))   # cao nhat roi dai nhat (H21)
         w,h,d,u=tt[0]; f=TS/f'tr{i}.mp4'
         if not f.exists(): urllib.request.urlretrieve(u,f)
+        for fr in (0.3,0.5,0.7):   # K18: khung trailer la anh giu cho -> bo ca trailer (dung anh chup / bia)
+            png=TS/f'_kt{i}.png'; chay(['ffmpeg','-v','error','-y','-ss',f'{d*fr:.2f}','-i',str(f),'-frames:v','1','-vf','scale=960:-2',str(png)])
+            if png.exists() and (ly:=MH.la_giu_cho(png)): print(f'trailer game {i} bo: {ly}'); return None
         return str(f),w,h,d
     def cat_vien(f):   # dai den dien anh: cropdetect tren 6 khung giua trailer
         o=chay(['ffmpeg','-v','info','-ss','20','-t','30','-i',f,'-vf','fps=0.2,cropdetect=24:2:0','-f','null','-'])
@@ -78,6 +82,8 @@ else:
         for k,u in enumerate(g.get('anh_chup',[])[:2]):
             p=TS/f'chup{i}_{k}.jpg'
             if not p.exists(): urllib.request.urlretrieve(u+'?w=1920',p)
+            ly=MH.la_giu_cho(p)
+            if ly: print(f'anh chup game {i} bo: {ly}'); continue   # K18
             ps.append(p)
         if not ps and (TS/'o_pic0.png').exists() and i==4: ps=[TS/'o_pic0.png',TS/'bia4-goc.png']   # Outlast: anh nen goi game (pic0) + bia goc; KHONG dung anh hub (la bia DLC Whistleblower)
         ANH[i]=ps or [TS/f'bia{i}.png']
