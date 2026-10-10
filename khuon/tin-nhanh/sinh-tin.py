@@ -68,7 +68,7 @@ def vang(r,k):
 
 TIN=[]
 for k,r in enumerate(C['tin']):
-    f={'ps-plus-thang':xanh,'ps-plus-kho':xanh,'giam-sau':gia,'vua-giam':gia,'deal-hot':gia,'bai':vang}[r['kieu']]
+    f={'ps-plus-thang':xanh,'ps-plus-kho':xanh,'giam-sau':gia,'vua-giam':gia,'deal-hot':gia,'bai':vang,'sale':vang}[r['kieu']]
     d,_=f(r,k); d['khoa']=r['khoa']; d['kieu']=r['kieu']
     TIN.append(d)
 tong_loi=sum(len(x['loi']) for x in TIN)

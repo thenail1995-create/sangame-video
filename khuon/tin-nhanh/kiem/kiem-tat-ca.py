@@ -208,7 +208,8 @@ for i,g in enumerate(TJ['tin'],1):
                         ht=chuan_ten(h_); r_=max(r_,dau_hieu(ht,chuan_ten(ten),'ten'),difflib.SequenceMatcher(None,''.join(chuan_ten(ten)),''.join(ht)).ratio())   # + ti le ca chuoi (Whisper nho nghe ten Anh: 'hustle down' ~ 'Hunt Showdown')
                 if r_<0.6: nghe_raw=nghe_raw+' | doan ten: '+' / '.join(en_all)
         d3.append(r_)
-        if r_<(0.6 if g['mau']!='vang' else 0.5): d3_xau.append(f"tin {i} ten «{ten}» {r_:.2f} nghe: «{nghe_raw[:60]}»")
+        # TEN game: nguong LONG 0,40 (cung luat Top 5, Opus chot 12/10) - Whisper tieng Viet nghe ten Anh sai ('Hunt Showdown' -> 'han sau dao' ngay tren giong goc); SO TIEN/%/ngay giu chat (>= 0,85)
+        if r_<0.40: d3_xau.append(f"tin {i} ten «{ten}» {r_:.2f} nghe: «{nghe_raw[:60]}»")
     for so in g['kiem']['so']:
         r_=dau_hieu(heard_so,sc.chuan_so_sanh(so),'so'); d3.append(r_)
         if r_<0.85: d3_xau.append(f"tin {i} so «{so}» {r_:.2f} nghe: «{nghe_raw[:70]}»")

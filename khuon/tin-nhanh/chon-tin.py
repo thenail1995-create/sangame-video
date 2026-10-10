@@ -3,13 +3,14 @@
 #   python3 chon-tin.py --du-lieu <repo kenh-game-du-lieu> --ngay-dang 2026-10-12 [--ngay-dung 2026-10-11]
 # Dùng LẠI bộ đọc + kiểm bài và bộ chọn của repo dữ liệu (cùng luật với web): bai_viet.danh_sach_duyet (bỏ nháp, bỏ bài lỗi kiem_bai),
 # bai_viet.da_het_han, tin_tu_sinh.chon_giam_sau / chon_vua_giam / chon_deal_hot.
-# THỨ TỰ ƯU TIÊN (dự phòng): bài nhóm tin-nong có ngay = ngày dựng (PS Plus tháng trước) -> GIẢM SÂU -> MỚI GIẢM / DEAL HOT (theo thứ trong tuần)
-#   -> PS Plus kho mới -> (cuối cùng) bài tin-nong của ngày dựng - 1 (tin 24-48 giờ).
+# THỨ TỰ ƯU TIÊN (Opus chốt 12/10, luật thuần ở chon_logic.py + test_chon_tin.py): bài tin-nong có ngay >= ngày ĐĂNG - 1 (PS Plus tháng trước)
+#   -> GIẢM SÂU -> PS Plus kho mới (>= 1 game) -> đợt sale lớn đang chạy/sắp hết (lich-sale.json) -> MỚI GIẢM -> DEAL HOT (thứ Sáu đảo).
+#   KHÔNG 2 tin cùng loại "danh sách giảm giá" (giảm sâu / mới giảm / deal hot) trừ khi hết loại khác.
 # Deal (giá) chỉ nhận khi trang sản phẩm PS Store ĐÚNG VÙNG của giá còn hạn >= 2 ngày tính từ 07:30 ngày đăng (endTime của đúng khối giá khớp giá trong sổ).
 # Mã thoát: 0 đủ 3 tin · 3 KHÔNG đủ 3 tin (bỏ khung + ntfy; khuôn cố định 3 tin: full.html, am-tin.py) · 4 dữ liệu cũ · 2 lỗi tham số.
 import argparse,datetime as dtm,json,os,pathlib,re,subprocess,sys
 T=pathlib.Path(__file__).resolve().parent; sys.path.insert(0,str(T))
-import so_chu,tin_chung as tc
+import so_chu,tin_chung as tc,chon_logic as cl
 
 ap=argparse.ArgumentParser()
 ap.add_argument('--du-lieu',required=True,help='thu muc checkout repo rieng tu kenh-game-du-lieu')
@@ -41,8 +42,8 @@ def ddmm(iso): return f'{iso[8:10]}/{iso[5:7]}'
 
 # ---------------------------------------------------------------- bài viết đã duyệt (cùng luật web)
 BAI=bai_viet.danh_sach_duyet(bai_viet.THU_MUC,NGAY_DUNG)
-def tin_nong_ngay(ngay_iso):
-    return [b for b in BAI if bai_viet.nhom_cua(b)=='tin-nong' and b['ngay']==ngay_iso and not bai_viet.da_het_han(b,NGAY_DANG)]
+def tin_nong_ngay():
+    return [b for b in BAI if bai_viet.nhom_cua(b)=='tin-nong' and cl.tin_nong_hop_le(b['ngay'],NGAY_DANG) and not bai_viet.da_het_han(b,NGAY_DANG)]
 
 CHUYEN_MUC={'game-moi':'GAME MỚI','ps-plus':'PS PLUS','huong-dan':'HƯỚNG DẪN','giam-gia':'GIẢM GIÁ'}
 def rut_tit(b,toi_da=40):
@@ -121,10 +122,10 @@ def tin_ps_plus_thang(b,uu):
                 n_moi=n_moi,ten_game=ten_hien,ten_doc=doc,ten_noi=noi,anh_url=[g['anh'] for g in game],anh_tep=[f'tai-san/{f.name}' for f in tep],
                 nhan_dong='MỌI GÓI PS PLUS ĐỀU NHẬN',bai=b['ten_file'],tieu_de_bai=b['tieu_de'],pid=pid,loc='en-sg',trailer=tr,anh_chup=shot)
 
-def ung_tin_nong(ngay_iso,uu0):
-    """Bài đã duyệt nhóm tin-nong của một ngày: PS Plus tháng trước, rồi các bài khác (mới nhất trước)."""
-    ds=sorted(tin_nong_ngay(ngay_iso),key=lambda b:(b.get('loai_tu_sinh')!='ps-plus-thang',b['ten_file']))
-    if not ds: bo(f'tin-nong {ngay_iso}','khong co bai duyet con han')
+def ung_tin_nong(uu0):
+    """Bài đã duyệt nhóm tin-nong có ngay >= ngày đăng - 1: PS Plus tháng trước, rồi các bài khác (mới nhất trước)."""
+    ds=sorted(tin_nong_ngay(),key=lambda b:(b.get('loai_tu_sinh')!='ps-plus-thang',[-ord(c) for c in b['ten_file']]))
+    if not ds: bo('tin-nong','khong co bai duyet voi ngay >= ngay dang - 1 (hoac het han)')
     for k,b in enumerate(ds):
         try: r=(tin_ps_plus_thang if b.get('loai_tu_sinh')=='ps-plus-thang' else tin_vang)(b,uu0+k*0.1)
         except Exception as e: r=bo(f'bai {b["slug"]}',f'loi mang: {e}')
@@ -189,7 +190,7 @@ def tin_kho_plus(uu):
     except Exception: return bo('kho-plus','khong doc duoc kho-plus-vao-roi.json')
     if str(k.get('ngay',''))[:10]<(NGAY_DUNG-dtm.timedelta(days=1)).isoformat(): return bo('kho-plus',f'du lieu cu ({k.get("ngay")})')
     moi=[g for g in (k.get('vung',{}).get('en-SG',{}).get('moi_vao') or []) if g.get('ten') and not DLC.search(g['ten']) and bai_viet.anh_hop_le(g.get('anh',''))]
-    if len(moi)<2: return bo('kho-plus',f'chi {len(moi)} game moi vao kho (can >= 2)')
+    if len(moi)<1: return bo('kho-plus','khong co game moi vao kho')
     moi=moi[:3]
     try: tep=[tc.tai_anh(g['anh'],TS,'kho',rong=720) for g in moi]
     except Exception as e: return bo('kho-plus',f'loi tai anh: {e}')
@@ -198,26 +199,40 @@ def tin_kho_plus(uu):
                 ten_game=ten,ten_doc=[so_chu.ten_doc(x) for x in ten[:2]],ten_noi=ten[:2],anh_url=[g['anh'] for g in moi],anh_tep=[f'tai-san/{f.name}' for f in tep],
                 nhan_dong='KHO GAME PS PLUS',bai=None,tieu_de_bai=None,pid=None,loc='en-sg',trailer=[],anh_chup=[])
 
+def tin_sale(uu):
+    """Đợt sale lớn đang chạy / sắp hết ở ngày đăng (du-lieu/lich-sale.json); ảnh = bìa game bán chạy đứng đầu đang giảm (sự kiện không có ảnh riêng)."""
+    try: ls=json.load(open('du-lieu/lich-sale.json',encoding='utf-8'))
+    except Exception: return bo('sale','khong doc duoc lich-sale.json')
+    dang=NGAY_DANG.isoformat()
+    ev=[e for e in ls.get('su_kien',[]) if e.get('bat_dau','9')<=dang<=e.get('ket_thuc','0') and e.get('nguon_url')]
+    if not ev: return bo('sale',f'khong co dot sale dang chay o {dang}')
+    e=min(ev,key=lambda x:x['ket_thuc'])
+    top=sorted([h for h in d['hangs'] if h['khoa'] in th and t.hop_le_bia(t.url_anh_day_du(h.get('anh')))],key=lambda h:th[h['khoa']])
+    if not top: return bo('sale','khong co bia game bat chay')
+    try: f=tc.tai_anh(t.url_anh_day_du(top[0]['anh']),TS,'sale',rong=720)
+    except Exception as ex: return bo('sale',f'loi tai anh: {ex}')
+    ten=re.sub(r'\s*\([^)]*\)\s*$','',e['ten']).strip()
+    return dict(kieu='sale',mau='vang',uu=uu,khoa=f'sale:{ten}',loai='ĐỢT SALE',nguon=f'PS STORE · {ddmm(dang)}'.upper(),tit=ten[:40],
+                moc=f'HẾT {ddmm(e["ket_thuc"])}',anh_url=[t.url_anh_day_du(top[0]['anh'])],anh_tep=[f'tai-san/{f.name}'],bai=None,tieu_de_bai=e['ten'],
+                nhan_dong='ĐANG GIẢM GIÁ',dong='sangame.com.vn · Cho sale',trailer=[],anh_chup=[])
+
 # ---------------------------------------------------------------- chọn
 def ung_vien():
-    hom=NGAY_DUNG.isoformat(); hq=(NGAY_DUNG-dtm.timedelta(days=1)).isoformat()
-    yield from ung_tin_nong(hom,1.0)
-    thu=NGAY_DANG.weekday()   # 0 = Thu Hai
-    gia=[('giam-sau',ds_giam_sau,2.0)]
-    phu=[('vua-giam',ds_vua_giam,3.0),('deal-hot',ds_deal_hot,3.1)]
-    if thu==4: phu.reverse()
-    for loai,ham,uu in gia+phu:
+    yield from ung_tin_nong(1.0)
+    r=tin_gia('giam-sau',ds_giam_sau,2.0)
+    if r: yield r
+    r=tin_kho_plus(3.0)
+    if r: yield r
+    r=tin_sale(4.0)
+    if r: yield r
+    phu=[('vua-giam',ds_vua_giam,5.0),('deal-hot',ds_deal_hot,5.1)]
+    if NGAY_DANG.weekday()==4: phu.reverse()
+    for loai,ham,uu in phu:
         r=tin_gia(loai,ham,uu)
         if r: yield r
-    r=tin_kho_plus(4.0)
-    if r: yield r
-    yield from ung_tin_nong(hq,5.0)
 
-chon=[]; khoa_chon=set()
-for r in ung_vien():
-    if r['khoa'] in khoa_chon: continue
-    chon.append(r); khoa_chon.add(r['khoa']); print('  CHON',r['kieu'],r['khoa'])
-    if len(chon)==3: break
+chon=cl.chon_ba(ung_vien())
+for r in chon: print('  CHON',r['kieu'],r['khoa'])
 ORDER={'xanh':0,'do':1,'vang':2}
 chon.sort(key=lambda r:(ORDER[r['mau']],r['uu']))
 for r in chon:
