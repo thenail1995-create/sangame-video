@@ -31,6 +31,10 @@ on:
         description: Release o dang nhap (draft) - dung de thu
         type: boolean
         default: false
+      go_loi:
+        description: Luu khung SSIM + nen (MA HOA bang secret ARTIFACT_KEY) de xem khi SSIM thap
+        type: boolean
+        default: false
       release_thu:
         description: che_do=thu - van tao Release pre-release thu-<ngay>-<dang> (de thu may dang E5)
         type: boolean
@@ -150,8 +154,30 @@ jobs:
         run: |
           set -euo pipefail
           for nt in tiktok reels shorts; do
-            uv run -q --frozen python cong-cu/so-anh.py "khuon/$DANG/video-$nt.mp4" "du-lieu/video/fixture/$FIXTURE/ref" "$nt" 0.97
+            SSIM_GIU=$PWD/go-loi/khung uv run -q --frozen python cong-cu/so-anh.py "khuon/$DANG/video-$nt.mp4" "du-lieu/video/fixture/$FIXTURE/ref" "$nt" 0.97
           done
+      - name: Go loi - dong goi + ma hoa khung (chi khi go_loi)
+        if: always() && github.event.inputs.go_loi == 'true'
+        env:
+          ARTIFACT_KEY: ${{ secrets.ARTIFACT_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p go-loi/nen
+          for nt in tiktok reels shorts; do
+            for t in 3 8 12 18 24; do
+              ffmpeg -v error -y -ss "$t" -i "khuon/$DANG/nen-$nt.mp4" -frames:v 1 -vf scale=540:-2 "go-loi/nen/nen_${nt}_${t}.png" || true
+            done
+          done
+          tar -cf - go-loi | openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:ARTIFACT_KEY -out go-loi.enc
+          ls -la go-loi.enc
+      - name: Tai go-loi (da ma hoa)
+        if: always() && github.event.inputs.go_loi == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: go-loi
+          path: go-loi.enc
+          retention-days: 1
+          if-no-files-found: ignore
       - name: Manifest (that bai neu thieu bao cao / phep truot)
         id: ket
         env:
