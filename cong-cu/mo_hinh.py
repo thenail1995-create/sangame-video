@@ -4,13 +4,13 @@
 import os
 REV_GHIM = '536b0662742c02347bc0e980a01041f333bce120'   # Systran/faster-whisper-small (da dung o Mac tu 10/10/2026)
 REPO = 'Systran/faster-whisper-small'
-def nap_whisper():
+def nap_whisper(compute=None):
     from faster_whisper import WhisperModel
     from huggingface_hub import snapshot_download
     rev = os.environ.get('WHISPER_REV') or REV_GHIM
     path = snapshot_download(REPO, revision=rev, cache_dir=os.environ.get('WHISPER_DIR') or None,
                              allow_patterns=['config.json', 'preprocessor_config.json', 'model.bin', 'tokenizer.json', 'vocabulary.*'])
-    return WhisperModel(path, device='cpu', compute_type='int8')
+    return WhisperModel(path, device='cpu', compute_type=compute or os.environ.get('WHISPER_COMPUTE') or 'int8')
 def in_phien_ban():
     import importlib.metadata as m, subprocess, sys
     v = {p: m.version(p) for p in ['faster-whisper', 'ctranslate2', 'numpy', 'pillow', 'huggingface-hub']}

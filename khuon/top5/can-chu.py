@@ -9,7 +9,7 @@ import sys,os; sys.path.insert(0,str(pathlib.Path(__file__).resolve().parent.par
 T=pathlib.Path(__file__).resolve().parent
 kb=json.load(open(T/'kich-ban.json'))
 x=np.frombuffer(subprocess.run(['ffmpeg','-v','error','-i',str(T/'dau-vao/giong.mp3'),'-ac','1','-ar','16000','-f','f32le','-'],capture_output=True,check=True).stdout,dtype=np.float32)
-wm=mo_hinh.nap_whisper()
+wm=mo_hinh.nap_whisper('float32')   # K14: float32 on dinh hon int8 giua arm (Mac) va x86 (GitHub) - xem NHAT-KY
 seg,_=wm.transcribe(x,language='vi',beam_size=5,temperature=0.0,condition_on_previous_text=False)
 print('NGHE KHONG GOI Y:',' '.join(s.text.strip() for s in seg))
 loi=' '.join(d['loi'] for d in kb)
