@@ -63,12 +63,24 @@ class CongGia:
     def giu_dang(self, ngay, dang, kenh, che_do, gio_du_kien=None, manifest_sha=None):
         k = (ngay, dang, kenh, che_do)
         if k not in self.dong or self.dong[k]["trang_thai"] == "that_bai":
-            self.dong[k] = dict(ngay=ngay, dang=dang, kenh=kenh, che_do=che_do, trang_thai="dang_dang", gio_du_kien=gio_du_kien)
+            self.dong[k] = dict(ngay=ngay, dang=dang, kenh=kenh, che_do=che_do, trang_thai="dang_dang", gio_du_kien=gio_du_kien,
+                                manifest_sha=manifest_sha)
             return True
         return False
 
-    def cap_nhat_dang(self, ngay, dang, kenh, che_do, **truong):
-        self.dong[(ngay, dang, kenh, che_do)].update(truong)
+    def cap_nhat_dang(self, ngay, dang, kenh, che_do, neu_trang_thai=None, **truong):
+        """Giong cong v2: neu_trang_thai khop moi sua, tra so_dong 0/1; khong co thi 0 dong la loi (nhu so.Cong)."""
+        d = self.dong.get((ngay, dang, kenh, che_do))
+        if neu_trang_thai is not None:
+            if d is None or d["trang_thai"] != neu_trang_thai:
+                return 0
+        elif d is None:
+            raise AssertionError("cap_nhat_dang khong co dong")
+        self.hong_ghi_sau = getattr(self, "hong_ghi_sau", None)
+        if self.hong_ghi_sau and self.hong_ghi_sau(kenh, truong):
+            from dang.so import LoiCong
+            raise LoiCong("gia lap loi ghi so")
+        d.update(truong)
         self.cap_nhat.append((kenh, truong))
         return 1
 
