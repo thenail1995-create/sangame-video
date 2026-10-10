@@ -77,6 +77,9 @@ def xet(h):
     g=gia_trang(html,con)
     if not g: return None,f'gia tren trang {loc} khong khop du lieu ({con})'
     if not g['end']: return None,'khong co endTime (khong biet han giam)'
+    # May dang (dang/gia.py) kiem lai bang gia + endTime DAU TIEN tren trang -> chi nhan game ma khoi gia da chon CHINH la khoi dau tien (nhieu phien ban -> bo)
+    m1=re.search(r'"discountedPrice":"([^"]+)"',html); e1=re.findall(r'"endTime":"(\d+)"',html); a1,b1=(so_gia(m1.group(1)) if m1 else None),so_gia(g['con'])
+    if not (a1 and b1 and abs(a1-b1)/b1<=0.02 and e1 and e1[0]==g['end']): return None,'trang nhieu phien ban: gia/han dau tien tren trang khac khoi gia da chon (may dang kiem lai se lech)'
     if int(g['end'])<han_ms: return None,f"het han som ({datetime.datetime.fromtimestamp(int(g['end'])/1000,VN):%d/%m %H:%M} < gio dang + 2h)"
     vids=sorted(set(re.findall(r'"type":"VIDEO","url":"(https://vulcan\.dl\.playstation\.net[^"]+\.mp4)"',html)))
     ss=list(dict.fromkeys(re.findall(r'"role":"SCREENSHOT","type":"IMAGE","url":"([^"]+)"',html)))
