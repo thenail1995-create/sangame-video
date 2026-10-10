@@ -223,7 +223,7 @@ if not anh_gia.co_ocr(): ghi('OCR khung giua moi canh (anh giu cho)',False,'THIE
 else:
     xau_gc=[]
     for c in CN:
-        tm=(c['a']+c['b'])/2; ld=anh_gia.ly_do_video(VID,tm)
+        tm=(c['a']+c['b'])/2; ld=anh_gia.ly_do_video(VID,tm,toi=False) or anh_gia.ly_do_video(B/f'nen-{NT}.mp4',tm)   # video: chu cam; nen tho: them hop toi dong mau (khung UI trong trailer)
         if ld: xau_gc.append(f"canh {c['k']} {tm:.1f}s: {ld}")
     ghi('Khung giua moi canh khong co anh giu cho / chu cam (OCR)',not xau_gc,f"{len(CN)} canh"+(f"; {xau_gc}" if xau_gc else ''),'PLACEHOLDER')
 

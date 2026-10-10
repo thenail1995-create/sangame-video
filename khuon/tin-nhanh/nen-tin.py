@@ -8,6 +8,7 @@
 #   python3 nen-tin.py [tiktok|reels|shorts|tat-ca]  -> canh.json, nen-doan.json (chọn đoạn 1 lần, dùng lại), nen-<nt>.mp4
 # Nguồn nền từng cảnh: nen-nguon.json (sinh-tin.py; trailer lấy từ tai-san/trailer.json = trang PS Store ĐÚNG vùng của game; không có trailer -> ảnh chụp màn hình/bìa trượt chậm).
 import json,subprocess,re,pathlib,urllib.request,sys,hashlib
+sys.path.insert(0,str(pathlib.Path(__file__).resolve().parent))
 T=pathlib.Path(__file__).resolve().parent; TS=T/'tai-san'
 NT=json.load(open(T/'nen-tang.json'))
 def cao(nt): return (1920-(NT[nt]['tren']+104))//2*2   # chieu cao mang trailer net; S = 1920 - cao = mep tren mang net
@@ -50,6 +51,13 @@ else:
     def sang_ca_doan(f,a,dl,cr=''):   # do sang TUNG KHUNG cua doan (5 diem van lot chop den ngan — LOI-SAI H23)
         y=chay(['ffmpeg','-v','error','-ss',f'{a:.2f}','-t',f'{dl:.2f}','-i',f,'-vf',(cr+',' if cr else '')+'fps=10,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-','-f','null','-']).stdout
         return [float(v) for v in re.findall(r'YAVG=([\d.]+)',y)] or [0.0]
+    def khung_sach(f,t,cr=''):   # khung giua doan khong co anh giu cho / chu cam / mang toi dong mau (anh_gia.py)
+        import tempfile,anh_gia
+        with tempfile.TemporaryDirectory() as td:
+            p=pathlib.Path(td)/'k.png'; chay(['ffmpeg','-v','error','-y','-ss',f'{t:.2f}','-i',f,'-frames:v','1','-vf',(cr+',' if cr else '')+'scale=540:-2',str(p)])
+            ld=anh_gia.ly_do(p) if p.exists() else 'khong lay duoc khung'
+        if ld: print('    loai doan',pathlib.Path(f).name,f'{t:.1f}s -',ld)
+        return not ld
     def chon_doan(f,d,can,dl,cr=''):
         # Doan dung phai NAM TRON trong 1 canh, du sang tung khung (Top 5 10/10: chi do diem giua -> lot doan chuyen den, YAVG 0-2; LOI-SAI H23),
         # tranh 10% dau (logo, xep hang tuoi) va 25% cuoi (man chu ket, title card)
@@ -59,11 +67,11 @@ else:
         tot=[]
         for a,b in shot:
             s0=a+min(0.1,(b-a-dl)/2); ys=sang_ca_doan(f,s0,dl,cr)
-            if min(ys)>=28 and sum(ys)/len(ys)>=45: tot.append((s0,s0+dl))
+            if min(ys)>=28 and sum(ys)/len(ys)>=45 and khung_sach(f,s0+dl/2,cr): tot.append((s0,s0+dl))
         if len(tot)<can:   # it doan dat: noi long nguong mot chut, van cam doan den
             for a,b in shot:
                 s0=a+min(0.1,(b-a-dl)/2); ys=sang_ca_doan(f,s0,dl,cr)
-                if min(ys)>=15 and (s0,s0+dl) not in tot: tot.append((s0,s0+dl))
+                if min(ys)>=15 and (s0,s0+dl) not in tot and khung_sach(f,s0+dl/2,cr): tot.append((s0,s0+dl))
         tot.sort()
         if not tot: raise SystemExit(f'KHONG co doan sang du dai trong {f} — dung anh thay trailer')
         return [tot[int(k*(len(tot)-1)/max(1,can-1))] if can>1 else tot[len(tot)//2] for k in range(can)]
