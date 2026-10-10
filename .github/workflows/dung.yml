@@ -226,6 +226,7 @@ jobs:
       LIVE: ${{ needs.kiem-moi.outputs.live }}
       DATA_REF: ${{ needs.kiem-moi.outputs.data_sha }}
       EP_TRUOT: ${{ github.event.inputs.ep_truot || 'false' }}
+      GIONG_MUOI: ${{ (github.event.inputs.lan || github.event.client_payload.lan) == '2' && 'lan2' || '' }}
       GIO_DANG: ${{ (github.event.inputs.dang || github.event.client_payload.dang) == 'top5' && '12:00' || (github.event.inputs.dang || github.event.client_payload.dang) == 'tin-nhanh' && '07:30' || '20:00' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

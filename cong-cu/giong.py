@@ -26,8 +26,9 @@ def che(s,khoa=()):
     for k in khoa:
         if k and len(k)>=6: s=s.replace(k,'***')
     return s
-def khoa_kho(loi,voice,model,on_dinh,toc_do):
-    return hashlib.sha256(json.dumps([loi,voice,model,on_dinh,toc_do]).encode()).hexdigest()[:20]   # y het el.py:44
+def khoa_kho(loi,voice,model,on_dinh,toc_do,muoi=''):
+    # y het el.py:44 khi muoi rong. muoi (vd 'lan2') = lan thu lai: bat buoc thu BAN MOI (eleven_v3 moi lan mot kieu doc; ban hong ma luu cache thi thu lai vo ich)
+    return hashlib.sha256(json.dumps([loi,voice,model,on_dinh,toc_do]+([muoi] if muoi else [])).encode()).hexdigest()[:20]
 def kho_dir():
     p=pathlib.Path(os.environ.get('GIONG_KHO') or (pathlib.Path.home()/'.cache/sangame-giong')); p.mkdir(parents=True,exist_ok=True); return p
 def thang_vn(): return datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=7))).strftime('%Y-%m')
@@ -48,10 +49,10 @@ def lay_mp3(url,dich,lan=3):
     raise loi
 def cmd_khoa(a):
     loi=pathlib.Path(a.loi_file).read_text(encoding='utf-8').strip()
-    print(khoa_kho(loi,a.voice,a.model,a.on_dinh,a.toc_do))
+    print(khoa_kho(loi,a.voice,a.model,a.on_dinh,a.toc_do,a.muoi))
 def cmd_giong(a,cong=None,el=None,ngu=time.sleep):
     loi=pathlib.Path(a.loi_file).read_text(encoding='utf-8').strip() if a.loi_file else a.loi
-    khoa=khoa_kho(loi,a.voice,a.model,a.on_dinh,a.toc_do); f=kho_dir()/f'{khoa}.mp3'; n=len(loi); uoc=uoc_credit(n,a.model)
+    khoa=khoa_kho(loi,a.voice,a.model,a.on_dinh,a.toc_do,a.muoi); f=kho_dir()/f'{khoa}.mp3'; n=len(loi); uoc=uoc_credit(n,a.model)
     ra=pathlib.Path(a.ra); ra.parent.mkdir(parents=True,exist_ok=True)
     if f.exists() and f.stat().st_size>=5000:
         shutil.copy(f,ra); print(f'KHO: dung lai {khoa}.mp3, 0 credit'); return 'kho',0
@@ -98,7 +99,7 @@ def main(argv=None):
     ap=argparse.ArgumentParser(); sp=ap.add_subparsers(dest='lenh',required=True)
     for ten in ('giong','khoa'):
         p=sp.add_parser(ten); p.add_argument('--loi'); p.add_argument('--loi-file'); p.add_argument('--voice',default=VOICE_MAC_DINH)
-        p.add_argument('--model',default='eleven_v3'); p.add_argument('--on-dinh',type=float,default=0.0); p.add_argument('--toc-do',type=float,default=1.0)
+        p.add_argument('--model',default='eleven_v3'); p.add_argument('--on-dinh',type=float,default=0.0); p.add_argument('--toc-do',type=float,default=1.0); p.add_argument('--muoi',default=os.environ.get('GIONG_MUOI',''))
         if ten=='giong':
             p.add_argument('--ra',required=True); p.add_argument('--du-an',default='san-game'); p.add_argument('--dang',default='top5')
             p.add_argument('--tran',type=int,default=None); p.add_argument('--du-phong',type=int,default=DU_PHONG_MAC_DINH); p.add_argument('--cho-vuot',action='store_true')

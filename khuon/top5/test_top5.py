@@ -65,7 +65,7 @@ class ElevenGia:
         if isinstance(self.tts,Exception): raise self.tts
         return self.tts
 def args(loi_file,ra,**kw):
-    d=dict(loi=None,loi_file=str(loi_file),voice=gi.VOICE_MAC_DINH,model='eleven_v3',on_dinh=0.0,toc_do=1.0,ra=str(ra),du_an='san-game',dang='top5',tran=None,du_phong=10000,cho_vuot=False); d.update(kw)
+    d=dict(loi=None,loi_file=str(loi_file),voice=gi.VOICE_MAC_DINH,model='eleven_v3',on_dinh=0.0,toc_do=1.0,muoi='',ra=str(ra),du_an='san-game',dang='top5',tran=None,du_phong=10000,cho_vuot=False); d.update(kw)
     return types.SimpleNamespace(**d)
 class Giong(unittest.TestCase):
     def setUp(self):
@@ -75,6 +75,8 @@ class Giong(unittest.TestCase):
     def mp3(self): return unittest.mock.patch.object(gi,'lay_mp3',lambda url,dich,lan=3:pathlib.Path(dich).write_bytes(b'x'*6000))
     def test_khoa_giong_el_py(self):
         import hashlib; l='xin chao'; self.assertEqual(gi.khoa_kho(l,'v','m',0.0,1.0),hashlib.sha256(json.dumps([l,'v','m',0.0,1.0]).encode()).hexdigest()[:20])
+    def test_muoi_doi_khoa(self):
+        a=gi.khoa_kho('x','v','m',0.0,1.0); self.assertNotEqual(a,gi.khoa_kho('x','v','m',0.0,1.0,'lan2')); self.assertEqual(a,gi.khoa_kho('x','v','m',0.0,1.0,''))
     def test_thanh_cong_ghi_so_va_kho(self):
         cong=CongGia(); el=ElevenGia({'nghe_thu':'https://x/y.mp3'}); ra=self.d/'o'/'giong.mp3'
         with self.mp3(): kq=gi.cmd_giong(args(self.loi,ra),cong,el)
