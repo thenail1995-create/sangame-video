@@ -1,0 +1,161 @@
+name: Dang video
+# Lich that do cron-job.org goi workflow_dispatch (KHONG co `schedule`). Hai pha tach job:
+#   chuan-bi (T-25 phut): dung site Pages tu cac Release -> deploy -> kiem URL -> tai len / tao container (chua cong khai)
+#   cong-khai (T): publish kenh da chuan bi xong + TikTok hop thu -> ntfy
+# Secret CHI o hai job chuan-bi / cong-khai. Token mang xa hoi nam o Supabase (qua cong sg-cong), khong o GitHub.
+on:
+  workflow_dispatch:
+    inputs:
+      pha:
+        description: "chuan-bi hoac cong-khai"
+        required: true
+        type: choice
+        options: [chuan-bi, cong-khai]
+      dang:
+        required: true
+        type: choice
+        options: [tin-nhanh, top5, keo-thom]
+      ngay:
+        description: "Ngay DANG (gio VN) YYYY-MM-DD"
+        required: true
+        type: string
+      che_do:
+        required: true
+        type: choice
+        options: [thu, that]
+permissions: {}
+concurrency:
+  group: dang-${{ inputs.ngay }}-${{ inputs.dang }}-${{ inputs.che_do }}
+  cancel-in-progress: false   # khong huy luot dang giua chung
+jobs:
+  kiem-dau-vao:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Kiem dau vao
+        env:
+          NGAY: ${{ inputs.ngay }}
+          DANG: ${{ inputs.dang }}
+          CHE_DO: ${{ inputs.che_do }}
+        run: |
+          set -euo pipefail
+          [[ "$NGAY" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "ngay sai dinh dang"; exit 1; }
+          [[ "$DANG" =~ ^(tin-nhanh|top5|keo-thom)$ ]] || { echo "dang sai"; exit 1; }
+          [[ "$CHE_DO" =~ ^(thu|that)$ ]] || { echo "che_do sai"; exit 1; }
+
+  site:
+    if: inputs.pha == 'chuan-bi'
+    needs: kiem-dau-vao
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      sha8: ${{ steps.dung.outputs.sha8 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+      - name: Dung site tu cac Release (video reels + bia, 7 ngay)
+        id: dung
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          NGAY: ${{ inputs.ngay }}
+          DANG: ${{ inputs.dang }}
+        run: python -m dang.site --ra _site --ngay "$NGAY" --dang "$DANG"
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+
+  trien-khai:
+    if: inputs.pha == 'chuan-bi'
+    needs: site
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+      - name: Kiem URL video (curl -sI = 200, khong 3xx, video/mp4)
+        env:
+          GOC: ${{ steps.deploy.outputs.page_url }}
+          NGAY: ${{ inputs.ngay }}
+          DANG: ${{ inputs.dang }}
+          SHA8: ${{ needs.site.outputs.sha8 }}
+        run: |
+          set -euo pipefail
+          URL="${GOC%/}/v/${NGAY}-${DANG}-${SHA8}.mp4"
+          for i in $(seq 1 12); do
+            H="$(curl -sI --max-redirs 0 "$URL" || true)"
+            CODE="$(printf '%s' "$H" | head -1 | awk '{print $2}')"
+            CT="$(printf '%s' "$H" | tr -d '\r' | awk 'tolower($1)=="content-type:"{print tolower($2)}')"
+            if [ "$CODE" = "200" ] && [ "$CT" = "video/mp4" ]; then echo "OK $URL"; exit 0; fi
+            echo "lan $i: code=$CODE ct=$CT"; sleep 10
+          done
+          echo "URL khong dat: $URL"; exit 1
+
+  chuan-bi:
+    if: inputs.pha == 'chuan-bi'
+    needs: [site, trien-khai]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+      - name: Chuan bi dang
+        env:
+          SG_CONG_KHOA: ${{ secrets.SG_CONG_KHOA }}
+          NTFY_TIN: ${{ secrets.NTFY_TIN }}
+          NTFY_BAO_LOI: ${{ secrets.NTFY_BAO_LOI }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PAGES_URL: ${{ needs.trien-khai.outputs.page_url }}
+          NGAY: ${{ inputs.ngay }}
+          DANG: ${{ inputs.dang }}
+          CHE_DO: ${{ inputs.che_do }}
+        run: python -m dang.chay --pha chuan-bi --dang "$DANG" --ngay "$NGAY" --che-do "$CHE_DO"
+
+  cong-khai:
+    if: inputs.pha == 'cong-khai'
+    needs: kiem-dau-vao
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+      - name: Cong khai
+        env:
+          SG_CONG_KHOA: ${{ secrets.SG_CONG_KHOA }}
+          NTFY_TIN: ${{ secrets.NTFY_TIN }}
+          NTFY_BAO_LOI: ${{ secrets.NTFY_BAO_LOI }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          NGAY: ${{ inputs.ngay }}
+          DANG: ${{ inputs.dang }}
+          CHE_DO: ${{ inputs.che_do }}
+        run: python -m dang.chay --pha cong-khai --dang "$DANG" --ngay "$NGAY" --che-do "$CHE_DO"

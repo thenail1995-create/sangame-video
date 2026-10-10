@@ -1,0 +1,47 @@
+name: Kiem gio dang
+# cron-job.org goi workflow_dispatch luc gio dang + 15 phut (07:45 / 12:15 / 20:15). KHONG co `schedule`.
+on:
+  workflow_dispatch:
+    inputs:
+      dang:
+        required: true
+        type: choice
+        options: [tin-nhanh, top5, keo-thom]
+      ngay:
+        description: "Ngay DANG (gio VN) YYYY-MM-DD"
+        required: true
+        type: string
+      che_do:
+        required: true
+        type: choice
+        options: [thu, that]
+permissions: {}
+concurrency:
+  group: kiem-gio-${{ inputs.ngay }}-${{ inputs.dang }}-${{ inputs.che_do }}
+  cancel-in-progress: false
+jobs:
+  kiem-gio:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+      - name: Kiem gio
+        env:
+          SG_CONG_KHOA: ${{ secrets.SG_CONG_KHOA }}
+          NTFY_TIN: ${{ secrets.NTFY_TIN }}
+          NTFY_BAO_LOI: ${{ secrets.NTFY_BAO_LOI }}
+          NGAY: ${{ inputs.ngay }}
+          DANG: ${{ inputs.dang }}
+          CHE_DO: ${{ inputs.che_do }}
+        run: |
+          set -euo pipefail
+          [[ "$NGAY" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "ngay sai"; exit 1; }
+          python -m dang.chay --pha kiem-gio --dang "$DANG" --ngay "$NGAY" --che-do "$CHE_DO"
