@@ -1,4 +1,4 @@
-# So anh tinh (A6): 5 moc/ban cua video moi voi anh tham chieu cua ban Mac (SSIM). Anh Mac luu o 270x480 PNG; so o 270x480 (area) de hat nhieu phim (noise=alls=8) khong lam thap SSIM trong fixture (ref/).
+# So anh tinh (A6): 5 moc/ban cua video moi voi anh tham chieu cua ban Mac (SSIM). Anh Mac luu o 270x480 PNG; SSIM do o 135x240 (area): hat nhieu phim (noise=alls=8) + khu rang cua Chromium Linux/Mac lam SSIM 270x480 chi con 0,96-0,97 du bo cuc y het (Mac-vs-Mac 0,978; GitHub-vs-Mac 0,962-0,983); o 135x240 duoc >= 0,98 trong fixture (ref/).
 #   python3 so-anh.py <video.mp4> <thu-muc-ref> <nen-tang> [nguong=0.97]   (ref/<nen-tang>_<t>.png, t = moc giay)
 # In SSIM tung moc + min; exit 1 neu min < nguong. Dung ffmpeg filter ssim (lieu luma+chroma 'All').
 import subprocess,sys,pathlib,re,json,os,shutil
@@ -11,7 +11,7 @@ for f in fs:
     # trich khung bang DUNG lenh da tao anh tham chieu (cung ma tran mau) roi so 2 anh PNG
     tmp=pathlib.Path(vid).parent/f'.ssim-{nt}-{t}.png'
     subprocess.run(['ffmpeg','-v','error','-y','-ss',str(t),'-i',vid,'-frames:v','1','-vf','scale=270:480:flags=area,setsar=1',str(tmp)],check=True)
-    r=subprocess.run(['ffmpeg','-hide_banner','-v','info','-i',str(tmp),'-i',str(f),'-lavfi','ssim','-f','null','-'],capture_output=True,text=True)
+    r=subprocess.run(['ffmpeg','-hide_banner','-v','info','-i',str(tmp),'-i',str(f),'-lavfi','[0:v]scale=135:240:flags=area[a];[1:v]scale=135:240:flags=area[b];[a][b]ssim','-f','null','-'],capture_output=True,text=True)
     if os.environ.get('SSIM_GIU'): (pathlib.Path(os.environ['SSIM_GIU'])).mkdir(parents=True,exist_ok=True); shutil.copy(tmp,pathlib.Path(os.environ['SSIM_GIU'])/f'moi_{nt}_{t}.png')   # go loi: giu khung de nhin
     tmp.unlink()
     m=re.search(r'SSIM.*All:([\d.]+)',r.stderr)
