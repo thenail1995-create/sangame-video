@@ -10,7 +10,7 @@ def nap_whisper(compute=None):
     rev = os.environ.get('WHISPER_REV') or REV_GHIM
     path = snapshot_download(REPO, revision=rev, cache_dir=os.environ.get('WHISPER_DIR') or None,
                              allow_patterns=['config.json', 'preprocessor_config.json', 'model.bin', 'tokenizer.json', 'vocabulary.*'])
-    return WhisperModel(path, device='cpu', compute_type=compute or os.environ.get('WHISPER_COMPUTE') or 'int8')
+    return WhisperModel(path, device='cpu', compute_type=compute or os.environ.get('WHISPER_COMPUTE') or 'float32')
 def in_phien_ban():
     import importlib.metadata as m, subprocess, sys
     v = {p: m.version(p) for p in ['faster-whisper', 'ctranslate2', 'numpy', 'pillow', 'huggingface-hub']}
