@@ -6,8 +6,8 @@
 # phần trên khối là trailer mờ tối do dung.py ghép.
 # Mốc cảnh lấy từ dau-vao/moc-chu.json (đổi cảnh ở GIỮA khoảng nghỉ thở giữa 2 đoạn — LOI-SAI A6).
 #   python3 nen-tin.py [tiktok|reels|shorts|tat-ca]  -> canh.json, nen-doan.json (chọn đoạn 1 lần, dùng lại), nen-<nt>.mp4
-# Nguồn nền từng cảnh: NGUON bên dưới (trailer lấy từ tai-san/trailer.json = trang PS Store của game; không có trailer -> ảnh chính thức trượt chậm).
-import json,subprocess,re,pathlib,urllib.request,sys
+# Nguồn nền từng cảnh: nen-nguon.json (sinh-tin.py; trailer lấy từ tai-san/trailer.json = trang PS Store ĐÚNG vùng của game; không có trailer -> ảnh chụp màn hình/bìa trượt chậm).
+import json,subprocess,re,pathlib,urllib.request,sys,hashlib
 T=pathlib.Path(__file__).resolve().parent; TS=T/'tai-san'
 NT=json.load(open(T/'nen-tang.json'))
 def cao(nt): return (1920-(NT[nt]['tren']+104))//2*2   # chieu cao mang trailer net; S = 1920 - cao = mep tren mang net
@@ -27,13 +27,14 @@ def thong(u):
 def doc_crop(cr,w,h,H):   # cat dai den (cr) + lay dai doc rong 1080:H o giua, tron chieu cao
     cw,ch,cx,cy=cr if cr else (w,h,0,0)
     tw=min(cw,int(ch*1080/H))//2*2; return f'crop={tw}:{ch//2*2}:{cx+(cw-tw)//2}:{cy}'
-# canh -> [(kieu, ten, so doan)]: 'v' = trailer trong tai-san/trailer.json, 'a' = anh trong tai-san/
-NGUON={'mo':[('v','hunt',1),('v','jedi',1),('a','rockbeasts.png',1)],
-       't1':[('v','hunt',2)], 't2':[('v','jedi',2)], 't3':[('a','rockbeasts.png',1)], 'ket':[('v','jedi',1)]}
+# canh -> [(kieu, ten, so doan)]: 'v' = trailer trong tai-san/trailer.json (khoa t1..t3), 'a' = anh trong tai-san/. Nguon do sinh-tin.py ghi vao nen-nguon.json (C2) —
+# khong ghi cung ten game nua (truoc: hunt/jedi/rockbeasts.png).
+NGUON={k:[(x[0],x[1],int(x[2])) for x in v] for k,v in json.load(open(T/'nen-nguon.json')).items()}
 NGUON_KHOA=json.loads(json.dumps(NGUON))
 DOAN=T/'nen-doan.json'
 cu=json.load(open(DOAN)) if DOAN.exists() else {}
-if cu.get('canh')==canh and cu.get('nguon')==NGUON_KHOA:
+TSHA=hashlib.sha1(((TS/'trailer.json').read_bytes() if (TS/'trailer.json').exists() else b'')+b'|'+json.dumps(NGUON_KHOA,sort_keys=True).encode()).hexdigest()   # nen-doan.json cua ngay khac (trailer khac) khong duoc dung lai
+if cu.get('canh')==canh and cu.get('nguon')==NGUON_KHOA and cu.get('tsha',TSHA)==TSHA:   # khong co tsha = fixture (A2)
     SEG=cu['seg']; print('dung lai nen-doan.json')
     for s in SEG: s['src']=str(TS/pathlib.Path(s['src']).name)   # nen-doan.json fixture ghi duong dan may khac -> doi ve tai-san/ cua may nay
 else:
@@ -83,7 +84,7 @@ else:
                     except SystemExit as e: print('bo qua',ten,k,e)
                 else: raise SystemExit(f'het trailer sang cho {ten}')
             else: them_anh([TS/ten],phan)
-    json.dump(dict(canh=canh,nguon=NGUON_KHOA,seg=SEG),open(DOAN,'w'),indent=1)
+    json.dump(dict(canh=canh,nguon=NGUON_KHOA,tsha=TSHA,seg=SEG),open(DOAN,'w'),indent=1)
 
 def dung(nt):
     H=cao(nt); HH=int(H*1.1)//2*2; a=['ffmpeg','-v','error','-y']; fc=''

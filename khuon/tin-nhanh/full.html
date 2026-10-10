@@ -109,7 +109,7 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:transparent;font
 
 <!-- CANH MO -->
 <div id="cMo" class="a" style="inset:0;z-index:11">
-  <div id="chip" class="a nho">Tin PlayStation · 25 giây</div>
+  <div id="chip" class="a nho"></div>
   <div id="so3" class="a pf">3 TIN</div>
   <div id="nong" class="a">nóng hổi<br>sáng nay</div>
   <div id="ml"></div>
@@ -120,6 +120,8 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:transparent;font
 <script>
 window.__ready=false;
 var MOC=__MOC__, CANH=__CANH__, D=__TIN__, DAI=__DAI__, NT=__NT__;
+/* tin.json sinh tu dong tu du lieu ngoai (ten game Sony, tit bai) -> escape HTML truoc khi chen innerHTML */
+(function esc(o){for(var k in o){var v=o[k];if(typeof v==='string')o[k]=v.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');else if(v&&typeof v==='object')esc(v)}})(D);
 var TT=NT.tren, DD=NT.duoi, TIN=D.tin;
 document.documentElement.style.setProperty('--T',TT+'px');
 function cl(x){return x<0?0:x>1?1:x}
@@ -140,7 +142,6 @@ var C={}; CANH.forEach(function(c){C[c.k]=c});
 var MAU={xanh:'#23948D',do:'#C8372D',vang:'#1C1512'}, LCLS={xanh:'l-xanh',do:'l-do',vang:'l-vang'};
 /* ===== MOC CHU ===== */
 function tu(k){return MOC.filter(function(w){return w.doan===k})}
-function tim(k,re,sau){var ws=tu(k);for(var i=(sau||0);i<ws.length;i++)if(re.test(ws[i].w))return ws[i].s;return null}
 // m.tin = chu 'Tin'; m.nd = chu dau cua noi dung (sau 'Tin mot:')
 var M={}; for(var i=1;i<=3;i++){var ws=tu('t'+i); M[i]={tin:ws[0].s, nd:ws[2].s, ws:ws}}
 /* ===== MEP RACH (tren + duoi) ===== */
@@ -157,6 +158,7 @@ var CY=Math.round((TT+116+888)/2);   // tam vung trailer giua dai dau trang va m
 var BIG=2.4, DAUN={};
 /* ===== DUNG CANH TU DU LIEU ===== */
 (function(){
+  $('chip').textContent='Tin PlayStation · '+Math.round(DAI)+' giây';   /* thời lượng thật từ lời đọc (không ghi cứng 25) */
   $('ngay1').textContent=D.thu+' · '+D.ngay; $('ngay6').textContent='Bản tin sáng · '+D.ngay;
   var h='';TIN.forEach(function(g,i){h+='<div class="a bong" style="inset:0"><div class="mucluc giay" id="m'+i+'" style="top:'+(TT+530+i*100)+'px"><div class="r">0'+(i+1)+'</div><div class="t"><span class="loai '+LCLS[g.mau]+'">'+g.loai+'</span><b>'+g.tieu+'</b></div><img src="'+g.anh[0]+'"></div></div>'});
   $('ml').innerHTML=h;
@@ -164,7 +166,7 @@ var BIG=2.4, DAUN={};
   TIN.forEach(function(g,i){var r=i+1, dong='';
     if(g.mau==='xanh') dong=g.anh.map(function(a,j){return '<img id="b'+r+'_'+j+'" src="'+a+'">'}).join('')+'<div class="tt ba">'+g.ten_game.map(function(x){return '<b>'+x+'</b>'}).join('')+'</div>';
     else if(g.mau==='do') dong='<img id="b'+r+'_0" src="'+g.anh[0]+'"><div class="tt"><small>'+g.nhan_dong+'</small><b>'+g.ten_re+'</b></div><div class="phai"><span class="gm" id="gm'+r+'">−'+g.giam+'%</span><br><span class="g" id="g'+r+'">'+g.gia+'</span></div>';
-    else dong='<img id="b'+r+'_0" src="'+g.anh[0]+'"><div class="tt"><small>'+g.nhan_dong+'</small><b>'+g.dong+'</b></div><div class="phai"><span class="g" id="g'+r+'">'+g.moc+'</span></div>';
+    else dong='<img id="b'+r+'_0" src="'+g.anh[0]+'"><div class="tt"><small>'+g.nhan_dong+'</small><b>'+g.dong+'</b></div>'+(g.moc?'<div class="phai"><span class="g" id="g'+r+'">'+g.moc+'</span></div>':'');
     h+='<div class="tin" id="tin'+r+'">'+
       '<div class="a bong" style="inset:0;z-index:5"><div class="a giay cat" id="cat'+r+'"><div class="k">TIN '+r+'/3 · '+g.nguon+'</div><div class="tit" id="tit'+r+'">'+g.tit+'</div><div class="dong" id="dong'+r+'">'+dong+'</div></div></div>'+
       '<div class="a dauW" id="dauW'+r+'"><div class="dau muc2" id="dau'+r+'" style="color:'+MAU[g.mau]+'">'+g.loai+'</div></div></div>'});
@@ -235,17 +237,20 @@ function ve(t){
     $('tit'+r).style.clipPath='inset(-20px '+(100-eo(p(t,m.nd-.05,.55))*100)+'% -20px 0)';
     var dq=p(t,m.nd+.35,.3); op($('dong'+r),dq);
     var g=TIN[r-1];
-    if(g.mau==='xanh'){   // bia hien dung chu ten game (F1, Hunt), bia thu 3 (khong doc) theo sau
-      var tF=tim('t'+r,/^F1$/i)||m.nd+.6, tH=tim('t'+r,/^Hunt$/i)||tF+.5, tb=[tF-.05,tH-.05,tH+.3];
-      for(var j=0;j<3;j++){var b=$('b'+r+'_'+j),d=dau(t,tb[j],1.8); op(b,d?1:0); if(d)tf(b,'translateX('+d[1]*.4+'px) scale('+d[0]+') rotate('+[-4,3,-2][j]+'deg)')}
+    // Mốc theo CHỈ SỐ TỪ trong lời (tin.json: chi_so, do sinh-tin.py tính từ dữ liệu) — không tìm chữ cứng như F1/Hunt/Star (C2)
+    var ci=g.chi_so||{}, W=function(i,mac){var w=(i==null)?null:m.ws[i];return w?w.s:mac};
+    if(g.mau==='xanh'){   // bia hien dung chu ten game (neu co noi ten), bia con lai theo sau 0,35 s (khong doc)
+      var cs=ci.ten||[], tb=[];
+      for(var j=0;j<g.anh.length;j++) tb.push(j<cs.length ? W(cs[j],m.nd+.6)-.05 : (tb.length?tb[tb.length-1]+.35:m.nd+.6));
+      for(var j=0;j<g.anh.length;j++){var b=$('b'+r+'_'+j),d=dau(t,tb[j],1.8); op(b,d?1:0); if(d)tf(b,'translateX('+d[1]*.4+'px) scale('+d[0]+') rotate('+[-4,3,-2][j%3]+'deg)')}
     } else if(g.mau==='do'){
-      var tS=tim('t'+r,/^Star$/i)||m.nd+1, tG=(function(){var ws=m.ws,i=ws.findIndex(function(w){return /^nghìn/i.test(w.w)});var j=i;while(j>0&&/^(một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|mươi|trăm|lẻ|mốt|tư|lăm)[.,!:]?$/i.test(ws[j-1].w))j--;return ws[j].s})();
+      var tS=W(ci.ten,m.nd+1), tG=W(ci.gia,m.nd+3);
       var db=dau(t,tS-.05,1.8); op($('b'+r+'_0'),db?1:0); if(db)tf($('b'+r+'_0'),'scale('+db[0]+') rotate(-3deg)');
       var dm=dau(t,tS+.35,1.9); op($('gm'+r),dm?1:0); if(dm)tf($('gm'+r),'scale('+dm[0]+') rotate(-3deg)');
       var dg=dau(t,tG-.2,1.35); op($('g'+r),dg?1:0); if(dg)tf($('g'+r),'translateX('+dg[1]*.6+'px) scale('+dg[0]+')');
     } else {
       var db=dau(t,m.nd+.3,1.8); op($('b'+r+'_0'),db?1:0); if(db)tf($('b'+r+'_0'),'scale('+db[0]+') rotate(-3deg)');
-      var tTh=tim('t'+r,/^tháng$/i)||m.nd+1.5, dg=dau(t,tTh-.2,1.35); op($('g'+r),dg?1:0); if(dg)tf($('g'+r),'translateX('+dg[1]*.6+'px) scale('+dg[0]+')');
+      if(g.moc){var tTh=W(ci.moc,m.nd+1.5), dg=dau(t,tTh-.2,1.35); op($('g'+r),dg?1:0); if(dg)tf($('g'+r),'translateX('+dg[1]*.6+'px) scale('+dg[0]+')')}
     }
   }
   var sw=$('subW'); op(sw,1-p(t,CK-.14,.12)); show(sw,t<CK+.3); if(t<CK+.3)phude(t);

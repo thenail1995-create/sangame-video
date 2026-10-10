@@ -23,7 +23,7 @@ def build(nt):
     m=json.load(open(V/'moc-chu.json')); s=(B/'full.html').read_text(encoding='utf-8')
     nt_js=dict(ma=nt,ten=NT[nt]['ten'],tren=NT[nt]['tren'],duoi=NT[nt]['duoi'],S=1920-cao(nt))
     for k,v in [('__MOC__',m),('__CANH__',canh),('__TIN__',json.load(open(B/'tin.json'))),('__DAI__',DAI),('__NT__',nt_js)]:
-        s=s.replace(k,json.dumps(v,ensure_ascii=False))
+        s=s.replace(k,json.dumps(v,ensure_ascii=False).replace('</','<\\/'))   # tin.json tu dong: khong cho '</script>' thoat khoi the script
     (B/f'full-{nt}.build.html').write_text(s,encoding='utf-8'); return s
 def chup(trang,ts,ten):
     (B/'soi').mkdir(exist_ok=True)
