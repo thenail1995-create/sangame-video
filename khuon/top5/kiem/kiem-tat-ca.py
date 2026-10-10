@@ -140,6 +140,19 @@ rg,rv=tong_g/tong_chu,tong_v/tong_chu
 ghi('Whisper tung cau: ban ghep nghe khong kem giong goc',rv>=rg-0.05 and not xau,f"{len(cau)} cau; khop kich ban: giong goc {rg:.2f}, ban ghep {rv:.2f}"+(f"; cau kem: {xau}" if xau else ''),'A2')
 
 
+# 7) K18: nen trailer/anh KHONG phai anh giu cho cua PS Store ("PLACEHOLDER SCREENSHOTS"). OCR 1 khung GIUA moi doan nen (nen-<nt>.mp4 = lop nen
+# thuan, chua co lop chu) -> thay PLACEHOLDER / SCREENSHOT / COMING SOON / TBA = LOI. Khong co tesseract = LOI (fail-closed).
+sys.path.insert(0,str(B)); import media_hop_le as MH
+if not __import__('shutil').which('tesseract'): ghi('Nen khong phai anh giu cho (OCR)',False,'may khong co tesseract (apt install tesseract-ocr / brew install tesseract)','K18')
+else:
+    SEG=json.load(open(B/'nen-doan.json'))['seg']; t0=0.0; xau=[]; (B/'soi').mkdir(exist_ok=True)
+    for k,sg in enumerate(SEG):
+        tg=t0+sg['dl']/2; t0+=sg['dl']; png=B/'soi'/f'ocr-{NT}-{k}.png'
+        subprocess.run(['ffmpeg','-v','error','-y','-ss',f'{tg:.2f}','-i',str(B/f'nen-{NT}.mp4'),'-frames:v','1','-vf','scale=960:-2',str(png)],check=True)
+        ly=MH.la_giu_cho(png)
+        if ly: xau.append(f'doan {k} (~{tg:.1f}s): {ly}')
+    ghi('Nen khong phai anh giu cho PS Store (OCR + mang mau phang, moi doan nen)',not xau,f'{len(SEG)} doan; '+('; '.join(xau) if xau else 'khong thay chu giu cho'),'K18')
+
 # 6) D3 (B4): Whisper KHONG goi y nghe ra TEN RUT GON + SO TIEN + TEN VUNG cua tung hang (nghe tung doan cua giong goc). Sai = TRUOT.
 def bo_dau(t):
     t=''.join(c for c in unicodedata.normalize('NFD',t.lower()) if unicodedata.category(c)!='Mn').replace('đ','d')
