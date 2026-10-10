@@ -180,10 +180,9 @@ jobs:
           if-no-files-found: ignore
       - name: Manifest (that bai neu thieu bao cao / phep truot)
         id: ket
-        env:
-          DATA_SHA: ${{ env.DATA_REF }}
         run: |
           set -euo pipefail
+          export DATA_SHA="$(git -C du-lieu rev-parse HEAD)"   # commit that cua repo rieng tu (khong phai ten nhanh)
           export CODE_SHA="$GITHUB_SHA"
           uv run -q --frozen python cong-cu/manifest.py --khuon "khuon/$DANG" --ra out --dang "$DANG" --ngay "$NGAY" --che-do "$CHE_DO"
           ls -la out
