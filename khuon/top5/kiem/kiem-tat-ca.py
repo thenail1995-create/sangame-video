@@ -159,12 +159,14 @@ else:
 def bo_dau(t):
     t=''.join(c for c in unicodedata.normalize('NFD',t.lower()) if unicodedata.category(c)!='Mn').replace('đ','d')
     return re.sub(r'\s+',' ',re.sub(r'[^a-z0-9 ]',' ',t)).strip()
-def ten_nghe_duoc(h,m):   # cac tu ngay SAU tien to 'Hang N' (Whisper co luc viet 'h3'), dai m+2 tu: phan ten game ban nghe
+def ten_nghe_duoc(h,m):   # cac tu ngay SAU tien to 'Hang N' (Whisper nghe 'hac bon', 'h3', 'hang hai'...): bo toi 3 tu dau cho den het tu chi hang; lay m+2 tu
     tk=h.split(); st=0
-    for i in range(min(4,len(tk))):
-        if tk[i] in ('hang','han'): st=i+2; break
-        if re.fullmatch(r'h\d',tk[i]): st=i+1; break
-    return ' '.join(tk[st:st+m+2])
+    for i in range(min(3,len(tk))):
+        if re.fullmatch(r'h\d|mot|hai|ba|bon|nam|[1-5]',tk[i]): st=i+1; break
+    return tk[st:st+m+2]
+def ti_le_ten(mong,tk):   # tot nhat trong cac cua so m, m+1, m+2 tu (bo khoang trang)
+    a=mong.replace(' ',''); m=len(mong.split())
+    return max(difflib.SequenceMatcher(None,a,''.join(tk[:n])).ratio() for n in (m,m+1,m+2))
 def so_trong_van_ban(t):   # tap cac so (don vi: nghin dong) ma van ban noi toi: chu so ("167.000", "167 nghin") + so viet bang chu
     kq=set()
     for m in re.finditer(r'\d[\d.,]*',t):
@@ -180,7 +182,7 @@ for r in range(1,6):
     a0=max(0,int((ws[0]['s']-0.15)*16000)); b0=int((ws[-1]['e']+0.25)*16000)
     tho=nghe(G16[a0:b0]); nghe_ra=bo_dau(tho); loi_dong=next(x['loi'] for x in RAW if x['k']==k)
     nghe_ten=re.sub(r'\b\d{1,3}\b',lambda m:bo_dau(TR.so_chu(int(m.group()))),nghe_ra)   # 'Mortal Kombat 11' -> '...muoi mot' de so voi ten doc bang chu
-    ten_mong=bo_dau(TR.ten_doc_cua(g)); ti=difflib.SequenceMatcher(None,ten_mong.replace(' ',''),ten_nghe_duoc(nghe_ten,len(ten_mong.split())).replace(' ','')).ratio()
+    ten_mong=bo_dau(TR.ten_doc_cua(g)); ti=ti_le_ten(ten_mong,ten_nghe_duoc(nghe_ten,len(ten_mong.split())))
     n_gia=TR.nghin_so(g['gia']); co_gia=(n_gia in so_trong_van_ban(tho)) or any(f' {v} ' in f' {nghe_ra} ' for v in bien_the_chu(n_gia))
     vd=TR.vung_doc_cua(g); co_vung_noi=bo_dau(vd) in bo_dau(loi_dong)   # vung chi duoc kiem o hang kich ban co noi ten vung
     bt={'indo':['indo','indonesia','in do'],'sing':['sing','singapore','xin ga'],'thai':['thai'],'my':['my','mi'],'hong kong':['hong kong','hongkong','hong kon'],'an do':['an do','ando','india']}.get(bo_dau(vd),[bo_dau(vd)])
