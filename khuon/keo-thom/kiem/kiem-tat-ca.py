@@ -1,4 +1,4 @@
-# Kiem TOAN BO mot video dung tu khuon tap chi v8 — chay sau moi lan dung (moi ngay).
+# Kiem TOAN BO mot video dung tu khuon tap chi v9 (Keo thom, du lieu theo ngay) — chay sau moi lan dung (moi ngay).
 #   uv run --with numpy --with faster-whisper --with pillow python kiem/kiem-tat-ca.py video-<nen_tang>.mp4 [nen_tang]
 # Ra: kiem/bao-cao-<nen_tang>.md (bang DAT/LOI) + ma thoat 1 neu co LOI. Moi phep kiem gan voi mot loi THAT da gap (xem ../LOI-SAI.md).
 import json,re,subprocess,sys,pathlib,wave,difflib,datetime
@@ -18,6 +18,11 @@ def _crash(t,v,tb):   # A5: crash = ma thoat != 0 + kiem.json ghi ro
     sys.__excepthook__(t,v,tb)
 sys.excepthook=_crash
 KQ=[]   # (ten, dat?, so do, loi nao trong LOI-SAI)
+# v9: moc thoi gian + du lieu hien thi lay tu neo.json (do-khung.cjs ghi) va keo.json — khong con 25.12 / 3.7 / 8.4... ghi cung
+def _cu(p,*deps): return (not p.exists()) or any(p.stat().st_mtime<d.stat().st_mtime for d in deps if d.exists())
+if _cu(B/'neo.json',B/'full.html',V/'moc-chu.json',B/'keo.json'):
+    subprocess.run([sys.executable,str(B/'dung.py'),'build','tiktok'],check=True); subprocess.run(['node',str(B/'do-khung.cjs'),'tiktok'],check=True)
+NEO=json.load(open(B/'neo.json')); TA=NEO['TA']; DAI=TA['DAI']; KEO=json.load(open(B/'keo.json',encoding='utf-8'))
 def ghi(ten,ok,so,ma): KQ.append((ten,ok,so,ma)); print(('DAT ' if ok else 'LOI ')+ten+' — '+so)
 
 # 0) chu thich // NUOT LENH JS tren cung dong (H25 Top 5, H28 khuon v8.1, H30 Tin nhanh — 3 lan -> kiem may bat buoc)
@@ -40,18 +45,49 @@ ghi('Ky thuat file (kiem-video.py)',bool(m) and m.group(1)=='0',f"{m.group(1) if
 
 # 2) trang that: phu de tran + vung an toan
 subprocess.run([sys.executable,str(B/'dung.py'),'build',NT],check=True)
-d=json.loads(subprocess.run(['node',str(B/'kiem/kiem-dom.cjs'),NT],capture_output=True,text=True,check=True).stdout)
+d=json.loads(subprocess.run(['node',str(B/'kiem/kiem-dom.cjs'),NT,','.join(str(x) for x in TA['mocDom'])],capture_output=True,text=True,check=True).stdout)
 ghi('Khong trung ma phan tu (id)',not d.get('trungId'),f"{len(d.get('trungId',[]))} id trung"+(f": {d['trungId'][:5]}" if d.get('trungId') else ''),'H31')
 ghi('Phu de khong tran khung (moi khung)',not d['tranPhuDe'],f"{len(d['tranPhuDe'])} khung tran"+(f": {d['tranPhuDe'][:3]}" if d['tranPhuDe'] else ''),'H5')
 nv=sum(len(v) for v in d['ngoaiVung'].values())
 ghi(f'Chu/gia/logo trong vung an toan {NTS[NT]["ten"]} 120-888 x {TREN}-{DUOI}',nv==0,f"{nv} phan tu ngoai vung"+(f": {d['ngoaiVung']}" if nv else ''),'H6')
 
+# 2a) NOI DUNG TREN HINH khop keo.json (D1: ten, giam %, gia goc/con/tiet kiem, 3 vung + chenh lech, so ky, gio het giam) — dinh dang tinh LAI doc lap tu keo.json tho
+import datetime
+VN=datetime.timezone(datetime.timedelta(hours=7))
+def _k(g): return (f"{g//1000}.{g%1000:03d}" if g>=1000 else str(g))
+def _d(vnd): return _k(int(round(vnd/1000)))+'.000đ'
+_h=datetime.datetime.fromtimestamp(int(KEO['han']['endTime'])/1000,VN); _nd=datetime.date.fromisoformat(KEO['ngay_dang']); _dl=datetime.date.fromisoformat(KEO.get('ngay_du_lieu') or KEO['ngay_dang'])
+_V=KEO['vung']; _G=KEO['game']; _cs=lambda s:re.sub(r'\s+',' ',s).strip()
+_VH={'US':'MỸ','HK':'HỒNG KÔNG','SG':'SINGAPORE','TH':'THÁI LAN','ID':'INDONESIA'}
+_so=f"{int(KEO.get('so_ky',1)):03d}"
+_ten=_G['ten'].replace('®','').replace('™','').replace("'",'’')
+exp={'bia.issue':f"SỐ {_so} · THÁNG {_nd.month:02d} · {_nd.year}",'bia.sao':f"{_G['giam']}%",'bia.chip':f"PS STORE · {_VH[_V[0]['ma']]}",
+     'the.goc':_d(KEO['goc_vnd']),'the.con':_k(int(round(KEO['con_vnd']/1000)))+'.000đ','the.tk':_d(KEO['goc_vnd']-KEO['con_vnd']),'the.vung':f"CÒN LẠI · STORE {_VH[_V[0]['ma']]}",
+     'thu.tem':[_VH[x['ma']] for x in _V[:3]],'bang.g':[_d(x['vnd']) for x in _V[:3]],'bang.n':[_VH[x['ma']] for x in _V[:3]],
+     'bang.pill':['✓ RẺ NHẤT','+'+_d(_V[1]['vnd']-_V[0]['vnd']),'+'+_d(_V[2]['vnd']-_V[0]['vnd'])],'bang.tit':f"Giá ngày {_dl.day:02d}/{_dl.month:02d} · đổi ra đồng",
+     'phieu.so':f"{_h.hour:02d}{_h.minute:02d}",'phieu.ngay':f"ngày {_h.day:02d}/{_h.month:02d} · giờ Việt Nam"}
+nd=d.get('noiDung',{}); sai=[]
+for k,v in exp.items():
+    got=nd.get(k)
+    if isinstance(v,list): okk=[ _cs(x) for x in (got or [])]==[_cs(x) for x in v]
+    else: okk=_cs(got or '')==_cs(v)
+    if not okk: sai.append(f"{k}: hinh «{got}» ≠ keo.json «{v}»")
+_tg=_cs(nd.get('bia.title',''))
+if _G['ten'] and not all(w.lower() in _tg.lower() for w in re.findall(r"[\wÀ-ỹ-]+",_ten.replace('’',''))[-2:] ): sai.append(f"bia.title: hinh «{_tg}» khong chua ten «{_ten}»")
+_cat=d.get('catChu',[])
+ghi('Chu (ten game, gia, vung, gio) khong tran / bi cat o moi moc dung yen (ten dai tu thu co)',not _cat,f"{len(_cat)} cho cat/tran"+(f": {_cat[:3]}" if _cat else ''),'H32')
+ghi('Ten game / giam % / gia / 3 vung / chenh lech / gio het giam tren hinh khop keo.json (D1)',not sai,f"{len(exp)+1} muc doi chieu, {len(sai)} lech"+(f": {sai[:3]}" if sai else ''),'D1')
+# D2: giay het giam (dung vung) con it nhat den 20:00 ngay dang + 1 ngay (mau hoi quy v8.3: deal da het han tu truoc — bo qua, ghi ro)
+_can=datetime.datetime.combine(_nd,datetime.time(20,0),VN)+datetime.timedelta(days=1)
+if KEO.get('che_do_hoi_quy'): ghi('Gio het giam >= 20:00 ngay dang + 1 ngay (D2)',True,f"BO QUA — mau hoi quy v8.3, het giam {_h:%d/%m %H:%M} (khong dang)",'D2')
+else: ghi('Gio het giam >= 20:00 ngay dang + 1 ngay (D2)',_h>=_can,f"het giam {_h:%d/%m %H:%M} VN (vung {KEO['han'].get('ma')}), can >= {_can:%d/%m %H:%M}",'D2')
+
 # 2b) do tren LOP CHU that (anh alpha) o luc dung yen cua tung canh (v8.3, N11/N12):
 #   khoi dau trang nam NGAY DUOI vung app: 0..tren khong co giay; tren+20..tren+100 kin giay. Do che vung trailer net de theo doi (N10).
 from PIL import Image
-MOC_H=[3.7,8.4,12.2,17.8,20.8,24.8]
+MOC_H=TA['moc']   # 6 moc dung yen cua 6 canh (= 3.7 8.4 12.2 17.8 20.8 24.8 o mau Spider-Man 2)
 CAP=str(SK/'capture.mjs'); (B/'soi').mkdir(exist_ok=True)
-subprocess.run(['node',CAP,str(B/f'full-{NT}.build.html'),str(B/'soi'/f'kiem-{NT}'),'30','25.12','1080','1920','--alpha',
+subprocess.run(['node',CAP,str(B/f'full-{NT}.build.html'),str(B/'soi'/f'kiem-{NT}'),'30',str(DAI),'1080','1920','--alpha',
                 '--stills='+','.join(f'{t:.2f}' for t in MOC_H),'--quiet'],check=True)
 tren_ho=[];giay=[];che=[]
 for t in MOC_H:
@@ -112,10 +148,10 @@ for k,w in enumerate(moc):
     if re.search(r'[.!?…]$',w['w']) and (k+1==len(moc) or moc[k+1]['s']-w['e']>=0.3): cau.append(cur); cur=[]
 if cur: cau.append(cur)
 G16=doc(V/'giong.mp3',16000); X16=doc(VID,16000)
-tong_g=tong_v=0; xau=[]; tong_chu=0
+tong_g=tong_v=0; xau=[]; tong_chu=0; TVS=[]
 for c in cau:
     a=max(0,int((c[0]['s']-0.15)*16000)); b=int((c[-1]['e']+0.2)*16000)
-    kb=' '.join(w['w'] for w in c); tg=nghe(G16[a:b]); tv=nghe(X16[a:b]); n=len(chu(kb))
+    kb=' '.join(w['w'] for w in c); tg=nghe(G16[a:b]); tv=nghe(X16[a:b]); n=len(chu(kb)); TVS.append((c[0]['s'],c[-1]['e'],tv))
     rg=difflib.SequenceMatcher(None,chu(kb),chu(tg)).ratio(); rv=difflib.SequenceMatcher(None,chu(kb),chu(tv)).ratio()
     tong_g+=rg*n; tong_v+=rv*n; tong_chu+=n
     # cau bi coi la KEM chi khi: khop kich ban sut > 0.10 VA ban ghep khac ban chep giong goc (bo dau thanh, chuan hoa so "784 nghin"="784.000")
@@ -124,6 +160,19 @@ for c in cau:
         xau.append(f"«{kb[:40]}» goc {rg:.2f} → ghep {rv:.2f} (goc: {tg[:40]} | ghep: {tv[:40]})")
 rg,rv=tong_g/tong_chu,tong_v/tong_chu
 ghi('Whisper tung cau: ban ghep nghe khong kem giong goc',rv>=rg-0.05 and not xau,f"{len(cau)} cau; khop kich ban: giong goc {rg:.2f}, ban ghep {rv:.2f}"+(f"; cau kem: {xau}" if xau else ''),'A2')
+
+# 5b) Whisper nghe TEN GAME trong ban ghep (D3: ten doc dung — vd 'Spider-Man 2', khong thanh 'Spider Men'): >= 60% tu cua ten (>= 3 chu) co mat trong cau chua ten
+KBJ=json.load(open(B/'kich-ban.json'))['doan'][0]; _mo=[w for w in moc if w['doan']=='mo']; _i0=KBJ['neo']['ten']; _i1=next(i for i,w in enumerate(_mo) if w['w'].lower()=='đang')
+_tok=[chuan(w['w']) for w in _mo[_i0:_i1]]; _tok=[t for t in _tok if len(t)>=3 or t.isdigit()]
+_t0=_mo[_i0]['s']; _cau=next((tv for s,e,tv in TVS if s-0.05<=_t0<=e+0.05),'')
+_tt=chuan(_cau); _co=[t for t in _tok if t in _tt]
+ghi('Whisper nghe dung ten game trong ban ghep (D3)',len(_co)>=max(1,int(0.6*len(_tok)+0.5)),f"ten «{' '.join(w['w'] for w in _mo[_i0:_i1])}»: nghe duoc {len(_co)}/{len(_tok)} tu; «{_cau[:60]}»",'D3')
+
+# 5c) NEN trailer khong co anh giu cho / man phang: OCR + mang mau phang tren khung nen (khong co chu cua khuon) o 6 moc dung yen
+sys.path.insert(0,str(B))
+import media_xau
+_xau=media_xau.kiem_video_o(B/f'nen-{NT}.mp4',TA['moc'])
+ghi('Nen khong co anh giu cho (PLACEHOLDER/SCREENSHOT/COMING SOON/TBA) hoac man mau phang (OCR + do phang)',not _xau,f"{len(TA['moc'])} khung nen"+(f": {_xau}" if _xau else ' sach'),'D12')
 
 dat=sum(1 for x in KQ if x[1]); tong=len(KQ)
 with open(B/f'kiem/bao-cao-{NT}.md','w',encoding='utf-8') as f:

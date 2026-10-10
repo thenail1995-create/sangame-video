@@ -1,0 +1,40 @@
+{
+ "phien_ban": 1,
+ "che_do_hoi_quy": true,
+ "ghi_chu": "MAU HOI QUY khuon v8.3 (Spider-Man 2, du lieu 07/10/2026). KHONG dang. Deal da het han.",
+ "ngay_dang": "2026-10-08",
+ "gio_dang": "2026-10-08T20:00:00+07:00",
+ "ngay_du_lieu": "2026-10-07",
+ "so_ky": 1,
+ "game": {
+  "ten": "Marvel's Spider-Man 2",
+  "giam": 60,
+  "may": "PS5",
+  "hang_ban_chay": null,
+  "slug": "marvels-spider-man-2"
+ },
+ "goc_vnd": 1960000,
+ "con_vnd": 784000,
+ "vung": [
+  {
+   "ma": "US",
+   "vnd": 784000,
+   "goc_vnd": 1960000
+  },
+  {
+   "ma": "HK",
+   "vnd": 835000,
+   "goc_vnd": 2087000
+  },
+  {
+   "ma": "SG",
+   "vnd": 904000,
+   "goc_vnd": 2260000
+  }
+ ],
+ "han": {
+  "ma": "US",
+  "endTime": "1791442740000"
+ },
+ "ghi_chu_bang": "Theo giá thẻ PSN từng vùng · nguồn PS Store"
+}

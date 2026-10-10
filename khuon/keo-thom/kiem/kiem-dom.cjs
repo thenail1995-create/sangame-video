@@ -1,5 +1,6 @@
 // Kiem tren TRANG THAT (full.build.html), cung cach capture.mjs seek (t = f/30):
 //  1) phu de tran khung o BAT KY khung nao (loi 14 lan nhap nhay cua ban 07/08)
+//  3) (v9) NOI DUNG tren hinh o cac moc dung yen (ten, gia, vung, gio het giam) -> noiDung{} de kiem-tat-ca.py doi chieu keo.json (D1)
 //  2) chu/gia/logo nam trong hop an toan CUA NEN TANG: x 120-888, y tren..duoi theo nen-tang.json (dung sai 6 px) o cac moc da dung yen
 // node kiem/kiem-dom.cjs <tiktok|reels|shorts> [moc,...]  -> in JSON {tranPhuDe:[...], ngoaiVung:{t:[...]}}
 const MG=process.env.MG_SCRIPTS||process.env.HOME+"/.claude/skills/motion-graphics/scripts";   // A3: khong ghi cung duong dan Mac
@@ -24,5 +25,28 @@ const r=await pg.evaluate(([MOC_DUNG,V])=>{
    for(const sel of SEL){for(const e of document.querySelectorAll(sel)){if(!vis(e))continue;const q=e.getBoundingClientRect();if(!q.width)continue;
      const L=Math.round(q.left),R=Math.round(q.right),T=Math.round(q.top),Bm=Math.round(q.bottom);
      if(L<114||R>894||T<V.tren-6||Bm>V.duoi+6)(out.ngoaiVung[t]=out.ngoaiVung[t]||[]).push(sel+" x"+L+"-"+R+" y"+T+"-"+Bm)}}}
+ // CAT/TRAN CHU (Top 5 11/10: "Little Nightmares Complet…" cut cut tren the): moi phan tu chu — ten, gia, vung, gio — o MOI moc dung yen:
+ //  (a) chu thuc (Range) rong/cao hon chinh phan tu > 1 px; (b) chu bi cat boi to tien overflow != visible; (c) tieu de the gia lan vao goc vat cheo cua the (#tag).
+ out.catChu=[];
+ const SELC=["#title","#issue","#chip1","#t2h","#t2g","#t2l2","#t2m","#tk","#q1","#q2","#q3",".tem .in span","#bang .tit","#bang .tit2","#bang .dong .n","#bang .dong .g","#bang .pill","#bang .chu","#p5a","#p5b","#lat","#b6a","#b6b","#b6c","#sub"];
+ for(const t of MOC_DUNG){window.__seek(t);
+   for(const sel of SELC){for(const e of document.querySelectorAll(sel)){if(!vis(e))continue;
+     const rg=document.createRange();rg.selectNodeContents(e);const tb=rg.getBoundingClientRect(),eb=e.getBoundingClientRect();if(!tb.width||!eb.width)continue;
+     let ly=null;
+     if(tb.width>eb.width+1.5)ly="chu rong "+Math.round(tb.width)+" > o chua "+Math.round(eb.width);
+     for(let c=e.parentElement;c&&!ly;c=c.parentElement){const cs=getComputedStyle(c);if(cs.overflow!=="visible"&&c.id!=="band"){const cb=c.getBoundingClientRect();
+       if(tb.left<cb.left-1||tb.right>cb.right+1||tb.top<cb.top-1||tb.bottom>cb.bottom+1)ly="chu bi cat boi #"+(c.id||c.className)}}
+     if(!ly&&sel==="#t2h"){const dy=Math.max(0,96-(tb.top-500));const L0=190+dy+24,R0=890-dy-24;if(tb.left<L0||tb.right>R0)ly="tieu de the lan vao goc vat cheo ("+Math.round(tb.left)+"-"+Math.round(tb.right)+" can "+L0+"-"+R0+")"}
+     if(ly)out.catChu.push(t+"s "+sel+": "+ly+" «"+e.textContent.trim().slice(0,30)+"»")}}}
+ // noi dung hien thi (moc dung yen cua tung canh theo thu tu MOC_DUNG: bia, the gia, khoan, thu, ra, bang, phieu, bia sau)
+ const tx=e=>e?e.textContent.replace(/\s+/g,' ').trim():null, q=s=>document.querySelector(s), nd={};
+ if(MOC_DUNG.length>=8){
+  window.__seek(MOC_DUNG[0]);nd['bia.issue']=tx(q('#issue span'));nd['bia.sao']=tx(q('#saoIn .c b'));nd['bia.chip']=tx(q('#chip1'));nd['bia.title']=tx(q('#title'));
+  window.__seek(MOC_DUNG[1]);nd['the.goc']=tx(q('#t2g'));nd['the.con']=tx(q('#moiso'))+tx(q('#du2'));nd['the.tk']=tx(q('#tk b'));nd['the.vung']=tx(q('#t2l2'));
+  window.__seek(MOC_DUNG[3]);nd['thu.tem']=[1,2,3].map(i=>tx(q('#tw'+i+' span')));
+  window.__seek(MOC_DUNG[5]);nd['bang.tit']=tx(q('#bang .tit'));nd['bang.n']=[1,2,3].map(i=>tx(q('#r'+i+' .n')));nd['bang.g']=[1,2,3].map(i=>tx(q('#r'+i+' .g')));nd['bang.pill']=[1,2,3].map(i=>tx(q('#r'+i+' .pill')));
+  window.__seek(MOC_DUNG[6]);nd['phieu.so']=[1,2,3,4].map(i=>tx(q('#o'+i))).join('');nd['phieu.ngay']=tx(q('#p5b'));
+ }
+ out.noiDung=nd;
  return out},[MOC_DUNG,V]);
 console.log(JSON.stringify(r));await b.close()})();

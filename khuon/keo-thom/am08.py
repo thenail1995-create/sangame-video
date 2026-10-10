@@ -3,13 +3,15 @@
 # ma cue dat DAU FILE vao luc hinh bat dau chuyen dong -> tieng tre ~0,5 s; do to cac file lech 36 dB.
 # Cach moi: cat tung file DUNG CU DAP, chuan hoa do to, dat CU DAP trung KHUNG CHAM tinh tu cong thuc chuyen dong
 # cua full.html (cung W(), cung hang so), giam tieng dong khi giong dang noi (ducking), chuan hoa -14 LUFS.
-#   python3 am08.py            -> am08.wav + cue-am08.md + san-game-mau-08.mp4 (giu nguyen hinh, thay tieng)
+#   python3 am08.py            -> am08.wav + cue-am08.md + video-<nt>.mp4 (giu nguyen hinh, thay tieng)
+# v9: moc thoi gian khong con ghi cung (W(n), 8.8, 9.92, 13.22...) — doc neo.json (do-khung.cjs ghi tu CHINH full.html: M = moc chu theo khoa doan, TA = moc chuyen canh).
 import json,subprocess,numpy as np,pathlib,sys
 B=pathlib.Path(__file__).resolve().parent; V=B/'dau-vao'
 import pathlib
 A=str(pathlib.Path(__file__).resolve().parent/'am-thanh')+'/'; MM=A   # thu vien tieng dong chep vao khuon (giay phep: am-thanh/NGUON.md)
-SR=48000; DAI=25.12; N=int(DAI*SR)
-m=[w for w in json.load(open(V/'moc-chu.json')) if w['w'].strip()]; W=lambda i:m[i]['s']
+import thoi_luong
+SR=48000; DAI=thoi_luong.dai(); N=int(DAI*SR)
+NEO=json.load(open(B/'neo.json')); M=NEO['M']; TA=NEO['TA']; C=TA['C']
 
 def doc(f):
     return np.frombuffer(subprocess.run(['ffmpeg','-v','error','-i',f,'-ac','1','-ar',str(SR),'-f','f32le','-'],capture_output=True,check=True).stdout,dtype=np.float32).copy()
@@ -74,56 +76,55 @@ def keo():
         a=ang(K[f])
         if K[f]['keoOn'] and a<=ang(K[f-1]) and a<ang(K[f+1]) and a<6: out.append(f/FPS)
     return out
-def chot(i,fin='1359'):
+def chot(i,fin=TA['so']):                     # khung o so i CHOT hang (tu do tro di luon dung chu cuoi; so ngau nhien trung chu cuoi truoc do khong tinh)
     for f in range(1,F):
-        if K[f]['lat'][i]==fin[i] and K[f-1]['lat'][i]!=fin[i] and all(K[g]['lat'][i]==fin[i] for g in range(f,min(F,f+10))): return f/FPS
+        if K[f-1]['lat'][i]!=fin[i] and all(K[g]['lat'][i]==fin[i] for g in range(f,F)): return f/FPS
 def nhanh_nhat(lo,hi):                       # khung bang dau doi chieu cao nhanh nhat (gap / phu trang)
     fs=[f for f in range(1,F) if lo<=f/FPS<=hi]; return max(fs,key=lambda f:abs(K[f]['H']-K[f-1]['H']))/FPS
 
-C=[0,4.2,8.7,12.45,18.25,21.3]
 E=[]
 def cu(t,k,db=0,x=540,ghi=''): E.append((round(t,3),k,db,x,ghi))
 def dap(key,k,db,x,ghi): cu(cham(key)-SOM,k,db,x,ghi+' (khung cham do duoc)')
 # bia
 dap('ronde','dau',-2,230,'dau tron KEO THOM')
-cu(W(3)-0.05,'to',-2,700,'but da quet duoi ten game (bat dau quet)')
+cu(M['mo']['ten']-0.05,'to',-2,700,'but da quet duoi ten game (bat dau quet)')
 dap('sao','dap',-2,690,'sao GIAM 60%')
-cu(W(12)-0.07,'vut',-3,300,'chip PS STORE MY truot vao (eo5, nhanh nhat ~+0.05)')
+cu(M['mo']['ps']-0.07,'vut',-3,300,'chip PS STORE MY truot vao (eo5, nhanh nhat ~+0.05)')
 # trang 01
-cu(nhanh_nhat(3.8,4.4),'lat2',-1,540,'bia gap lai thanh dau trang (khung gap nhanh nhat)')
+cu(nhanh_nhat(C[1]-0.06,C[1]+0.54),'lat2',-1,540,'bia gap lai thanh dau trang (khung gap nhanh nhat)')
 cu(next(f/FPS for f in range(1,F) if K[f]['saoNho'] and not K[f-1]['saoNho'])-SOM,'dau',-7,235,'sao 60% dan len goc the gia')
 cu(doi('g1',lambda a,b:a>=519 and b<519)[0]-SOM,'gach',-3,420,'gach but do gia goc (khung net bat dau)')
-cu(doi('so',lambda a,b:a=='1.960' and b!=a and b!='???')[0]-SOM,'dem',0,520,'so dem 1.960 -> 784 (khung so bat dau doi)')
+cu(doi('so',lambda a,b:a==TA['goc'] and b!=a and b!='???')[0]-SOM,'dem',0,520,'so dem gia goc -> gia con (khung so bat dau doi)')
 dap('tk','dap',-1,670,'dau DA TIET KIEM')
 cu(cham('tk')-SOM+0.01,'kaching',0,670,'')
-cu(8.8+0.12,'vut',-8,540,'day dut, the roi (dy2 = 4500 t^2)')
+cu(TA['dut']+0.12,'vut',-8,540,'day dut, the roi (dy2 = 4500 t^2)')
 # trang 02 hoi
-cu(m[32]['e'],'rit',0,540,'dia rit + dung hinh den trang (9,36) — ngay sau chu "khoan"')
-cu(9.92+0.04,'vut',-7,300,'la thu truot vao tu trai (eo5, nhanh nhat dau)')
+cu(M['hoi']['khoan_e'],'rit',0,540,'dia rit + dung hinh den trang (9,36) — ngay sau chu "khoan"')
+cu(TA['g3']+0.02+0.04,'vut',-7,300,'la thu truot vao tu trai (eo5, nhanh nhat dau)')
 for key,x,ghi,db in [('tw1',238,'tem MY',-2),('tw2',504,'tem HONG KONG (trung chu "Hong")',-5),('tw3',778,'tem SINGAPORE',-2)]: dap(key,'dau',db,x,ghi)
 dap('buuC','dap',-9,750,'dau buu dien tron')
 dap('khong','dap',+1,504,'dau KHONG!')
-cu(13.22,'lat2',0,540,'lat trang: la thu bay trai + bang so vao tu phai (khoang nghi truoc "Quy")')
+cu(TA['v4']+0.04,'lat2',0,540,'lat trang: la thu bay trai + bang so vao tu phai (khoang nghi truoc "Quy")')
 # bang so
 for i in range(3):
     cu(doi('b',lambda a,b,i=i:a[i]==0 and b[i]>0)[0]-SOM,'to',0,300,f'thanh gia hang {i+1} bat dau dai ra (0,55 s)')
 for key,ghi in [('d1','nhan RE NHAT'),('d2','nhan +51.000d'),('d3','nhan +120.000d')]: dap(key,'dau',-5,800,ghi)
-cu(18.12,'lat2',-2,540,'bang so bay trai + phieu vao tu phai (khoang nghi truoc "Nhung")')
+cu(TA['r4']+0.14,'lat2',-2,540,'bang so bay trai + phieu vao tu phai (khoang nghi truoc "Nhung")')
 # trang 03
-cu(W(68)-0.06+0.1,'dau',-7,300,'chu "Nhanh" roi cham')
-cu(W(70)-0.02+0.1,'dau',-5,300,'chu "keo lo!" roi cham')
+cu(M['han']['nhanh']-0.06+0.1,'dau',-7,300,'chu "Nhanh" roi cham')
+cu(M['han']['nha']-0.02+0.1,'dau',-5,300,'chu "keo lo!" roi cham')
 for j,t in enumerate(keo()): cu(t-SOM,'go' if j%2 else 'go2',-6,80+75*j,'keo khep luoi (khung do duoc)')
-cu(19.4,'dongho',0,256,'kim dong ho quay (0,8 s)')
-cu(19.6,'trang',0,620,'bang lat so xao')
-cu(19.6+0.30,'trang',-4,620,'bang lat so xao (tiep)')
+cu(TA['dq'],'dongho',0,256,'kim dong ho quay (0,8 s)')
+cu(TA['bd'],'trang',0,620,'bang lat so xao')
+cu(TA['bd']+0.30,'trang',-4,620,'bang lat so xao (tiep)')
 for i in range(4): cu(chot(i)-SOM,'go',-6,400+110*i+(30 if i>1 else 0),f'o so {i+1} chot (khung do duoc)')
 # bia sau
-cu(nhanh_nhat(21.05,21.7),'lat2',+1,540,'trang bia sau phu xuong (khung phu nhanh nhat)')
+cu(nhanh_nhat(C[5]-0.07,C[5]+0.58),'lat2',+1,540,'trang bia sau phu xuong (khung phu nhanh nhat)')
 for i in range(6): dap(f'chip{i}','dau',-5,182+126*i,f'o vung {i+1}')
 go=doi('url',lambda a,b:b>a)
 for j,t in enumerate(go): cu(t-SOM,'go' if j%2 else 'go2',-7,420,f'go chu thu {j+1} sangame.com.vn (khung chu hien)')
 dap('logoW','dap',-6,240,'logo dan len')
-cu(max(go[-1]+0.03,m[89]['e']+0.02),'chuong',0,700,'chuong may chu khi go xong .vn — sau chu "en" de khong de len giong')
+cu(max(go[-1]+0.03,M['ket']['en_e']+0.02),'chuong',0,700,'chuong may chu khi go xong .vn — sau chu "en" de khong de len giong')
 
 # Thi nghiem (doi chung): BO="lat:4.0-4.6,gach:4.5-4.8" -> bo cac cu trong cua so do (khong dung khi dung that)
 import os

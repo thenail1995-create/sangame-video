@@ -1,16 +1,18 @@
 // Doc trang thai trang o tung khung (t = f/30, giong capture.mjs) -> khung.json: dung de dat tieng dong dung KHUNG CHAM.
-// node do-khung.cjs   (chay tu thu muc scripts cua skill motion-graphics de co playwright)
+// node do-khung.cjs [nen-tang]   -> khung.json (754 khung o ban v8.3; nay = ceil(DAI*30)) + neo.json (moc theo khoa doan M + moc chuyen canh TA, v9:
+// MOT nguon duy nhat cho nen08.py / am08.py / kiem — khong con gio ghi cung)
 const MG=process.env.MG_SCRIPTS||process.env.HOME+"/.claude/skills/motion-graphics/scripts";   // A3: khong ghi cung duong dan Mac
 const {chromium}=require(process.env.PW_PATH||MG+"/node_modules/playwright");const fs=require("fs");
 const B=__dirname; const NT=process.argv[2]||"tiktok";   // moc thoi gian giong nhau o 3 nen tang -> do 1 ban (v8.3)
 (async()=>{const b=await chromium.launch();const pg=await b.newPage({viewport:{width:1080,height:1920}});
 await pg.goto("file://"+B+"/full-"+NT+".build.html");await pg.waitForFunction(()=>window.__ready);
-const r=await pg.evaluate(()=>{
+const neo=await pg.evaluate(()=>window.__NEO);const NF=await pg.evaluate(()=>Math.ceil(window.DAI*30));
+const r=await pg.evaluate((NF)=>{
  const sc=el=>{const m=getComputedStyle(el).transform;if(!m||m==="none")return 1;const v=m.match(/matrix\(([^)]+)\)/);if(!v)return 1;const a=v[1].split(",").map(Number);return Math.hypot(a[0],a[1])};
  const vis=el=>{let c=el;while(c){const s=getComputedStyle(c);if(s.display==="none"||+s.opacity===0)return false;c=c.parentElement}return true};
  const ids=["ronde","sao","tk","tw1","tw2","tw3","khong","d1","d2","d3","logoW","khoan","saoNho"];const ch=[...document.getElementById("chips").children];
  const rows=[];
- for(let f=0;f<754;f++){const t=f/30;window.__seek(t);const o={f};
+ for(let f=0;f<NF;f++){const t=f/30;window.__seek(t);const o={f};
    for(const id of ids){const e=document.getElementById(id);o[id]=vis(e)?+sc(e).toFixed(3):0}
    ch.forEach((e,i)=>o["chip"+i]=vis(e)?+sc(e).toFixed(3):0);
    const bc=document.getElementById("buuC");o.buuC=bc.style.display==="none"?0:bc.getAttribute("transform");
@@ -22,5 +24,5 @@ const r=await pg.evaluate(()=>{
    o.b=[1,2,3].map(i=>parseFloat(document.getElementById("b"+i).style.width)||0);
    o.H=parseFloat(document.getElementById("band").style.height);
    rows.push(o)}
- return rows});
-fs.writeFileSync(B+"/khung.json",JSON.stringify(r));console.log("khung.json",r.length,"khung");await b.close()})()
+ return rows},NF);
+fs.writeFileSync(B+"/khung.json",JSON.stringify(r));fs.writeFileSync(B+"/neo.json",JSON.stringify(neo));console.log("khung.json",r.length,"khung");await b.close()})()
