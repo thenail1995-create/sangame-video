@@ -180,6 +180,12 @@ jobs:
           sparse-checkout: |
             du-lieu
           persist-credentials: false
+      - name: uv (ban ghim; chon-keo.py can numpy + pillow theo uv.lock)
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/uvenv"
+          "$RUNNER_TEMP/uvenv/bin/pip" install --quiet uv==0.11.17
+          echo "$RUNNER_TEMP/uvenv/bin" >> "$GITHUB_PATH"
       - name: tesseract (chon-keo.py / media_xau.py OCR anh giu cho)
         run: |
           set -euo pipefail
@@ -190,7 +196,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           NTFY_BAO_LOI: ${{ secrets.NTFY_BAO_LOI }}
-          CHUAN_BI_PY: python3
+          UV_PYTHON_PREFERENCE: managed
           DU_LIEU_REPO: ${{ github.workspace }}/du-lieu
           CHE_DO: ${{ github.event.inputs.che_do || github.event.client_payload.che_do || 'thu' }}
         run: |
