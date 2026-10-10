@@ -31,8 +31,11 @@ def sha_moi_nhat(repo):
     return subprocess.run(['git','-C',str(repo),'rev-parse','HEAD'],capture_output=True,text=True,check=True).stdout.strip()
 def main(argv=None):
     ap=argparse.ArgumentParser(); ap.add_argument('repo'); ap.add_argument('--ngay',default=None); ap.add_argument('--lan',type=int,default=1); ap.add_argument('--github-output',action='store_true')
+    ap.add_argument('--bo-qua-do-moi',action='store_true',help='CHI de thu (che_do=thu): coi du lieu hien co la moi, in canh bao')
     a=ap.parse_args(argv); ngay=a.ngay or hom_nay_vn()
     moi,ly=kiem(a.repo,ngay)
+    if a.bo_qua_do_moi and not moi:
+        print('CANH BAO: --bo-qua-do-moi - dung du lieu CU de thu (che do thu). Ly do bi bo qua: '+'; '.join(ly)); moi,ly=True,[]
     sha=sha_moi_nhat(a.repo) if moi else ''
     print(f'du lieu MOI ({ngay}), data_sha={sha}' if moi else 'chua co du lieu moi: '+'; '.join(ly))
     if not moi and a.lan>=2:
