@@ -1,0 +1,77 @@
+{
+ "nt": "reels",
+ "video": "video-reels.mp4",
+ "dat": true,
+ "so_dat": 11,
+ "tong": 11,
+ "luc": "2026-10-11T01:32:18",
+ "phien_ban": "python 3.13.13 | faster-whisper=1.2.1 ctranslate2=4.8.2 numpy=2.5.3 pillow=12.3.0 huggingface-hub=2.2.0 | whisper_rev=536b0662742c02347bc0e980a01041f333bce120 | ffmpeg version 9.0.2 Copyright (c) 2000-2026 the FFmpeg developers",
+ "phep": [
+  {
+   "ten": "Khong co chu thich // nuot lenh trong full.html",
+   "dat": true,
+   "so_do": "0 dong",
+   "loi": "H25/H28/H30"
+  },
+  {
+   "ten": "Khung 1080x1920, diem anh vuong (SAR 1:1)",
+   "dat": true,
+   "so_do": "1080,1920,1:1",
+   "loi": "K11"
+  },
+  {
+   "ten": "Ky thuat file (kiem-video.py)",
+   "dat": true,
+   "so_do": "0 FAIL, 0 WARN; -14.1 LUFS; dinh -1.3 dBTP",
+   "loi": "K1"
+  },
+  {
+   "ten": "Khong trung ma phan tu (id)",
+   "dat": true,
+   "so_do": "0 id trung",
+   "loi": "H31"
+  },
+  {
+   "ten": "Phu de khong tran khung (moi khung)",
+   "dat": true,
+   "so_do": "0 khung tran",
+   "loi": "H5"
+  },
+  {
+   "ten": "Chu/gia/logo trong vung an toan Reels 120-888 x 269-1248",
+   "dat": true,
+   "so_do": "0 phan tu ngoai vung",
+   "loi": "H6"
+  },
+  {
+   "ten": "Khoi dau trang ngay duoi vung giao dien (269 px)",
+   "dat": true,
+   "so_do": "giay trong vung giao dien 0.0%; kin giay y 289-369: 100%",
+   "loi": "N11/N12"
+  },
+  {
+   "ten": "Lop chu che <= 30% vung trailer net (5 canh hang)",
+   "dat": true,
+   "so_do": "che 23%, 23%, 23%, 23%, 23%",
+   "loi": "N10"
+  },
+  {
+   "ten": "Tieng dap khop khung cham (<= 1 khung = 34 ms)",
+   "dat": true,
+   "so_do": "46 cu; lech -21..-9 ms",
+   "loi": "A1"
+  },
+  {
+   "ten": "Giong to hon tieng dong >= 6 dB (>= 95% chu)",
+   "dat": true,
+   "so_do": "duoi 6 dB: 1/110 [(np.float32(5.1), 'bản', 21.7)]",
+   "loi": "A3"
+  },
+  {
+   "ten": "Whisper tung cau: ban ghep nghe khong kem giong goc",
+   "dat": true,
+   "so_do": "7 cau; khop kich ban: giong goc 0.38, ban ghep 0.35",
+   "loi": "A2"
+  }
+ ]
+}

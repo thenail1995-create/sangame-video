@@ -1,0 +1,5 @@
+{
+ "tiktok": {"ten": "TikTok", "tren": 240, "duoi": 1260, "ghi": "trên 240, dưới 660 (y 1260), cột nút phải 180 px từ y 840"},
+ "reels":  {"ten": "Reels",  "tren": 269, "duoi": 1248, "ghi": "trên 269 (14%), dưới 672 (35%, y 1248), trái/phải 65"},
+ "shorts": {"ten": "Shorts", "tren": 288, "duoi": 1248, "ghi": "trên 288, dưới 672 (y 1248), trái 48, phải 192"}
+}

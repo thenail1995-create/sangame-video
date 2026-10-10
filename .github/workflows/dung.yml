@@ -1,0 +1,211 @@
+name: Dung video
+# A5: dung 1 dang video (3 ban TikTok/Reels/Shorts), kiem, va CHI KHI che_do=that + DAT HET moi tao Release cong khai.
+# Chi nhan workflow_dispatch / repository_dispatch; job dau kiem ref = main. Khong pull_request. Job dung KHONG co quyen ghi; chi job phat-hanh co contents:write.
+on:
+  workflow_dispatch:
+    inputs:
+      dang:
+        description: Dang video
+        type: choice
+        options: [tin-nhanh, top5, keo-thom]
+        required: true
+      ngay:
+        description: Ngay DANG (YYYY-MM-DD, gio VN)
+        required: true
+      che_do:
+        description: thu = khong tao Release; that = tao Release neu DAT HET
+        type: choice
+        options: [thu, that]
+        default: thu
+      fixture:
+        description: Ten fixture trong repo rieng tu (video/fixture/<ten>), vd top5-01
+        required: true
+      data_sha:
+        description: Commit repo rieng tu (de trong = main)
+        required: false
+      ep_truot:
+        description: Co y lam TRUOT 1 phep kiem (chung minh khong ra Release)
+        type: boolean
+        default: false
+      ban_nhap:
+        description: Release o dang nhap (draft) - dung de thu
+        type: boolean
+        default: false
+      release_thu:
+        description: che_do=thu - van tao Release pre-release thu-<ngay>-<dang> (de thu may dang E5)
+        type: boolean
+        default: false
+  repository_dispatch:
+    types: [dung]
+permissions: {}
+concurrency:
+  group: dung-${{ github.event.inputs.dang || github.event.client_payload.dang }}-${{ github.event.inputs.ngay || github.event.client_payload.ngay }}
+  cancel-in-progress: false
+env:
+  DANG: ${{ github.event.inputs.dang || github.event.client_payload.dang }}
+  NGAY: ${{ github.event.inputs.ngay || github.event.client_payload.ngay }}
+  CHE_DO: ${{ github.event.inputs.che_do || github.event.client_payload.che_do || 'thu' }}
+  FIXTURE: ${{ github.event.inputs.fixture || github.event.client_payload.fixture }}
+  DATA_REF: ${{ github.event.inputs.data_sha || github.event.client_payload.data_sha || 'main' }}
+  EP_TRUOT: ${{ github.event.inputs.ep_truot || 'false' }}
+jobs:
+  dung:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    permissions:
+      contents: read
+    outputs:
+      xong: ${{ steps.ket.outputs.xong }}
+    steps:
+      - name: Kiem dau vao
+        run: |
+          set -euo pipefail
+          case "$DANG" in tin-nhanh|top5|keo-thom) ;; *) echo "dang khong hop le: $DANG"; exit 1;; esac
+          [[ "$NGAY" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "ngay khong hop le"; exit 1; }
+          [[ "$FIXTURE" =~ ^[a-z0-9-]+$ ]] || { echo "fixture khong hop le"; exit 1; }
+          [[ "$DATA_REF" =~ ^[A-Za-z0-9._/-]+$ ]] || { echo "data_sha khong hop le"; exit 1; }
+          case "$CHE_DO" in thu|that) ;; *) echo "che_do khong hop le"; exit 1;; esac
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Du lieu rieng tu - phan nhe (SFX, giong, fixture nho)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: thenail1995-create/kenh-game-du-lieu
+          ref: ${{ env.DATA_REF }}
+          ssh-key: ${{ secrets.DATA_DEPLOY_KEY }}
+          path: du-lieu
+          sparse-checkout: |
+            video/tai-san
+            video/fixture/${{ env.FIXTURE }}
+          persist-credentials: false
+      - name: Du lieu rieng tu - phan nang (trailer, ffmpeg)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: thenail1995-create/kenh-game-du-lieu
+          ref: video-tai-san
+          ssh-key: ${{ secrets.DATA_DEPLOY_KEY }}
+          path: nang
+          sparse-checkout: |
+            video/tai-san/ffmpeg
+            video/fixture/${{ env.FIXTURE }}
+          persist-credentials: false
+      - name: ffmpeg tinh (ghim sha256)
+        run: |
+          set -euo pipefail
+          mkdir -p cong-cu/bin
+          for b in ffmpeg ffprobe; do
+            xz -dc "nang/video/tai-san/ffmpeg/$b.xz" > "cong-cu/bin/$b"
+          done
+          (cd cong-cu/bin && sha256sum -c ../ffmpeg.sha256)
+          chmod +x cong-cu/bin/*
+          echo "$PWD/cong-cu/bin" >> "$GITHUB_PATH"
+          cong-cu/bin/ffmpeg -version | head -1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+      - name: Playwright (ban ghim trong package-lock) + Chromium
+        run: |
+          set -euo pipefail
+          cd cong-cu && npm ci --ignore-scripts
+          npx playwright install --with-deps chromium
+      - name: uv (ban ghim, cai bang pip trong venv, khong curl | sh)
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/uvenv"
+          "$RUNNER_TEMP/uvenv/bin/pip" install --quiet uv==0.11.17
+          echo "$RUNNER_TEMP/uvenv/bin" >> "$GITHUB_PATH"
+      - name: Cache mo hinh Whisper
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/whisper-cache
+          key: whisper-small-536b0662742c02347bc0e980a01041f333bce120
+      - name: Lay tai san + fixture
+        run: |
+          set -euo pipefail
+          bash lay-tai-san.sh "$DANG" "$FIXTURE" --data du-lieu --nang nang
+      - name: "(chi de thu) Co y lam TRUOT 1 phep kiem"
+        if: env.EP_TRUOT == 'true'
+        run: |
+          # shellcheck disable=SC2016
+          # them 1 dong 'var ...; // tf($(...' vao cuoi full.html: phep 0 (chu thich nuot lenh) phai bat
+          printf '\nvar zz=1; // tf($("x"),1)\n' >> "khuon/$DANG/full.html"
+      - name: Dung + kiem
+        env:
+          WORKERS: '4'
+          WHISPER_DIR: /home/runner/whisper-cache
+          UV_PYTHON_PREFERENCE: managed
+        run: |
+          set -euo pipefail
+          nproc; free -g | head -2; df -h / | tail -1
+          bash "khuon/$DANG/chay.sh"
+      - name: Thoi gian + tai nguyen
+        if: always()
+        run: |
+          cat "khuon/$DANG/do-thoi-gian.txt" 2>/dev/null || true
+          df -h / | tail -1
+      - name: So anh voi ban Mac (SSIM)
+        if: success() && env.CHE_DO == 'thu'
+        run: |
+          set -euo pipefail
+          for nt in tiktok reels shorts; do
+            uv run -q --frozen python cong-cu/so-anh.py "khuon/$DANG/video-$nt.mp4" "du-lieu/video/fixture/$FIXTURE/ref" "$nt" 0.97
+          done
+      - name: Manifest (that bai neu thieu bao cao / phep truot)
+        id: ket
+        env:
+          DATA_SHA: ${{ env.DATA_REF }}
+        run: |
+          set -euo pipefail
+          export CODE_SHA="$GITHUB_SHA"
+          uv run -q --frozen python cong-cu/manifest.py --khuon "khuon/$DANG" --ra out --dang "$DANG" --ngay "$NGAY" --che-do "$CHE_DO"
+          ls -la out
+          echo "xong=1" >> "$GITHUB_OUTPUT"
+      - name: Chuyen ban dung sang job phat hanh (che do that, hoac thu + release_thu)
+        if: success() && (env.CHE_DO == 'that' || github.event.inputs.release_thu == 'true')
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ban-dung
+          path: out/
+          retention-days: 1
+          if-no-files-found: error
+  phat-hanh:
+    needs: dung
+    if: github.ref == 'refs/heads/main' && needs.dung.result == 'success' && ((github.event.inputs.che_do || github.event.client_payload.che_do) == 'that' || github.event.inputs.release_thu == 'true')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: ban-dung
+          path: out
+      - name: Kiem manifest roi tao Release (DUNG 7 tai san cua HOP-DONG)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NGAY: ${{ github.event.inputs.ngay || github.event.client_payload.ngay }}
+          DANG: ${{ github.event.inputs.dang || github.event.client_payload.dang }}
+          NHAP: ${{ github.event.inputs.ban_nhap || 'false' }}
+          CHE_DO: ${{ github.event.inputs.che_do || github.event.client_payload.che_do || 'thu' }}
+        run: |
+          set -euo pipefail
+          cd out
+          ls
+          python3 - <<'PY'
+          import json,hashlib,os,sys
+          m=json.load(open('manifest.json')); assert m['phien_ban']==1 and m['che_do']==os.environ['CHE_DO'] and m['ngay_dang']==os.environ['NGAY'] and m['dang']==os.environ['DANG']
+          cho={'manifest.json'}
+          for nt,b in m['ban'].items():
+              assert b['kiem']['dat'] is True and all(p['dat'] for p in b['kiem']['phep']),nt
+              for k,s in (('video','sha256'),('bia','bia_sha256')):
+                  assert hashlib.sha256(open(b[k],'rb').read()).hexdigest()==b[s],b[k]
+                  cho.add(b[k])
+          assert set(os.listdir('.'))==cho and len(cho)==7,(sorted(os.listdir('.')),sorted(cho))
+          print('manifest hop le, 7 tai san')
+          PY
+          if [ "$CHE_DO" = "that" ]; then TAG="v-${NGAY}-${DANG}"; FLAGS=(); else TAG="thu-${NGAY}-${DANG}"; FLAGS=(--prerelease); fi
+          FLAGS+=(--title "$TAG" --notes "Ban dung tu dong ${DANG} ngay dang ${NGAY} (che do ${CHE_DO}). Chi gom video, bia, manifest.")
+          if [ "$NHAP" = "true" ]; then FLAGS+=(--draft); fi
+          gh release create "$TAG" "${FLAGS[@]}" video-tiktok.mp4 video-reels.mp4 video-shorts.mp4 bia-tiktok.jpg bia-reels.jpg bia-shorts.jpg manifest.json --repo "$GITHUB_REPOSITORY"
