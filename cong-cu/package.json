@@ -1,0 +1,9 @@
+{
+  "name": "sangame-video-cong-cu",
+  "private": true,
+  "type": "module",
+  "description": "capture.mjs (HTML -> video tat dinh) can playwright dung phien ban ghim",
+  "dependencies": {
+    "playwright": "1.63.0"
+  }
+}
