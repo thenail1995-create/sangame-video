@@ -25,4 +25,5 @@ jobs:
           echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gl.tar.gz" | sha256sum -c -
           mkdir -p "$RUNNER_TEMP/gl" && tar -xzf gl.tar.gz -C "$RUNNER_TEMP/gl" gitleaks
       - name: Quet lich su
-        run: "$RUNNER_TEMP/gl/gitleaks" git --no-banner --redact --verbose .
+        run: |
+          "$RUNNER_TEMP/gl/gitleaks" git --no-banner --redact --verbose .
