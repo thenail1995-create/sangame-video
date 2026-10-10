@@ -1,9 +1,32 @@
 #!/bin/bash
-# Dung Tin nhanh 3 ban theo nen tang + kiem (A5). Dau vao (lay-tai-san.sh dat san): tin.json, kich-ban.json, dau-vao/giong.mp3 (+ moc-chu.json cua Mac de so K14), tai-san/, am-thanh/.
+# Dung Tin nhanh 3 ban theo nen tang + kiem (A5, C1-C3). Hai che do:
+#  * NGUON_DU_LIEU=<thu muc checkout kenh-game-du-lieu> + NGAY=<ngay DANG YYYY-MM-DD> (may dung hang ngay 21:00): chon-tin -> sinh-tin -> kich-ban -> giong -> ...
+#      ma thoat 3 = KHONG DU 3 TIN, 4 = DU LIEU CU (ghi bo-khung.txt; workflow bo khung + ntfy, KHONG phai loi may), 5 = thieu giong (khong co giong.py / chua thu giong).
+#  * khong dat NGUON_DU_LIEU (fixture A2/A6, hoac Mac da co san tin.json + giong.mp3 + loi-dang.json + kiem-lai.json): bo qua buoc chon/sinh.
+# Dau vao (lay-tai-san.sh dat san o che do fixture): tin.json, kich-ban.json, dau-vao/giong.mp3 (+ moc-chu.json cua Mac de so K14), tai-san/, am-thanh/.
 # Lop alpha: dung -> ghep -> XOA tung ban (~4,9 GB/ban).
 M="$(cd "$(dirname "$0")" && pwd)"; . "$M/../../cong-cu/chay-chung.sh"
 cd "$M"
-if [ -f dau-vao/moc-chu.json ]; then cp dau-vao/moc-chu.json dau-vao/moc-chu.mac.json; fi
+if [ -n "${NGUON_DU_LIEU:-}" ]; then
+  : "${NGAY:?can NGAY (ngay DANG YYYY-MM-DD)}"
+  rm -f "$M/bo-khung.txt" "$M/tin.json" "$M/tin-chon.json" "$M/loi.txt" "$M/kich-ban.json"
+  rc=0; "${PY[@]}" chon-tin.py --du-lieu "$NGUON_DU_LIEU" --ngay-dang "$NGAY" > "$M/chon-tin.log" 2>&1 || rc=$?
+  cat "$M/chon-tin.log"
+  if [ "$rc" = 3 ] || [ "$rc" = 4 ]; then cp "$M/chon-tin.log" "$M/bo-khung.txt"; moc "chon tin -> BO KHUNG (ma $rc)"; exit "$rc"; fi
+  [ "$rc" = 0 ] || exit "$rc"
+  moc "chon tin"
+  "${PY[@]}" sinh-tin.py | tee -a "$DO";     moc "sinh tin.json + trailer.json"
+  "${PY[@]}" kich-ban.py | tail -2;          moc "kich ban"
+  mkdir -p dau-vao; LOI_SHA="$(shasum -a 256 loi.txt | cut -d' ' -f1)"
+  if [ ! -s dau-vao/giong.mp3 ] || [ "$(cat dau-vao/giong.sha 2>/dev/null)" != "$LOI_SHA" ]; then
+    rm -f dau-vao/giong.mp3 dau-vao/giong.sha dau-vao/moc-chu.json                    # giong cua ngay khac / loi khac KHONG duoc dung lai
+    [ -f "$ROOT/cong-cu/giong.py" ] || { echo "THIEU giong: khong co dau-vao/giong.mp3 khop loi.txt va khong co cong-cu/giong.py"; exit 5; }
+    "${PY[@]}" "$ROOT/cong-cu/giong.py" giong --loi-file loi.txt --ra dau-vao/giong.mp3 --du-an san-game --dang tin-nhanh
+    echo "$LOI_SHA" > dau-vao/giong.sha;       moc "giong"
+  fi
+else
+  if [ -f dau-vao/moc-chu.json ]; then cp dau-vao/moc-chu.json dau-vao/moc-chu.mac.json; fi
+fi
 "${PY[@]}" can-chu.py | tail -4;            moc "can chu (Whisper)"
 if [ -f dau-vao/moc-chu.mac.json ]; then "${PY[@]}" "$ROOT/cong-cu/so-moc.py" dau-vao/moc-chu.mac.json dau-vao/moc-chu.json 0.08 | tee -a "$DO"; fi
 "${PY[@]}" nen-tin.py tat-ca | tail -4;     moc "nen trailer 3 ban"

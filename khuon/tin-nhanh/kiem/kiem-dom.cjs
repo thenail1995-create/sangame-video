@@ -10,7 +10,7 @@ const C=JSON.parse(require("fs").readFileSync(B+"/canh.json"));const MOC_DUNG=(p
 (async()=>{const b=await chromium.launch();const pg=await b.newPage({viewport:{width:1080,height:1920}});
 await pg.goto("file://"+B+"/full-"+NT+".build.html");await pg.waitForFunction(()=>window.__ready);
 const r=await pg.evaluate(([MOC_DUNG,V])=>{
- const out={tranPhuDe:[],ngoaiVung:{},trungId:[]};
+ const out={tranPhuDe:[],ngoaiVung:{},trungId:[],ngay:{n1:(document.getElementById('ngay1')||{}).textContent||'',n6:(document.getElementById('ngay6')||{}).textContent||''}};   // ngay tren giay (C3)
  // ma phan tu TRUNG (Top 5 "so5", Tin nhanh "tit3": getElementById tra phan tu dau -> CSS/hieu ung ap nham cho)
  const dem={};document.querySelectorAll("[id]").forEach(e=>{dem[e.id]=(dem[e.id]||0)+1});out.trungId=Object.keys(dem).filter(k=>dem[k]>1);
  const nf=Math.round((window.DAI||25.12)*30);
@@ -23,5 +23,17 @@ const r=await pg.evaluate(([MOC_DUNG,V])=>{
    for(const sel of SEL){for(const e of document.querySelectorAll(sel)){if(!vis(e))continue;const q=e.getBoundingClientRect();if(!q.width)continue;
      const L=Math.round(q.left),R=Math.round(q.right),T=Math.round(q.top),Bm=Math.round(q.bottom);
      if(L<114||R>894||T<V.tren-6||Bm>V.duoi+6)(out.ngoaiVung[t]=out.ngoaiVung[t]||[]).push(sel+" x"+L+"-"+R+" y"+T+"-"+Bm)}}}
+ // chu KHONG tran / bi cat / co qua nho (Top 5 11/10: ten game dai bi cat cut 'Little Nightmares Complet...'): moi phan tu chu, o moi moc dung yen
+ const MIN={".cat .tit":34,".cat .tt b":19,".mucluc .t b":24,".dongK .t b":26,".cat .k":18,".cat .g":40,".cat .gm":28};
+ out.catChu=[];out.coChu=[];
+ for(const t of MOC_DUNG){window.__seek(t);
+   for(const sel of Object.keys(MIN)){for(const e of document.querySelectorAll(sel)){if(!vis(e))continue;
+     const q=e.getBoundingClientRect(),c=(e.closest(".cat,.mucluc,.dongK")||e.parentElement).getBoundingClientRect();
+     const fs=parseFloat(getComputedStyle(e).fontSize);
+     if(e.scrollWidth>e.clientWidth+1&&getComputedStyle(e).display!=="inline")out.catChu.push(t+"s "+sel+" scrollW "+e.scrollWidth+">"+e.clientWidth+": "+e.textContent.slice(0,40));
+     const gh=e.closest(".cat")?c.right-8:c.right+1;if(q.right>gh||q.left<c.left-1)out.catChu.push(t+"s "+sel+" tran khoi the "+Math.round(q.right)+">"+Math.round(gh)+": "+e.textContent.slice(0,40));
+     if(fs<MIN[sel]-0.01)out.catChu.push(t+"s "+sel+" co chu "+fs.toFixed(1)+"px < "+MIN[sel]+": "+e.textContent.slice(0,40));
+     out.coChu.push(sel+" "+fs.toFixed(0))}}}
+ out.coChu=[...new Set(out.coChu)];
  return out},[MOC_DUNG,V]);
 console.log(JSON.stringify(r));await b.close()})();

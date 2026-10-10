@@ -10,6 +10,7 @@ import pathlib
 A=str(pathlib.Path(__file__).resolve().parent/'am-thanh')+'/'; MM=A   # thu vien tieng dong chep vao khuon (giay phep: am-thanh/NGUON.md)
 SR=48000; DAI=json.load(open(pathlib.Path(__file__).resolve().parent/'canh.json'))[-1]['b']; N=int(DAI*SR)
 m=[w for w in json.load(open(V/'moc-chu.json')) if w['w'].strip()]; W=lambda i:m[i]['s']
+TIN=json.load(open(B/'tin.json'))['tin']   # loai tung tin (C2): tieng gia/moc theo loai the, khong theo vi tri
 
 def doc(f):
     return np.frombuffer(subprocess.run(['ffmpeg','-v','error','-i',f,'-ac','1','-ar',str(SR),'-f','f32le','-'],capture_output=True,check=True).stdout,dtype=np.float32).copy()
@@ -80,10 +81,11 @@ for r in (1,2,3):
     ve=dap_xuong(f'dauW{r}')   # con dau bay ve goc manh bao: tieng vut nhe, dinh truoc luc cham 0,12 s
     if ve: cu(ve-0.12,'vut',-8,760,f'con dau tin {r} ve goc manh bao')
     # bia game hien: KHONG tieng (lan 1: cu dau -7 dB dap dung chu 'F1', 'Hunt' -> Whisper nghe 'app 125', 'handshow' — LOI-SAI A8)
-    if r==2:
-        dap(cham('gm2'),'dau',-12,800,'nhan -85% (nho: roi vao giua ten game)')
-        g=cham('g2'); dap(g,'dap',-3,800,'gia re nhat dong dau (khoang nghi truoc chu hai)')   # bo ka-ching: ngan 0,9 s de len 'hai tram...'
-    if r==3: dap(cham('g3'),'dap',-3,800,'moc ra mat 01/2027')
+    g_=TIN[r-1]   # loai the quyet dinh tieng (sinh-tin.py): 'do' = nhan -x% + gia ; 'vang' = moc ra mat (neu co) ; 'xanh' = khong tieng (A8)
+    if g_['mau']=='do':
+        dap(cham(f'gm{r}'),'dau',-12,800,f'nhan -{g_["giam"]}% (nho: roi vao giua ten game)')
+        dap(cham(f'g{r}'),'dap',-3,800,'gia re nhat dong dau (khoang nghi truoc so tien)')   # bo ka-ching: ngan 0,9 s de len chu so tien
+    if g_['mau']=='vang' and g_.get('moc'): dap(cham(f'g{r}'),'dap',-3,800,f'moc {g_["moc"]}')
 cu(nhanh_nhat(CANH['ket']['a'],CANH['ket']['a']+0.6),'lat2',+1,540,'trang bang xep hang phu xuong')
 for i in range(3): dap(cham(f'dk{i}'),'dau',-10,300,f'dong {i+1} trang ket')
 go=[f/FPS for f in range(1,F) if K[f]['url']>K[f-1]['url']]
