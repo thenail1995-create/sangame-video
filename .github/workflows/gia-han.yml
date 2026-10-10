@@ -1,0 +1,28 @@
+name: Gia han token
+# cron-job.org goi workflow_dispatch hang ngay 03:00 (KHONG co `schedule`).
+on:
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: gia-han
+  cancel-in-progress: false
+jobs:
+  gia-han:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+      - name: Gia han Threads / TikTok, kiem YouTube
+        env:
+          SG_CONG_KHOA: ${{ secrets.SG_CONG_KHOA }}
+          NTFY_TIN: ${{ secrets.NTFY_TIN }}
+          NTFY_BAO_LOI: ${{ secrets.NTFY_BAO_LOI }}
+        run: python -m dang.chay --pha gia-han

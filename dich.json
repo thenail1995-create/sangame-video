@@ -1,0 +1,8 @@
+{
+  "_ghi_chu": "Id tai khoan DICH MONG MUON cua Sang Game. DIEN SAU KHI CO TOKEN (xem bang `nap-token.py xem`). null = may dang DUNG kenh do va ntfy.",
+  "fb": {"page_id": null},
+  "ig": {"ig_user_id": null},
+  "threads": {"threads_user_id": null},
+  "youtube": {"channel_id": null},
+  "tiktok": {"open_id": null}
+}
