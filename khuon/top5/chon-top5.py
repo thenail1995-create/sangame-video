@@ -114,7 +114,7 @@ tong=len({cung_game(h['ten']) for h in ung_vien(X)})
 for i,c in enumerate(ds,1):
     h=c['h']; anh=t.url_anh_day_du(h['anh'])
     urllib.request.urlretrieve(anh+'?w=720',T/f'tai-san/bia{i}.png')
-    out.append(dict(hang_ban_chay=th[h['khoa']][0]+1,ten=tr.hien_thi(h['ten']),ten_goc=h['ten'],ten_doc=tr.doc(h['ten']),gia=t._dong(qd,h['vnd']),vung=h['vung'],ma=h['ma'],giam=h['giam'],
+    out.append(dict(hang_ban_chay=th[h['khoa']][0]+1,ten=tr.hien_thi(h['ten']),ten_the=tr.the(h['ten']),ten_goc=h['ten'],ten_doc=tr.doc(h['ten']),gia=t._dong(qd,h['vnd']),vung=h['vung'],ma=h['ma'],giam=h['giam'],
                     goc=t._dong(qd,h['goc']),may=h['may_chuoi'],anh=anh,slug=h['slug'],pid=c['pid'],loc=c['loc'],trailer=c['trailer'],anh_chup=c['anh_chup'],
                     endTime=c['endTime'],gia_cuc_bo=c['gia_cuc_bo'],tien_te=c['tien_te']))
 json.dump(out,open(T/'top5.json','w'),ensure_ascii=False,indent=1)

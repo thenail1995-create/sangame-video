@@ -44,6 +44,7 @@ d=json.loads(subprocess.run(['node',str(B/'kiem/kiem-dom.cjs'),NT],capture_outpu
 ghi('Khong trung ma phan tu (id)',not d.get('trungId'),f"{len(d.get('trungId',[]))} id trung"+(f": {d['trungId'][:5]}" if d.get('trungId') else ''),'H31')
 ghi('Phu de khong tran khung (moi khung)',not d['tranPhuDe'],f"{len(d['tranPhuDe'])} khung tran"+(f": {d['tranPhuDe'][:3]}" if d['tranPhuDe'] else ''),'H5')
 nv=sum(len(v) for v in d['ngoaiVung'].values())
+ghi('Chu ten/gia/vung khong tran hop chua (the hang + trang ket, moi moc)',not d.get('tranChu'),f"{len(d.get('tranChu',[]))} cho tran"+(f": {d['tranChu'][:3]}" if d.get('tranChu') else ''),'K19')
 ghi(f'Chu/gia/logo trong vung an toan {NTS[NT]["ten"]} 120-888 x {TREN}-{DUOI}',nv==0,f"{nv} phan tu ngoai vung"+(f": {d['ngoaiVung']}" if nv else ''),'H6')
 
 # 2a) NOI DUNG (B4). D1: ten/gia/giam/goc/vung/may tren hinh (DOM luc dung yen) khop top5.json. D2: endTime >= gio dang + 2 gio.
@@ -53,12 +54,13 @@ def ten_gon(t): return re.sub(r'\s+',' ',re.sub(r' PS4 & PS5','',re.sub(r' for P
 sai=[]
 for r in range(1,6):
     g=TOP[r-1]; h=ND['hang'][str(r)]
-    mong=dict(ten=ten_gon(g['ten']),gia=g['gia'],giam=f"−{g['giam']}%",goc=g['goc'],vung=g['vung'].upper(),may=g['may'])
+    mong=dict(ten=ten_gon(g.get('ten_the') or g['ten']),gia=g['gia'],giam=f"−{g['giam']}%",goc=g['goc'],vung=g['vung'].upper(),may=g['may'])
     for k,v in mong.items():
         if h.get(k)!=v: sai.append(f"hang {r} {k}: hinh '{h.get(k)}' != du lieu '{v}'")
     if not (h['hienTen'] and h['hienGia']): sai.append(f'hang {r}: ten/gia khong hien luc dung yen')
 for i in range(5):
     g=TOP[i]; k=ND['ket'][i]
+    if k.get('ten') in (ten_gon(g['ten']),ten_gon(g.get('ten_the') or g['ten'])): k=dict(k,ten=ten_gon(g['ten']))   # trang ket: ten day du, hoac ten the khi day du khong vua >= 26 px
     for kk,v in (('ten',ten_gon(g['ten'])),('phu',f"−{g['giam']}% · {g['vung']}"),('gia',g['gia'].replace('.000đ','K'))):
         if k.get(kk)!=v: sai.append(f"bang ket {i+1} {kk}: '{k.get(kk)}' != '{v}'")
 X=CFG['muc']//1000

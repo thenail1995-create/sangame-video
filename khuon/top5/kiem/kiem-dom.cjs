@@ -35,5 +35,14 @@ const r=await pg.evaluate(([MOC_DUNG,V,CANH])=>{
  for(let i=0;i<5;i++){const e=document.getElementById("dk"+i);nd.ket.push({ten:tx(e.querySelector(".t b")),phu:tx(e.querySelector(".t span")),gia:tx(e.querySelector(".g")),hien:vis(e)})}
  nd.tit=tx(document.getElementById("tit3"));nd.con=tx(document.getElementById("con3"));nd.ngay1=tx(document.getElementById("ngay1"));nd.ngay6=tx(document.getElementById("ngay6"));
  out.noiDung=nd;
+ // K19: chu KHONG tran hop chua (ten/gia/vung o the hang + trang ket). Do bang Range (be rong CHU that, khong phai be rong khoi) so voi hop chua, o moi moc dung yen
+ out.tranChu=[];
+ const CAP=[[".l3 .ten",".tt"],[".l3 .gia",".tt"],[".l3 .dong",".tt"],[".dongK .t b",".t"],[".dongK .t span",".t"],[".dongK .g",".dongK"],["#tit3",null]];
+ for(const t of MOC_DUNG.concat([CANH[CANH.length-1].b-0.4])){window.__seek(t);
+   for(const [sel,cs] of CAP){for(const e of document.querySelectorAll(sel)){if(!vis(e))continue;
+     const rg=document.createRange();rg.selectNodeContents(e);const q=rg.getBoundingClientRect();if(!q.width)continue;
+     let ho;if(cs){const c=e.closest(cs);if(!c)continue;const k=c.getBoundingClientRect();ho=[k.left,k.right,k.top,k.bottom]}else ho=[120,888,0,1920];
+     const dd=(e.scrollWidth>e.clientWidth+1&&getComputedStyle(e).display!=="inline"&&getComputedStyle(e).transform==="none"&&e.clientWidth>0)?" scrollW":"";
+     if(q.right>ho[1]+1||q.left<ho[0]-1||q.bottom>ho[3]+1||dd)out.tranChu.push(t.toFixed(2)+" "+sel+" "+e.textContent.trim().slice(0,28)+" chu "+Math.round(q.left)+"-"+Math.round(q.right)+" hop "+Math.round(ho[0])+"-"+Math.round(ho[1])+dd)}}}
  return out},[MOC_DUNG,V,C]);
 console.log(JSON.stringify(r));await b.close()})();

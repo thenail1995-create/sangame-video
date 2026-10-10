@@ -39,6 +39,11 @@ def hien_thi(ten):
         d=re.split(r'\s*(?::|\s[-–—]\s)\s*',t,maxsplit=1)[0]
         if len(d)>=14: t=d
     return t
+def the(ten):
+    """Ten NGAN cho the hang (K19): ten hien thi bo ten ban (Complete/Definitive Edition...) va phu de sau ':'/' - ' neu phan dau con >= 10 ky tu; trang ket giu ten day du."""
+    h=hien_thi(ten); t=EDITION.sub('',h).strip(' -–—:') or h
+    d=re.split(r'\s*(?::|\s[-–—]\s)\s*',t,maxsplit=1)[0]
+    return d if len(d)>=10 else t
 def _doc_tu_dong(hien):
     t=EDITION.sub('',hien).strip(' -–—:')
     t=re.split(r'\s*(?::|\s[-–—]\s)\s*',t,maxsplit=1)[0] if len(t)>26 else t   # phu de dai khong doc
