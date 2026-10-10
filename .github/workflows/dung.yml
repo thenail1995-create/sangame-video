@@ -67,6 +67,7 @@ jobs:
     outputs:
       moi: ${{ steps.moi.outputs.moi }}
       live: ${{ steps.vao.outputs.live }}
+      ba_pha: ${{ steps.kieu.outputs.ba_pha }}
       ngay: ${{ steps.vao.outputs.ngay }}
       data_sha: ${{ steps.moi.outputs.data_sha }}
     env:
@@ -82,23 +83,30 @@ jobs:
         run: |
           set -euo pipefail
           case "$DANG" in tin-nhanh|top5|keo-thom) ;; *) echo "dang khong hop le: $DANG"; exit 1;; esac
-          NGAY="${NGAY_IN:-$(TZ=Asia/Ho_Chi_Minh date +%F)}"
+          # Tin nhanh dung luc 21:00 de dang 07:30 NGAY MAI (gio VN); Top 5 / Keo thom dang cung ngay
+          if [ "$DANG" = "tin-nhanh" ]; then MAC_DINH="$(TZ=Asia/Ho_Chi_Minh date -d '+1 day' +%F)"; else MAC_DINH="$(TZ=Asia/Ho_Chi_Minh date +%F)"; fi
+          NGAY="${NGAY_IN:-$MAC_DINH}"
           [[ "$NGAY" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "ngay khong hop le"; exit 1; }
           [[ "$FIXTURE" =~ ^[a-z0-9-]*$ ]] || { echo "fixture khong hop le"; exit 1; }
           [[ "$DATA_REF" =~ ^[A-Za-z0-9._/-]+$ ]] || { echo "data_sha khong hop le"; exit 1; }
           case "$CHE_DO" in thu|that) ;; *) echo "che_do khong hop le"; exit 1;; esac
           case "$LAN" in 1|2) ;; *) echo "lan khong hop le"; exit 1;; esac
           if [ -z "$FIXTURE" ]; then LIVE=1; else LIVE=0; fi
-          { echo "live=$LIVE"; echo "ngay=$NGAY"; } >> "$GITHUB_OUTPUT"
+          # ngay cua DU LIEU gia: Tin nhanh dung du lieu hom nay (= ngay dang - 1); dang khac: dung ngay dang
+          if [ "$DANG" = "tin-nhanh" ]; then NGAY_DL="$(TZ=Asia/Ho_Chi_Minh date +%F)"; else NGAY_DL="$NGAY"; fi
+          { echo "live=$LIVE"; echo "ngay=$NGAY"; echo "ngay_du_lieu=$NGAY_DL"; } >> "$GITHUB_OUTPUT"
           echo "dang=$DANG ngay=$NGAY che_do=$CHE_DO live=$LIVE lan=$LAN"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Che do tu dong can khuon co chuan-bi.sh
+      - name: "Che do tu dong - chuan-bi.sh (3 pha) hay chon-tin.py (1 pha, Tin nhanh)"
+        id: kieu
         if: steps.vao.outputs.live == '1'
         run: |
           set -euo pipefail
-          [ -f "khuon/$DANG/chuan-bi.sh" ] || { echo "khuon $DANG chua co chuan-bi.sh - chua ho tro che do tu dong (hay de fixture)"; exit 1; }
+          if [ -f "khuon/$DANG/chuan-bi.sh" ]; then echo "ba_pha=1" >> "$GITHUB_OUTPUT"
+          elif [ -f "khuon/$DANG/chon-tin.py" ]; then echo "ba_pha=0" >> "$GITHUB_OUTPUT"
+          else echo "khuon $DANG chua ho tro che do tu dong (thieu chuan-bi.sh / chon-tin.py) - hay de fixture"; exit 1; fi
       - name: Du lieu rieng tu - chi du-lieu/ (kiem do moi)
         if: steps.vao.outputs.live == '1'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -128,7 +136,7 @@ jobs:
         env:
           LIVE: ${{ steps.vao.outputs.live }}
           DA: ${{ steps.da.outputs.da }}
-          NGAY: ${{ steps.vao.outputs.ngay }}
+          NGAY: ${{ steps.vao.outputs.ngay_du_lieu }}
           NTFY_BAO_LOI: ${{ secrets.NTFY_BAO_LOI }}
           BO_QUA: ${{ github.event.inputs.bo_qua_do_moi || 'false' }}
         run: |
@@ -147,7 +155,7 @@ jobs:
           python3 cong-cu/kiem_do_moi.py du-lieu --ngay "$NGAY" --lan "$LAN" --github-output "${CO[@]}"
   chon:
     needs: kiem-moi
-    if: github.ref == 'refs/heads/main' && needs.kiem-moi.outputs.live == '1' && needs.kiem-moi.outputs.moi == '1'
+    if: github.ref == 'refs/heads/main' && needs.kiem-moi.outputs.live == '1' && needs.kiem-moi.outputs.ba_pha == '1' && needs.kiem-moi.outputs.moi == '1'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -172,6 +180,11 @@ jobs:
           sparse-checkout: |
             du-lieu
           persist-credentials: false
+      - name: tesseract (chon-keo.py / media_xau.py OCR anh giu cho)
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq tesseract-ocr
       - name: Chon game + loi doc (B1/B2)
         id: chon
         env:
@@ -183,11 +196,11 @@ jobs:
         run: |
           set -uo pipefail
           bash "khuon/$DANG/chuan-bi.sh"; rc=$?
-          if [ "$rc" = "3" ]; then
+          if [ "$rc" = "3" ] || [ "$rc" = "4" ]; then   # 3 = khong chon duoc noi dung (bo khung + ntfy); 4 = da co Release hom nay (khong dung lai)
             echo "du=0" >> "$GITHUB_OUTPUT"
             cat "khuon/$DANG/ket-qua-chon.json" || true
-            if [ "$CHE_DO" = "that" ]; then
-              python3 -c "import json,sys; from dang import ntfy; r=json.load(open('khuon/$DANG/ket-qua-chon.json')); ntfy.loi('Top 5: khong du 5 game', 'Ngay '+'$NGAY'+': '+r['ly_do']+' -> bo khung Top 5 hom nay.')" || true
+            if [ "$CHE_DO" = "that" ] && [ "$rc" = "3" ]; then
+              python3 -c "import json,os; from dang import ntfy; d=os.environ['DANG']; r=json.load(open('khuon/'+d+'/ket-qua-chon.json')); ntfy.loi(d+': khong chon duoc noi dung', 'Ngay '+os.environ['NGAY']+': '+str(r.get('ly_do'))+' -> bo khung '+d+'.')" || true
             fi
             exit 0
           fi
@@ -199,7 +212,8 @@ jobs:
         run: |
           set -euo pipefail
           cd "khuon/$DANG"
-          tar -cf "$GITHUB_WORKSPACE/chon-ra.tar" top5.json cau-hinh.json loi-dang.json kich-ban.json loi.txt ket-qua-chon.json tai-san/bia1.png tai-san/bia2.png tai-san/bia3.png tai-san/bia4.png tai-san/bia5.png
+          [ -f chon-ra.txt ] || { echo "khuon $DANG thieu chon-ra.txt (danh sach tep ket qua chon)"; exit 1; }
+          tar -cf "$GITHUB_WORKSPACE/chon-ra.tar" -T chon-ra.txt
       - name: Chuyen ket qua chon sang job dung
         if: steps.chon.outputs.du == '1'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -210,7 +224,7 @@ jobs:
           if-no-files-found: error
   dung:
     needs: [kiem-moi, chon]
-    if: always() && github.ref == 'refs/heads/main' && needs.kiem-moi.result == 'success' && needs.kiem-moi.outputs.moi == '1' && (needs.kiem-moi.outputs.live != '1' || (needs.chon.result == 'success' && needs.chon.outputs.du == '1'))
+    if: always() && github.ref == 'refs/heads/main' && needs.kiem-moi.result == 'success' && needs.kiem-moi.outputs.moi == '1' && (needs.kiem-moi.outputs.live != '1' || needs.kiem-moi.outputs.ba_pha != '1' || (needs.chon.result == 'success' && needs.chon.outputs.du == '1'))
     runs-on: ubuntu-24.04
     timeout-minutes: 150
     permissions:
@@ -224,6 +238,8 @@ jobs:
       FIXTURE: ${{ github.event.inputs.fixture || github.event.client_payload.fixture }}
       FX_DIR: ${{ github.event.inputs.fixture || github.event.client_payload.fixture || 'khong-co' }}
       LIVE: ${{ needs.kiem-moi.outputs.live }}
+      BA_PHA: ${{ needs.kiem-moi.outputs.ba_pha }}
+      LICH_SU_NGAY: ${{ needs.kiem-moi.outputs.ngay }}
       DATA_REF: ${{ needs.kiem-moi.outputs.data_sha }}
       EP_TRUOT: ${{ github.event.inputs.ep_truot || 'false' }}
       GIONG_MUOI: ${{ (github.event.inputs.lan || github.event.client_payload.lan) == '2' && 'lan2' || '' }}
@@ -242,6 +258,8 @@ jobs:
           sparse-checkout: |
             video/tai-san
             video/fixture/${{ env.FX_DIR }}
+            ${{ env.LIVE == '1' && 'du-lieu' || 'video/khong-co-du-lieu' }}
+            ${{ env.LIVE == '1' && 'bai-viet' || 'video/khong-co-bai-viet' }}
           persist-credentials: false
       - name: Du lieu rieng tu - phan nang (trailer, ffmpeg)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -302,47 +320,43 @@ jobs:
           mkdir -p "khuon/$DANG/am-thanh"
           cp -R du-lieu/video/tai-san/am-thanh/. "khuon/$DANG/am-thanh/"
       - name: Ket qua chon game + loi (tu job chon)
-        if: env.LIVE == '1'
+        if: env.LIVE == '1' && env.BA_PHA == '1'
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
           name: chon-ra
           path: chon-ra
       - name: Giai nen ket qua chon vao khuon
-        if: env.LIVE == '1'
+        if: env.LIVE == '1' && env.BA_PHA == '1'
         run: |
           set -euo pipefail
           mkdir -p "khuon/$DANG/tai-san" "khuon/$DANG/dau-vao"
           tar -xf chon-ra/chon-ra.tar -C "khuon/$DANG"
           ls "khuon/$DANG"
-      - name: Khoa kho giong (key cache)
-        id: gk
-        if: env.LIVE == '1'
-        run: |
-          set -euo pipefail
-          echo "khoa=$(python3 cong-cu/giong.py khoa --loi-file "khuon/$DANG/loi.txt")" >> "$GITHUB_OUTPUT"
-      - name: Kho giong - khoi phuc (chay lai cung loi = 0 credit)
+      - name: Kho giong - khoi phuc (cung loi = cung khoa = 0 credit; lan 2 co muoi -> thu ban moi)
         id: gcache
         if: env.LIVE == '1'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: giong-kho
-          key: giong-${{ steps.gk.outputs.khoa }}
-      - name: Thu giong (giu cho credit -> doc-giong -> sap so; tran 20000/thang)
-        if: env.LIVE == '1'
+          key: giong-${{ env.DANG }}-${{ env.NGAY }}-${{ github.run_id }}
+          restore-keys: |
+            giong-${{ env.DANG }}-${{ env.NGAY }}-
+      - name: "Thu giong (3 pha: giu cho credit -> doc-giong -> sap so; tran 20000/thang)"
+        if: env.LIVE == '1' && env.BA_PHA == '1'
         env:
           GIONG_KHO: ${{ github.workspace }}/giong-kho
           SUPABASE_ANON_THENAIL: ${{ secrets.SUPABASE_ANON_THENAIL }}
           SG_CONG_KHOA: ${{ secrets.SG_CONG_KHOA }}
         run: |
           set -euo pipefail
-          mkdir -p giong-kho
+          mkdir -p giong-kho "khuon/$DANG/dau-vao"
           python3 cong-cu/giong.py giong --loi-file "khuon/$DANG/loi.txt" --ra "khuon/$DANG/dau-vao/giong.mp3" --du-an san-game --dang "$DANG"
-      - name: Kho giong - luu ngay sau khi thu (job sau do co hong cung khong mat credit)
-        if: env.LIVE == '1' && steps.gcache.outputs.cache-hit != 'true'
+      - name: Kho giong - luu ngay sau khi thu (3 pha; job sau do co hong cung khong mat credit)
+        if: env.LIVE == '1' && env.BA_PHA == '1'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: giong-kho
-          key: giong-${{ steps.gk.outputs.khoa }}
+          key: giong-${{ env.DANG }}-${{ env.NGAY }}-${{ github.run_id }}
       - name: "(chi de thu) Co y lam TRUOT 1 phep kiem"
         if: env.EP_TRUOT == 'true'
         run: |
@@ -350,21 +364,48 @@ jobs:
           # them 1 dong 'var ...; // tf($(...' vao cuoi full.html: phep 0 (chu thich nuot lenh) phai bat
           printf '\nvar zz=1; // tf($("x"),1)\n' >> "khuon/$DANG/full.html"
       - name: Dung + kiem
+        id: dung
         env:
           WORKERS: '4'
           WHISPER_DIR: /home/runner/whisper-cache
           UV_PYTHON_PREFERENCE: managed
+          # 1 pha (Tin nhanh): chay.sh tu chon tin + thu giong -> can nguon du lieu + khoa; 3 pha: giong da thu o buoc tren
+          NGUON_DU_LIEU: ${{ env.LIVE == '1' && env.BA_PHA != '1' && format('{0}/du-lieu', github.workspace) || '' }}
+          GIONG_KHO: ${{ github.workspace }}/giong-kho
+          SUPABASE_ANON_THENAIL: ${{ env.LIVE == '1' && env.BA_PHA != '1' && secrets.SUPABASE_ANON_THENAIL || '' }}
+          SG_CONG_KHOA: ${{ env.LIVE == '1' && env.BA_PHA != '1' && secrets.SG_CONG_KHOA || '' }}
         run: |
           set -euo pipefail
           nproc; free -g | head -2; df -h / | tail -1
-          bash "khuon/$DANG/chay.sh"
+          mkdir -p giong-kho
+          # ma thoat 3 (khong du tin) / 4 (du lieu cu) cua chon-tin.py = BO KHUNG, khong phai loi may -> xanh + ntfy
+          set +e; bash "khuon/$DANG/chay.sh"; rc=$?; set -e
+          if [ "$LIVE" = "1" ] && [ "$BA_PHA" != "1" ] && { [ "$rc" = 3 ] || [ "$rc" = 4 ]; }; then
+            echo "bo_khung=1" >> "$GITHUB_OUTPUT"
+            { echo "ly_do<<EOF_LYDO"; tail -c 900 "khuon/$DANG/bo-khung.txt" 2>/dev/null || echo "ma thoat $rc"; echo "EOF_LYDO"; } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          exit "$rc"
+      - name: Bo khung - ntfy (che do that)
+        if: steps.dung.outputs.bo_khung == '1' && env.CHE_DO == 'that'
+        env:
+          NTFY_BAO_LOI: ${{ secrets.NTFY_BAO_LOI }}
+          LY_DO: ${{ steps.dung.outputs.ly_do }}
+        run: |
+          python3 -c "import os; from dang import ntfy; ntfy.loi(os.environ['DANG']+': bo khung', 'Ngay '+os.environ['NGAY']+': '+os.environ['LY_DO'][:800])"
+      - name: Kho giong - luu (1 pha, ke ca khi kiem truot)
+        if: always() && env.LIVE == '1' && env.BA_PHA != '1'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: giong-kho
+          key: giong-${{ env.DANG }}-${{ env.NGAY }}-${{ github.run_id }}
       - name: Thoi gian + tai nguyen
         if: always()
         run: |
           cat "khuon/$DANG/do-thoi-gian.txt" 2>/dev/null || true
           df -h / | tail -1
       - name: So anh voi ban Mac (SSIM)
-        if: success() && env.CHE_DO == 'thu' && env.LIVE != '1'
+        if: success() && steps.dung.outputs.bo_khung != '1' && env.CHE_DO == 'thu' && env.LIVE != '1'
         run: |
           set -euo pipefail
           for nt in tiktok reels shorts; do
@@ -394,17 +435,22 @@ jobs:
           if-no-files-found: ignore
       - name: Manifest (that bai neu thieu bao cao / phep truot)
         id: ket
+        if: steps.dung.outputs.bo_khung != '1'
         run: |
           set -euo pipefail
           DATA_SHA="$(git -C du-lieu rev-parse HEAD)"   # commit that cua repo rieng tu (khong phai ten nhanh)
           export DATA_SHA
           export CODE_SHA="$GITHUB_SHA"
           uv run -q --frozen python cong-cu/manifest.py --khuon "khuon/$DANG" --ra out --dang "$DANG" --ngay "$NGAY" --che-do "$CHE_DO"
-          if [ "$LIVE" = "1" ] && [ -f "khuon/$DANG/sau-manifest.py" ]; then uv run -q --frozen python "khuon/$DANG/sau-manifest.py" out/manifest.json; fi
+          if [ "$LIVE" = "1" ]; then
+            # moi dang co the co hook rieng (top5 / keo-thom); khong co (Tin nhanh) -> cong cu chung doc loi-dang.json + kiem-lai.json
+            if [ -f "khuon/$DANG/sau-manifest.py" ]; then uv run -q --frozen python "khuon/$DANG/sau-manifest.py" out/manifest.json
+            else uv run -q --frozen python cong-cu/sau_manifest_chung.py "khuon/$DANG" out/manifest.json; fi
+          fi
           ls -la out
           echo "xong=1" >> "$GITHUB_OUTPUT"
       - name: Chuyen ban dung sang job phat hanh (che do that, hoac thu + release_thu)
-        if: success() && (env.CHE_DO == 'that' || github.event.inputs.release_thu == 'true')
+        if: success() && steps.dung.outputs.bo_khung != '1' && (env.CHE_DO == 'that' || github.event.inputs.release_thu == 'true')
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ban-dung
@@ -413,7 +459,7 @@ jobs:
           if-no-files-found: error
   phat-hanh:
     needs: [kiem-moi, dung]
-    if: github.ref == 'refs/heads/main' && needs.dung.result == 'success' && ((github.event.inputs.che_do || github.event.client_payload.che_do) == 'that' || github.event.inputs.release_thu == 'true')
+    if: github.ref == 'refs/heads/main' && needs.dung.result == 'success' && needs.dung.outputs.xong == '1' && ((github.event.inputs.che_do || github.event.client_payload.che_do) == 'that' || github.event.inputs.release_thu == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
