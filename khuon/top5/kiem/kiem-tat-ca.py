@@ -46,6 +46,33 @@ ghi('Phu de khong tran khung (moi khung)',not d['tranPhuDe'],f"{len(d['tranPhuDe
 nv=sum(len(v) for v in d['ngoaiVung'].values())
 ghi(f'Chu/gia/logo trong vung an toan {NTS[NT]["ten"]} 120-888 x {TREN}-{DUOI}',nv==0,f"{nv} phan tu ngoai vung"+(f": {d['ngoaiVung']}" if nv else ''),'H6')
 
+# 2a) NOI DUNG (B4). D1: ten/gia/giam/goc/vung/may tren hinh (DOM luc dung yen) khop top5.json. D2: endTime >= gio dang + 2 gio.
+sys.path.insert(0,str(B)); import ten_rut_gon as TR
+TOP=json.load(open(B/'top5.json')); CFG=json.load(open(B/'cau-hinh.json')); ND=d['noiDung']
+def ten_gon(t): return re.sub(r'\s+',' ',re.sub(r' PS4 & PS5','',re.sub(r' for PS5| full game','',re.sub(r'[®™]','',t),flags=re.I),flags=re.I)).strip()   # = tenGon() trong full.html
+sai=[]
+for r in range(1,6):
+    g=TOP[r-1]; h=ND['hang'][str(r)]
+    mong=dict(ten=ten_gon(g['ten']),gia=g['gia'],giam=f"−{g['giam']}%",goc=g['goc'],vung=g['vung'].upper(),may=g['may'])
+    for k,v in mong.items():
+        if h.get(k)!=v: sai.append(f"hang {r} {k}: hinh '{h.get(k)}' != du lieu '{v}'")
+    if not (h['hienTen'] and h['hienGia']): sai.append(f'hang {r}: ten/gia khong hien luc dung yen')
+for i in range(5):
+    g=TOP[i]; k=ND['ket'][i]
+    for kk,v in (('ten',ten_gon(g['ten'])),('phu',f"−{g['giam']}% · {g['vung']}"),('gia',g['gia'].replace('.000đ','K'))):
+        if k.get(kk)!=v: sai.append(f"bang ket {i+1} {kk}: '{k.get(kk)}' != '{v}'")
+X=CFG['muc']//1000
+for kk,got,v in (('tit',ND['tit'],f'Top 5 bán chạy dưới {X}K'),('con',ND['con'],f"Còn {CFG['con_lai']} game nữa dưới {X}K:"),('ngay1',ND['ngay1'],f"Ngày {CFG['ngay']}"),('ngay6',ND['ngay6'],f"Bảng xếp hạng · Ngày {CFG['ngay']}")):
+    if got!=v: sai.append(f"{kk}: hinh '{got}' != du lieu '{v}'")
+ghi('D1 gia/ten/vung/giam tren hinh khop top5.json (DOM that, 5 hang + bang ket + tit + ngay)',not sai,f"{5*6+15+4} gia tri doi chieu; {len(sai)} lech"+(f": {sai[:4]}" if sai else ''),'D1')
+if CFG.get('ngay_iso'):
+    gio=os.environ.get('GIO_DANG','12:00'); han=datetime.datetime.fromisoformat(f"{CFG['ngay_iso']}T{gio}:00+07:00")+datetime.timedelta(hours=2)
+    vn=datetime.timezone(datetime.timedelta(hours=7)); ket=[(g['ten_goc'] if g.get('ten_goc') else g['ten'],g.get('endTime')) for g in TOP]
+    som=[(t[:30],datetime.datetime.fromtimestamp(int(e)/1000,vn).strftime('%d/%m %H:%M') if e else 'thieu') for t,e in ket if not e or datetime.datetime.fromtimestamp(int(e)/1000,vn)<han]
+    ghi('D2 deal con it nhat 2 gio sau gio dang (endTime)',not som,f"han toi thieu {han:%d/%m %H:%M}; endTime som nhat {min(datetime.datetime.fromtimestamp(int(e)/1000,vn) for _,e in ket if e):%d/%m %H:%M}"+(f"; HET HAN SOM: {som}" if som else ''),'D2')
+else:
+    ghi('D2 deal con it nhat 2 gio sau gio dang (endTime)',True,'bo qua: du lieu fixture (cau-hinh.json khong co ngay_iso)','D2')
+
 # 2b) do tren LOP CHU that (anh alpha) o luc dung yen cua 5 canh hang:
 #   - khoi dau trang nam NGAY DUOI vung giao dien tren (N11/N12): 0..tren khong co giay; tren+20..tren+100 kin giay
 #   - lop chu che <= 30% vung trailer net (tu mep duoi khoi dau trang toi y 1500) (N10)
@@ -111,6 +138,43 @@ for c in cau:
         xau.append(f"«{kb[:40]}» goc {rg:.2f} → ghep {rv:.2f} (goc: {tg[:40]} | ghep: {tv[:40]})")
 rg,rv=tong_g/tong_chu,tong_v/tong_chu
 ghi('Whisper tung cau: ban ghep nghe khong kem giong goc',rv>=rg-0.05 and not xau,f"{len(cau)} cau; khop kich ban: giong goc {rg:.2f}, ban ghep {rv:.2f}"+(f"; cau kem: {xau}" if xau else ''),'A2')
+
+
+# 6) D3 (B4): Whisper KHONG goi y nghe ra TEN RUT GON + SO TIEN + TEN VUNG cua tung hang (nghe tung doan cua giong goc). Sai = TRUOT.
+def bo_dau(t):
+    t=''.join(c for c in unicodedata.normalize('NFD',t.lower()) if unicodedata.category(c)!='Mn').replace('đ','d')
+    return re.sub(r'\s+',' ',re.sub(r'[^a-z0-9 ]',' ',t)).strip()
+def ten_nghe_duoc(h,m):   # cac tu ngay SAU tien to 'Hang N' (Whisper co luc viet 'h3'), dai m+2 tu: phan ten game ban nghe
+    tk=h.split(); st=0
+    for i in range(min(4,len(tk))):
+        if tk[i] in ('hang','han'): st=i+2; break
+        if re.fullmatch(r'h\d',tk[i]): st=i+1; break
+    return ' '.join(tk[st:st+m+2])
+def so_trong_van_ban(t):   # tap cac so (don vi: nghin dong) ma van ban noi toi: chu so ("167.000", "167 nghin") + so viet bang chu
+    kq=set()
+    for m in re.finditer(r'\d[\d.,]*',t):
+        n=int(re.sub(r'\D','',m.group())); kq.add(n//1000 if n>=1000 else n)
+    return kq
+def bien_the_chu(n):   # cach doc so nghin 'n' bang chu (da bo dau) + bien the thuong gap (linh/le, tu/bon, lam/nam)
+    c=bo_dau(TR.so_chu(n)); return {c,c.replace(' le ',' linh '),c.replace(' tu',' bon'),c.replace(' lam',' nam')}
+RAW=json.load(open(B/'kich-ban.json')); sai=[]; thu=[]
+NGUONG_TEN=0.40   # Whisper tieng Viet (khong goi y) nghe ten Anh rat sai chinh ta ('Outlast' -> 'aulas', 'Mortal Kombat' -> 'mo thuat combox'): fixture Top 5 01 dat 0,42-0,85 (so thu tu ten khac 0,08-0,59). Phep NAY CHI BAT thieu/loi ro; SO TIEN va VUNG moi la phep chat (xem NHAT-KY GD B)
+for r in range(1,6):
+    g=TOP[r-1]; k=f'h{r}'; ws=[w for w in moc if w.get('doan')==k]
+    if not ws: sai.append(f'hang {r}: khong co chu nao trong moc-chu'); continue
+    a0=max(0,int((ws[0]['s']-0.15)*16000)); b0=int((ws[-1]['e']+0.25)*16000)
+    tho=nghe(G16[a0:b0]); nghe_ra=bo_dau(tho); loi_dong=next(x['loi'] for x in RAW if x['k']==k)
+    nghe_ten=re.sub(r'\b\d{1,3}\b',lambda m:bo_dau(TR.so_chu(int(m.group()))),nghe_ra)   # 'Mortal Kombat 11' -> '...muoi mot' de so voi ten doc bang chu
+    ten_mong=bo_dau(TR.ten_doc_cua(g)); ti=difflib.SequenceMatcher(None,ten_mong.replace(' ',''),ten_nghe_duoc(nghe_ten,len(ten_mong.split())).replace(' ','')).ratio()
+    n_gia=TR.nghin_so(g['gia']); co_gia=(n_gia in so_trong_van_ban(tho)) or any(f' {v} ' in f' {nghe_ra} ' for v in bien_the_chu(n_gia))
+    vd=TR.vung_doc_cua(g); co_vung_noi=bo_dau(vd) in bo_dau(loi_dong)   # vung chi duoc kiem o hang kich ban co noi ten vung
+    bt={'indo':['indo','indonesia','in do'],'sing':['sing','singapore','xin ga'],'thai':['thai'],'my':['my','mi'],'hong kong':['hong kong','hongkong','hong kon'],'an do':['an do','ando','india']}.get(bo_dau(vd),[bo_dau(vd)])
+    co_vung=(not co_vung_noi) or any(f' {v} ' in f' {nghe_ra} ' or f' {v}' in f' {nghe_ra}' and len(v)>3 for v in bt)
+    thu.append(f"h{r} ten {ti:.2f}")
+    if ti<NGUONG_TEN: sai.append(f"hang {r} TEN: mong '{ten_mong}' nghe ra '{nghe_ra[:50]}' (giong {ti:.2f})")
+    if not co_gia: sai.append(f"hang {r} SO TIEN: mong {n_gia} nghin ('{bo_dau(TR.so_chu(n_gia))}') nghe ra '{nghe_ra[:50]}'")
+    if not co_vung: sai.append(f"hang {r} VUNG: mong '{vd}' nghe ra '{nghe_ra[:50]}'")
+ghi('D3 Whisper khong goi y nghe ra ten rut gon + so tien + ten vung tung hang',not sai,f"5 hang; "+', '.join(thu)+(f"; SAI: {sai}" if sai else ''),'D3')
 
 dat=sum(1 for x in KQ if x[1]); tong=len(KQ)
 with open(B/f'kiem/bao-cao-{NT}.md','w',encoding='utf-8') as f:
