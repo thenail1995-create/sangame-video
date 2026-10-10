@@ -66,6 +66,7 @@ class Khung(unittest.TestCase):
             mock.patch.object(chay.ntfy, "loi", lambda t, n, **k: self.ntfy.append(("loi", t, n))),
             mock.patch.dict(os.environ, {"DICH_JSON": self.dich, "PAGES_URL": "https://x.github.io/sangame-video"}),
             vo_ngu(),
+            mock.patch.object(chung, "bay_gio", lambda: g.GIO_DANG),
         ]
         for p in self.ps:
             p.start()
@@ -78,7 +79,7 @@ class Khung(unittest.TestCase):
     def viet_dich(self, d):
         pathlib.Path(self.dich).write_text(json.dumps(d))
 
-    def tai_release(self, ngay, dang, thu_muc, ban_can, repo=None):
+    def tai_release(self, ngay, dang, thu_muc, ban_can, repo=None, che_do=None):
         return g.tao_manifest(thu_muc, self.che_do, ngay, dang, **self.man_kw)
 
     def chay(self, pha, che_do=None):
@@ -173,7 +174,7 @@ class TestChuanBiVaCongKhai(Khung):
         self.assertEqual(self.cong.trang_thai("fb"), "chuan_bi_xong")
 
     def test_manifest_sai_sha_bo_khung_khong_goi_kenh(self):
-        def hong(ngay, dang, thu_muc, ban_can, repo=None):
+        def hong(ngay, dang, thu_muc, ban_can, repo=None, che_do=None):
             m = g.tao_manifest(thu_muc, self.che_do, ngay, dang)
             (pathlib.Path(thu_muc) / "video-reels.mp4").write_bytes(b"bi sua")
             return m

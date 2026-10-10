@@ -151,7 +151,7 @@ class TestYT(unittest.TestCase):
         m.them("POST", "oauth2.googleapis.com", P(body={"access_token": "ya29.GIA_ACCESS_123456"}))
         return m
 
-    def test_chuan_bi_that_private_va_publish_at(self):
+    def test_chuan_bi_that_chi_private_khong_publish_at(self):
         nc, m, luu = tao_nc("that"), self.mang_co_ban(), LuuGia()
         m.them("POST", "upload/youtube/v3/videos", P(headers={"Location": "https://up.example/session1"}))
         m.them("PUT", "up.example", P(200, {"id": "YV1"}))
@@ -159,7 +159,7 @@ class TestYT(unittest.TestCase):
             r = yt.chuan_bi(TOKEN_GIA["youtube"], nc, luu)
         body = [k["json_body"] for me, u, k in m.goi if "upload/youtube" in u][0]
         self.assertEqual(body["status"]["privacyStatus"], "private")
-        self.assertEqual(body["status"]["publishAt"], "2026-10-12T05:00:00Z")
+        self.assertNotIn("publishAt", body["status"])
         self.assertIn("#Shorts", body["snippet"]["description"])
         self.assertEqual((r["id_tai"], luu.ids["id_tai"]), ("YV1", "YV1"))
 

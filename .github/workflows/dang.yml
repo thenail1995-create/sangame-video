@@ -1,6 +1,7 @@
 name: Dang video
 # Lich that do cron-job.org goi workflow_dispatch (KHONG co `schedule`). Hai pha tach job:
-#   chuan-bi (T-25 phut): dung site Pages tu cac Release -> deploy -> kiem URL -> tai len / tao container (chua cong khai)
+#   chuan-bi (T-25 phut): kiem manifest+tai san+gia (job kiem) -> [IG/Threads: Pages deploy -> kiem URL] -> tai len / tao container
+#     FB/YouTube KHONG phu thuoc Pages. Pages chi deploy SAU khi kiem noi dung dat.
 #   cong-khai (T): publish kenh da chuan bi xong + TikTok hop thu -> ntfy
 # Secret CHI o hai job chuan-bi / cong-khai. Token mang xa hoi nam o Supabase (qua cong sg-cong), khong o GitHub.
 on:
@@ -25,8 +26,9 @@ on:
         options: [thu, that]
 permissions: {}
 concurrency:
-  group: dang-${{ inputs.ngay }}-${{ inputs.dang }}-${{ inputs.che_do }}
-  cancel-in-progress: false   # khong huy luot dang giua chung
+  # Moi pha 1 nhom; queue: max de dispatch moi KHONG thay the luot cong-khai dang cho (mac dinh chi giu 1 pending va huy cai cu)
+  group: dang-${{ inputs.pha }}-${{ inputs.ngay }}-${{ inputs.dang }}-${{ inputs.che_do }}
+  queue: max
 jobs:
   kiem-dau-vao:
     if: github.ref == 'refs/heads/main'
@@ -45,15 +47,14 @@ jobs:
           [[ "$DANG" =~ ^(tin-nhanh|top5|keo-thom)$ ]] || { echo "dang sai"; exit 1; }
           [[ "$CHE_DO" =~ ^(thu|that)$ ]] || { echo "che_do sai"; exit 1; }
 
-  site:
+  # Kiem manifest + sha256 moi tai san + gia/han TRUOC khi cong khai bat ky thu gi (ke ca Pages). Sai -> bo khung + ntfy.
+  kiem:
     if: inputs.pha == 'chuan-bi'
     needs: kiem-dau-vao
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 20
     permissions:
       contents: read
-    outputs:
-      sha8: ${{ steps.dung.outputs.sha8 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -61,24 +62,29 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.13"
-      - name: Dung site tu cac Release (video reels + bia, 7 ngay)
-        id: dung
+      - name: Kiem noi dung
         env:
+          SG_CONG_KHOA: ${{ secrets.SG_CONG_KHOA }}
+          NTFY_TIN: ${{ secrets.NTFY_TIN }}
+          NTFY_BAO_LOI: ${{ secrets.NTFY_BAO_LOI }}
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           NGAY: ${{ inputs.ngay }}
           DANG: ${{ inputs.dang }}
-        run: python -m dang.site --ra _site --ngay "$NGAY" --dang "$DANG"
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        with:
-          path: _site
+          CHE_DO: ${{ inputs.che_do }}
+        run: python -m dang.chay --pha kiem --dang "$DANG" --ngay "$NGAY" --che-do "$CHE_DO"
 
-  trien-khai:
+  # Mot job duy nhat dung site + deploy; MOT nhom chung cho ca repo, xep hang (queue: max) de khong lan nhau
+  pages:
     if: inputs.pha == 'chuan-bi'
-    needs: site
+    needs: kiem
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 40
+    concurrency:
+      group: pages-sangame-video
+      queue: max
     permissions:
+      contents: read
       pages: write
       id-token: write
     environment:
@@ -87,6 +93,24 @@ jobs:
     outputs:
       page_url: ${{ steps.deploy.outputs.page_url }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+      - name: Dung site tu Release 2 ngay gan nhat (ban dich da kiem day du)
+        id: dung
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          NGAY: ${{ inputs.ngay }}
+          DANG: ${{ inputs.dang }}
+          CHE_DO: ${{ inputs.che_do }}
+        run: python -m dang.site --ra _site --ngay "$NGAY" --dang "$DANG" --che-do "$CHE_DO"
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
       - id: deploy
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
       - name: Kiem URL video (curl -sI = 200, khong 3xx, video/mp4)
@@ -94,7 +118,7 @@ jobs:
           GOC: ${{ steps.deploy.outputs.page_url }}
           NGAY: ${{ inputs.ngay }}
           DANG: ${{ inputs.dang }}
-          SHA8: ${{ needs.site.outputs.sha8 }}
+          SHA8: ${{ steps.dung.outputs.sha8 }}
         run: |
           set -euo pipefail
           URL="${GOC%/}/v/${NGAY}-${DANG}-${SHA8}.mp4"
@@ -107,9 +131,10 @@ jobs:
           done
           echo "URL khong dat: $URL"; exit 1
 
-  chuan-bi:
+  # FB + YouTube: tai file thang tu Release, KHONG cho Pages
+  chuan-bi-chung:
     if: inputs.pha == 'chuan-bi'
-    needs: [site, trien-khai]
+    needs: kiem
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     permissions:
@@ -121,24 +146,55 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.13"
-      - name: Chuan bi dang
+      - name: Chuan bi FB + YouTube
         env:
           SG_CONG_KHOA: ${{ secrets.SG_CONG_KHOA }}
           NTFY_TIN: ${{ secrets.NTFY_TIN }}
           NTFY_BAO_LOI: ${{ secrets.NTFY_BAO_LOI }}
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          PAGES_URL: ${{ needs.trien-khai.outputs.page_url }}
           NGAY: ${{ inputs.ngay }}
           DANG: ${{ inputs.dang }}
           CHE_DO: ${{ inputs.che_do }}
-        run: python -m dang.chay --pha chuan-bi --dang "$DANG" --ngay "$NGAY" --che-do "$CHE_DO"
+        run: python -m dang.chay --pha chuan-bi --kenh fb,youtube --dang "$DANG" --ngay "$NGAY" --che-do "$CHE_DO"
+
+  # IG + Threads: can URL cong khai tren Pages
+  chuan-bi-pages:
+    if: inputs.pha == 'chuan-bi'
+    needs: [kiem, pages]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+      - name: Chuan bi IG + Threads
+        env:
+          SG_CONG_KHOA: ${{ secrets.SG_CONG_KHOA }}
+          NTFY_TIN: ${{ secrets.NTFY_TIN }}
+          NTFY_BAO_LOI: ${{ secrets.NTFY_BAO_LOI }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PAGES_URL: ${{ needs.pages.outputs.page_url }}
+          NGAY: ${{ inputs.ngay }}
+          DANG: ${{ inputs.dang }}
+          CHE_DO: ${{ inputs.che_do }}
+        run: python -m dang.chay --pha chuan-bi --kenh ig,threads --dang "$DANG" --ngay "$NGAY" --che-do "$CHE_DO"
 
   cong-khai:
     if: inputs.pha == 'cong-khai'
     needs: kiem-dau-vao
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    # TikTok co the xoay refresh token: dung chung nhom voi gia-han.yml de khong ghi de nhau
+    concurrency:
+      group: token-tiktok
+      queue: max
     permissions:
       contents: read
     steps:

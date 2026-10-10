@@ -34,7 +34,7 @@ class Cong:
                 else:
                     j = r.json()
                     if r.status != 200 or not isinstance(j, dict) or j.get("ok") is not True:
-                        raise LoiCong(chung.che(f"cong {viec}: HTTP {r.status} {str(j)[:200]}"))
+                        raise LoiCong(chung.cat(f"cong {viec}: HTTP {r.status} {j}", 300))
                     return j
             if lan + 1 < so_lan:
                 chung.ngu(2 * (lan + 1))
@@ -46,9 +46,15 @@ class Cong:
                      gio_du_kien=gio_du_kien, manifest_sha=manifest_sha)
         return j.get("giu_duoc") is True
 
-    def cap_nhat_dang(self, ngay, dang, kenh, che_do, **truong) -> int:
+    def cap_nhat_dang(self, ngay, dang, kenh, che_do, neu_trang_thai=None, **truong) -> int:
+        """neu_trang_thai: so-va-dat nguyen tu (cong v2) - chi sua khi trang thai hien tai dung gia tri do; tra so_dong (0 = luot
+        khac da doi, KHONG nem loi). Khong co neu_trang_thai thi 0 dong la loi."""
+        if neu_trang_thai is not None:
+            truong["neu_trang_thai"] = neu_trang_thai
         j = self.goi("cap_nhat_dang", ngay=ngay, dang=dang, kenh=kenh, che_do=che_do, **truong)
         so = int(j.get("so_dong", 0))
+        if neu_trang_thai is not None:
+            return so
         if so < 1:
             raise LoiCong(f"cap_nhat_dang {dang}/{kenh}: khong co dong nao duoc cap nhat")
         return so

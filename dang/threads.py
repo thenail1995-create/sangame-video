@@ -28,6 +28,7 @@ def chuan_bi(tk, nc, luu):
         raise chung.LoiDang("Threads khong tra container id")
     luu(id_container=cid)
     meta.cho_trang_thai(lambda: _status(tk, cid), {"FINISHED"}, {"ERROR", "EXPIRED"}, toi_da=80, ten="Threads container")
+    chung.ngu(30)  # tai lieu khuyen cho ~30 giay sau FINISHED truoc khi publish (publish chay sau o pha cong khai)
     return {"id_container": cid}
 
 

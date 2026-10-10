@@ -52,6 +52,11 @@ def che(s) -> str:
     return s
 
 
+def cat(x, n=200) -> str:
+    """CHE bi mat TRUOC, cat SAU (cat truoc se lam mat chuoi day du nen che khong bat duoc phan dau)."""
+    return che(str(x))[:n]
+
+
 def log(*a):
     print(che(" ".join(str(x) for x in a)), flush=True)
 
@@ -95,6 +100,7 @@ class NguCanh:
         self.ngay, self.dang, self.che_do, self.gio_dang = ngay, dang, che_do, gio_dang
         self.man, self.thu_muc, self.cong = man, thu_muc, cong
         self.url_video, self.url_bia = url_video, url_bia
+        self.manifest_sha = None   # sha256 cua CHINH file manifest.json (chay.py dat)
         self.loi_dang = man.get("loi_dang") or {}
 
     def tep(self, ban, loai="video"):

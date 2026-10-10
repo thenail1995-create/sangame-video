@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
 permissions: {}
 concurrency:
-  group: gia-han
-  cancel-in-progress: false
+  group: token-tiktok   # chung nhom voi job cong-khai cua dang.yml (TikTok xoay refresh token)
+  queue: max
 jobs:
   gia-han:
     if: github.ref == 'refs/heads/main'

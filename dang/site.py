@@ -1,4 +1,4 @@
-"""Dung thu muc site cho GitHub Pages: video reels + bia cua cac Release gan day, duong dan bat bien v/<ngay>-<dang>-<sha8>.mp4.
+"""Dung thu muc site cho GitHub Pages: video reels + bia cua Release 2 ngay gan nhat (cung che do), duong dan bat bien v/<ngay>-<dang>-<sha8>.mp4.
 Chay trong workflow (job khong co secret):  python -m dang.site --ra _site --ngay 2026-10-12 --dang top5
 Ghi sha8 vao $GITHUB_OUTPUT. Trang Pages gioi han ~1 GB nen cat bot ban cu (tru ban dich) khi vuot SITE_TOI_DA_MB (mac dinh 800).
 """
@@ -12,7 +12,7 @@ import sys
 
 from . import chung, http, manifest
 
-SO_NGAY = 7
+SO_NGAY = 2   # HOP-DONG muc 1: Pages chi giu video 2 ngay gan nhat
 
 
 def ten_tep(ngay, dang, sha256, duoi):
@@ -25,19 +25,20 @@ def url_cong_khai(goc, ngay, dang, man):
             f"{goc.rstrip('/')}/v/{ten_tep(ngay, dang, r['sha256'], 'jpg')}")
 
 
-def _danh_sach_tag(repo, tu, den):
+def _danh_sach_tag(repo, tu, den, che_do="that"):
     r = http.gui("GET", f"{manifest.API}/repos/{repo}/releases", headers=manifest._hdr_api(), params={"per_page": 50}, timeout=30)
     if r.status != 200:
         raise manifest.LoiManifest(f"liet ke Release: HTTP {r.status}")
     ra = []
     for rel in r.json():
-        m = re.fullmatch(r"v-(\d{4}-\d{2}-\d{2})-(tin-nhanh|top5|keo-thom)", str(rel.get("tag_name", "")))
+        m = re.fullmatch(r"%s-(\d{4}-\d{2}-\d{2})-(tin-nhanh|top5|keo-thom)" % ("thu" if che_do == "thu" else "v"),
+                         str(rel.get("tag_name", "")))
         if m and tu <= m.group(1) <= den:
             ra.append((m.group(1), m.group(2)))
     return sorted(ra, reverse=True)
 
 
-def dung(thu_muc_ra, ngay, dang, repo=None, so_ngay=SO_NGAY, toi_da_mb=None):
+def dung(thu_muc_ra, ngay, dang, repo=None, so_ngay=SO_NGAY, toi_da_mb=None, che_do="that"):
     repo = repo or manifest.REPO
     toi_da = int((toi_da_mb or float(os.environ.get("SITE_TOI_DA_MB", "800"))) * 1024 * 1024)
     ra = pathlib.Path(thu_muc_ra)
@@ -45,14 +46,16 @@ def dung(thu_muc_ra, ngay, dang, repo=None, so_ngay=SO_NGAY, toi_da_mb=None):
     (ra / ".nojekyll").write_text("")
     (ra / "index.html").write_text('<!doctype html><meta charset="utf-8"><title>sangame-video</title>sangame-video')
     d0 = dt.date.fromisoformat(ngay)
-    tu, den = (d0 - dt.timedelta(days=so_ngay - 1)).isoformat(), (d0 + dt.timedelta(days=1)).isoformat()
-    ung_vien = [(ngay, dang)] + [t for t in _danh_sach_tag(repo, tu, den) if t != (ngay, dang)]
+    tu, den = (d0 - dt.timedelta(days=so_ngay - 1)).isoformat(), d0.isoformat()
+    ung_vien = [(ngay, dang)] + [t for t in _danh_sach_tag(repo, tu, den, che_do) if t != (ngay, dang)]
     tong, sha_dich = 0, None
     tam = ra / "_tam"
     for n, d in ung_vien:
         la_dich = (n, d) == (ngay, dang)
         try:
-            man = manifest.tai_release(n, d, tam, ("reels",), repo)
+            man = manifest.tai_release(n, d, tam, ("reels",) if not la_dich else manifest.BAN, repo, che_do)
+            if la_dich:   # ban dich: kiem day du nhu may dang TRUOC khi cho len Pages (Sol: khong cong khai tai san chua qua cong)
+                manifest.kiem(man, tam, n, d, che_do)
             r = man["ban"]["reels"]
             for k, sk in (("video", "sha256"), ("bia", "bia_sha256")):
                 if chung.sha256_tep(tam / r[k]) != r[sk]:
@@ -97,9 +100,10 @@ def main(argv=None):
     ap.add_argument("--ra", required=True)
     ap.add_argument("--ngay", required=True)
     ap.add_argument("--dang", required=True)
+    ap.add_argument("--che-do", dest="che_do", choices=["thu", "that"], default="that")
     a = ap.parse_args(argv)
     try:
-        sha8 = dung(a.ra, a.ngay, a.dang)
+        sha8 = dung(a.ra, a.ngay, a.dang, che_do=a.che_do)
     except manifest.LoiManifest as e:
         chung.log_loi(f"site: {e}")
         return 1
