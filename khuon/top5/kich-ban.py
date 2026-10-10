@@ -3,36 +3,22 @@
 import json,re,pathlib
 T=pathlib.Path(__file__).resolve().parent
 top=json.load(open(T/'top5.json'))
-SO=['không','một','hai','ba','bốn','năm','sáu','bảy','tám','chín']
-def so_chu(n):
-    """0..999 -> chữ: 112 'một trăm mười hai', 105 'một trăm lẻ năm', 75 'bảy mươi lăm', 21 'hai mươi mốt', 15 'mười lăm'."""
-    tr,ch,dv=n//100,(n//10)%10,n%10; o=[]
-    if tr: o.append(SO[tr]+' trăm')
-    if ch==0:
-        if dv: o.append(('lẻ ' if tr else '')+SO[dv])
-    else:
-        o.append('mười' if ch==1 else SO[ch]+' mươi')
-        if dv==1 and ch>1: o.append('mốt')
-        elif dv==5: o.append('lăm')
-        elif dv==4 and ch>1: o.append('tư')
-        elif dv: o.append(SO[dv])
-    return ' '.join(o) if o else 'không'
+import sys; sys.path.insert(0,str(T)); import ten_rut_gon as tr
+so_chu=tr.so_chu   # B1: dung chung voi ten_rut_gon (toi 9999)
 def nghin(gia):   # '167.000đ' -> 'một trăm sáu mươi bảy nghìn'
     return so_chu(int(gia.replace('.','').replace('đ',''))//1000)+' nghìn'
-TEN={'Mafia: Definitive Edition for PS5®':'Mafia bản làm lại','Mortal Kombat 11':'Mortal Kombat mười một',
-     'Little Nightmares Complete Edition':'Little Nightmares bản đầy đủ','Outlast full game':'Outlast','Steelrising':'Steelrising'}
-VUNG={'Hồng Kông':'Hồng Kông','Indonesia':'Indo','Mỹ':'Mỹ','Singapore':'Sing','Thái Lan':'Thái'}
+ten_doc=tr.ten_doc_cua; vung_doc=tr.vung_doc_cua
 HANG=['một','hai','ba','bốn','năm']
-doan=[('mo','[excited] Top năm game bán chạy đang dưới hai trăm nghìn nè anh em!')]
+CFG=json.load(open(T/'cau-hinh.json'))   # muc, con_lai = tong - 5 (LOI-SAI D8: 'con ... nua' phai TRU 5 game da noi)
+doan=[('mo',f"[excited] Top năm game bán chạy đang dưới {so_chu(CFG['muc']//1000)} nghìn nè anh em!")]
 for i in range(4,-1,-1):
-    g=top[i]; ten=TEN.get(g['ten'],g['ten']); gia=nghin(g['gia']); giam=so_chu(g['giam'])+' phần trăm'
+    g=top[i]; ten=ten_doc(g); gia=nghin(g['gia']); giam=so_chu(g['giam'])+' phần trăm'
     if i==4: c=f"Hạng năm: {ten}, giảm {giam}, còn {gia}."
-    elif i==3: c=f"Hạng bốn: {ten}, giảm {giam}, {gia} ở store {VUNG[g['vung']]}."
+    elif i==3: c=f"Hạng bốn: {ten}, giảm {giam}, {gia} ở store {vung_doc(g)}."
     elif i==2: c=f"Hạng ba: {ten}, {gia}."
     elif i==1: c=f"Hạng hai: {ten}, giảm {giam}, chỉ {gia}!"
-    else: c=f"[excited] Và hạng một: {ten}, {gia} ở {VUNG[g['vung']]}!"
+    else: c=f"[excited] Và hạng một: {ten}, {gia} ở {vung_doc(g)}!"
     doan.append((f'h{i+1}',c))
-CFG=json.load(open(T/'cau-hinh.json'))   # con_lai = tong - 5 (LOI-SAI D8: 'con ... nua' phai TRU 5 game da noi)
 doan.append(('ket',f"Còn {so_chu(CFG['con_lai'])} game nữa dưới {so_chu(CFG['muc']//1000)} nghìn, tra ở Săn Game chấm com chấm vi en!"))
 loi=' '.join(c for _,c in doan)
 (T/'loi.txt').write_text(loi,encoding='utf-8')

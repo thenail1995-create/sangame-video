@@ -3,6 +3,11 @@
 # Lop alpha: dung -> ghep -> XOA tung ban (~4,9 GB/ban).
 M="$(cd "$(dirname "$0")" && pwd)"; . "$M/../../cong-cu/chay-chung.sh"
 cd "$M"
+# LIVE=1 (B2): chon game + loi (chuan-bi.sh) + thu giong (cong-cu/giong.py) neu workflow/nguoi dung chua lam. LIVE khac => fixture (dau vao co san).
+if [ "${LIVE:-0}" = 1 ]; then
+  if [ ! -f top5.json ] || [ ! -f kich-ban.json ]; then bash "$M/chuan-bi.sh"; moc "chon 5 game + loi"; fi
+  if [ ! -f dau-vao/giong.mp3 ]; then mkdir -p dau-vao; "${PY[@]}" "$ROOT/cong-cu/giong.py" giong --loi-file loi.txt --ra dau-vao/giong.mp3 --du-an san-game --dang top5; moc "giong"; fi
+fi
 if [ -f dau-vao/moc-chu.json ]; then cp dau-vao/moc-chu.json dau-vao/moc-chu.mac.json; fi
 "${PY[@]}" can-chu.py | tail -4;            moc "can chu (Whisper)"
 if [ -f dau-vao/moc-chu.mac.json ]; then "${PY[@]}" "$ROOT/cong-cu/so-moc.py" dau-vao/moc-chu.mac.json dau-vao/moc-chu.json 0.08 | tee -a "$DO"; fi
