@@ -165,7 +165,10 @@ function hBand(t){ if(t<C1)return HB.mo; if(t<CK)return L(HB.mo,HB.gon,eio(p(t,C
 var MAST={F:150,sm:.4}, TX=[0,0,0,0,0];
 var CY=Math.round((TT+116+908)/2);   // tam vung trailer trong giua khoi dau trang va dai duoi: so to dap o day
 var BIG=520/150, SLOT={};
-function vua(el,max,co){el.style.fontSize=co+'px';var w=el.getBoundingClientRect().width;if(w>max)el.style.fontSize=(co*max/w)+'px'}
+function vua(el,max,co){el.style.fontSize=co+'px';var w=Math.max(el.getBoundingClientRect().width,el.scrollWidth);if(w>max)el.style.fontSize=(co*max/w)+'px'}   /* scrollWidth: .ten la khoi, rect = be rong CHA nen khong bao gio > max (K19) */
+/* ten tren the hang: thu co chu cho vua 1 dong; < 34 px (kho doc tren dien thoai) -> xuong 2 dong 38 px, thu dan toi 30 px */
+function vuaTen(el){var max=el.parentNode.getBoundingClientRect().width;vua(el,max,46);
+  if(parseFloat(el.style.fontSize)<34){el.style.whiteSpace='normal';var k=38;el.style.fontSize=k+'px';el.style.lineHeight='1.02';while((el.scrollHeight>2*k*1.05||el.scrollWidth>max+1)&&k>30){k-=2;el.style.fontSize=k+'px'}}}
 /* ===== DUNG CANH TU DU LIEU ===== */
 (function(){
   var X=MUC/1000;
@@ -183,7 +186,7 @@ function vua(el,max,co){el.style.fontSize=co+'px';var w=el.getBoundingClientRect
       '<div class="bang-keo" id="keo'+r+'" style="left:756px;top:718px;width:100px;height:34px;z-index:5"></div>'+
       '<div class="a nho tag" id="tag'+r+'">★ Top '+(g.hang_ban_chay<=50?50:100)+' bán chạy</div>'+
       '<div class="a bong" style="inset:0;pointer-events:none"><div class="a giay l3" id="hop'+r+'"><div class="slot" id="slot'+r+'"></div><div class="tt">'+
-      '<div class="ten" id="ten'+r+'">'+tenGon(g.ten)+'</div>'+
+      '<div class="ten" id="ten'+r+'">'+tenGon(g.ten_the||g.ten)+'</div>'+
       '<div class="gia"><b id="gia'+r+'">'+g.gia+'</b><span class="giam" id="giam'+r+'">−'+g.giam+'%</span></div>'+
       '<div class="dong" id="dong'+r+'"><s>'+g.goc+'</s><span class="vung">'+(CO[g.vung]?'<img src="'+CO[g.vung]+'">':'')+g.vung.toUpperCase()+'</span><span class="may">'+g.may+'</span></div></div></div></div>'+
       '<div class="a soW" id="soW'+r+'"><div class="pf so'+(r==1?' vang':'')+'" id="so'+r+'">0'+r+'</div></div></div>'}
@@ -293,8 +296,10 @@ Promise.all(FONTS.map(function(f){return document.fonts.load(f,'ĂÂÊÔƠƯăâ
      var q=$('slot'+r).getBoundingClientRect(), sh=so.getBoundingClientRect().height;
      sw.style.left=q.left+'px'; sw.style.top=(q.top+(q.height-sh)/2+6)+'px';
      SLOT[r]={cx:q.left+bw/2, cy:q.top+q.height/2+6};
-     vua($('ten'+r),$('ten'+r).parentNode.getBoundingClientRect().width,46)});
-   [].forEach.call(document.querySelectorAll('.dongK .t b'),function(b){vua(b,b.parentNode.getBoundingClientRect().width,33)});
+     vuaTen($('ten'+r)); var dg=$('dong'+r),mxd=dg.parentNode.getBoundingClientRect().width;   /* hang goc dai (1.358.000d) + vung + may vuot hop -> thu ca hang (K19) */
+     if(dg.scrollWidth>mxd+0.5){var kd=Math.max(.75,mxd/dg.scrollWidth);dg.style.transformOrigin='0 50%';dg.style.transform='scale('+kd+')'}});
+   [].forEach.call(document.querySelectorAll('.dongK .t b'),function(b,i){var mx=b.parentNode.getBoundingClientRect().width;vua(b,mx,33);
+     if(parseFloat(b.style.fontSize)<26){b.textContent=tenGon(TOP[i].ten_the||TOP[i].ten);vua(b,mx,33)}});   /* ten day du khong vua >= 26 px -> dung ten rut gon (K19) */
    vua($('tit3'),764,62);
    ve(0); window.__ready=true});
 </script></body></html>
