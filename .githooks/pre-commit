@@ -1,0 +1,4 @@
+#!/bin/bash
+# Quet bi mat truoc moi commit. Cai: git config core.hooksPath .githooks
+if ! command -v gitleaks >/dev/null 2>&1; then echo "pre-commit: thieu gitleaks (brew install gitleaks)"; exit 1; fi
+gitleaks protect --staged --redact --no-banner || { echo "pre-commit: gitleaks phat hien bi mat -> huy commit"; exit 1; }
