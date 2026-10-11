@@ -103,7 +103,13 @@ def nap_va_kiem(a, cong, thu_muc):
 
 
 def kiem_gia(a, cong, nc):
-    van_de, canh_bao = gia.kiem_lai(nc.man.get("kiem_lai"), nc.gio_dang)
+    muc = nc.man.get("kiem_lai")
+    if a.dang == "tin-nhanh" and muc == []:
+        # Sol soi cuoi P2 (11/10): Tin nhanh gom 3 tin bai/PS Plus/sale KHONG co the gia -> kiem_lai rong hop le
+        # (may dung da kiem moi the gia co dung 1 ban ghi). Chi Tin nhanh; Top 5/Keo thom rong van bo khung.
+        chung.log("kiem_lai: Tin nhanh khong co the gia - khong can kiem lai gia/han")
+        return True
+    van_de, canh_bao = gia.kiem_lai(muc, nc.gio_dang)
     for c in canh_bao:
         chung.log(f"kiem_lai canh bao: {c}")
     if van_de:
@@ -195,12 +201,16 @@ def pha_chuan_bi(a, cong, thu_muc, kenh_chon=None):
 
 # ---------------------------------------------------------------- cong khai
 SOM_TOI_DA = dt.timedelta(minutes=1)
+TRE_TOI_DA = dt.timedelta(minutes=90)   # gia/han da kiem cho gio dang + 2 h; tre hon 90 phut = khung cu, bo
 
 
 def cong_khai_kenh(kenh, nc, dich, cong, dong, cac_dong=()):
     """-> ('bo_qua'|'da_dang', ket). Nem LoiDang neu loi. Thu tu cong: gio -> manifest_sha -> dich.json -> giu quyen so-va-dat."""
     if nc.che_do == "that" and chung.bay_gio() < nc.gio_dang - SOM_TOI_DA:
         raise LoiDang(f"chua toi gio dang ({chung.iso(nc.gio_dang)}) - khong cong khai som")
+    if nc.che_do == "that" and chung.bay_gio() > nc.gio_dang + TRE_TOI_DA:
+        # Sol soi cuoi P1 (11/10): cong chi chan dang SOM -> ban cua ngay truoc (hoac dispatch tre) van cong khai duoc.
+        raise LoiDang(f"qua gio dang ({chung.iso(nc.gio_dang)}) hon {int(TRE_TOI_DA.total_seconds() // 60)} phut - khong cong khai ban cu")
     if kenh == "tiktok":
         # TikTok khong co pha chuan bi: ap dung cung rang buoc manifest voi cac kenh da chuan bi
         for r in cac_dong:

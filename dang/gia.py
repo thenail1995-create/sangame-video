@@ -17,6 +17,7 @@ doc_gia = gia_trang.doc_gia
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36"
 DUNG_SAI_GIA = 0.02
 DEM_SAU_GIO_DANG = 2 * 3600
+LECH_HAN_MS = 60 * 1000   # cho lech lam tron toi 1 phut
 
 
 def kiem_lai(muc, gio_dang):
@@ -48,6 +49,13 @@ def kiem_lai(muc, gio_dang):
             van_de.append(f"{ten}: khoi gia khong con endTime (deal co the da ket thuc hoac doi cau truc trang)")
         elif int(end) / 1000 < han_toi_thieu:
             van_de.append(f"{ten}: het han luc {end} (< gio dang + 2 h)")
+        # Sol soi cuoi P1 (11/10): han tren trang phai TRUNG han da noi/hien trong video (kiem_lai.endTime).
+        # Han doi (keo dai hay rut ngan) -> video noi sai han -> bo khung, dung lai.
+        han_video = m.get("endTime")
+        if not han_video or not str(han_video).isdigit():
+            van_de.append(f"{ten}: manifest thieu endTime - khong so duoc han da noi trong video")
+        elif end and abs(int(end) - int(han_video)) > LECH_HAN_MS:
+            van_de.append(f"{ten}: han doi {han_video} -> {end} (video noi han cu)")
         goc = m.get("gia_cuc_bo")
         moi = khoi["gia_cuc_bo"]
         if not isinstance(goc, (int, float)) or goc <= 0:

@@ -166,6 +166,15 @@ class TestGio(Khung):
         with mock.patch.object(chung, "bay_gio", lambda: g.GIO_DANG - dt.timedelta(seconds=30)):
             self.assertEqual(self.chay("cong-khai"), 0)
 
+    def test_ban_cu_qua_gio_khong_cong_khai(self):  # Sol soi cuoi P1 chay.py:202
+        self.chay("chuan-bi")
+        with mock.patch.object(chung, "bay_gio", lambda: g.GIO_DANG + dt.timedelta(days=1)):
+            self.assertEqual(self.chay("cong-khai"), 1)
+        self.assertTrue(all(self.kenh[k].ck == 0 for k in ("fb", "ig", "threads", "youtube")))
+        self.assertEqual(self.kenh["tiktok"].hop, 0)
+        with mock.patch.object(chung, "bay_gio", lambda: g.GIO_DANG + dt.timedelta(minutes=30)):
+            self.assertEqual(self.chay("cong-khai"), 0)
+
     def test_youtube_khong_public_som(self):
         yt._cache.clear()
         self.chay("chuan-bi")
@@ -343,7 +352,7 @@ class TestGiaFailClosed(unittest.TestCase):
         con = str(int((g.GIO_DANG.timestamp() + 5 * 3600) * 1000))
         m = Mang().them("GET", "store.playstation.com", tra(con) if callable(tra) else tra)
         with mock.patch("dang.http.gui", m):
-            return gia.kiem_lai([muc or self.MUC], g.GIO_DANG)[0]
+            return gia.kiem_lai([muc or {**self.MUC, "endTime": con}], g.GIO_DANG)[0]
 
     def test_timeout_http_thieu_endtime_gia_deu_bo_khung(self):  # gia.py:37
         pid = self.MUC["pid"]
@@ -352,7 +361,7 @@ class TestGiaFailClosed(unittest.TestCase):
         self.assertTrue(self.kiem(lambda con: P(raw=trang_ps(pid, "HK$100.00", None))))              # mat endTime
         self.assertTrue(self.kiem(lambda con: P(raw=trang_ps(pid, "Included", con))))                # khong doc duoc gia
         self.assertTrue(self.kiem(lambda con: P(raw=trang_ps(pid, "HK$100", con)),
-                                  {**self.MUC, "gia_cuc_bo": None}))                                  # thieu gia_cuc_bo
+                                  {**self.MUC, "gia_cuc_bo": None, "endTime": "1"}))                  # thieu gia_cuc_bo
         self.assertEqual(self.kiem(lambda con: P(raw=trang_ps(pid, "HK$100.00", con))), [])
 
     def test_gia_han_lay_tu_khoi_dung_pid_khong_muon_cua_khoi_khac(self):  # Sol bcd #14/#15
@@ -363,6 +372,19 @@ class TestGiaFailClosed(unittest.TestCase):
         self.assertTrue(self.kiem(lambda con: P(raw=trang_ps(None, None, None, khac=[("UP2000-Y_00-GOIY", "HK$100.00", con)]))))
         # khoi gia khac cua san pham khac KHONG lam hong ket qua khi khoi dung pid day du
         self.assertEqual(self.kiem(lambda con: P(raw=trang_ps(pid, "HK$100.00", con, khac=[("UP2000-Y_00-GOIY", "HK$999.00", None)]))), [])
+
+    def test_han_doi_so_voi_video_thi_bo(self):  # Sol soi cuoi P1 gia.py:49
+        pid = self.MUC["pid"]
+        cu = str(int((g.GIO_DANG.timestamp() + 10 * 86400) * 1000))          # video noi het 22/10
+        # trang doi han som hon (van con > 2 h, cung gia) -> phai bo
+        self.assertTrue(self.kiem(lambda con: P(raw=trang_ps(pid, "HK$100.00", con)), {**self.MUC, "endTime": cu}))
+        # trang doi han dai hon -> cung bo (video noi sai han)
+        dai = str(int(cu) + 3 * 86400 * 1000)
+        self.assertTrue(self.kiem(P(raw=trang_ps(pid, "HK$100.00", dai)), {**self.MUC, "endTime": cu}))
+        # manifest thieu endTime -> bo (fail-closed)
+        self.assertTrue(self.kiem(lambda con: P(raw=trang_ps(pid, "HK$100.00", con)), dict(self.MUC)))
+        # trung han -> dat
+        self.assertEqual(self.kiem(P(raw=trang_ps(pid, "HK$100.00", cu)), {**self.MUC, "endTime": cu}), [])
 
     def test_manifest_khong_co_kiem_lai_thi_bo(self):
         self.assertTrue(gia.kiem_lai([], g.GIO_DANG)[0])
@@ -448,3 +470,20 @@ class TestWorkflow(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestTinNhanhKhongTheGia(unittest.TestCase):  # Sol soi cuoi P2 gia.py:25
+    def nc(self, kiem_lai):
+        n = mock.Mock(); n.man = {"kiem_lai": kiem_lai}; n.gio_dang = g.GIO_DANG; n.manifest_sha = "x"
+        return n
+
+    def test_tin_nhanh_rong_hop_le_con_dang_khac_rong_thi_bo(self):
+        bo = []
+        with mock.patch.object(chay, "bo_khung", lambda *a, **k: bo.append(a)):
+            a = mock.Mock(ngay="2026-10-12", dang="tin-nhanh", che_do="that")
+            self.assertTrue(chay.kiem_gia(a, None, self.nc([])))
+            self.assertEqual(bo, [])
+            self.assertFalse(chay.kiem_gia(a, None, self.nc(None)))          # thieu han khoa -> van bo
+            for d in ("top5", "keo-thom"):
+                self.assertFalse(chay.kiem_gia(mock.Mock(ngay="2026-10-12", dang=d, che_do="that"), None, self.nc([])))
+        self.assertEqual(len(bo), 3)
