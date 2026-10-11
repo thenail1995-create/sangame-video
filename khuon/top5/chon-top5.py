@@ -103,10 +103,10 @@ json.dump(dict(ngay=f'{dd}/{mm}',ngay_iso=ngay_dang,muc=X,tong=tong,con_lai=tong
 # Loi dang (tit <= 100 ky tu, mo ta <= 2000): moi so lay tu du lieu
 cuoi=min(int(g['endTime']) for g in out); cuoi_s=datetime.datetime.fromtimestamp(cuoi/1000,VN).strftime('%d/%m %H:%M')
 dong='\n'.join(f"{r}. {g['ten']} - {g['gia']} (-{g['giam']}%, store {g['vung']})" for r,g in enumerate(out,1))
-mo_ta=(f"Top 5 game PS5 bán chạy đang giảm giá, dưới {X//1000}.000đ (ngày {dd}/{mm}):\n{dong}\n\n"
+mo_ta=(f"Top 5 game PlayStation bán chạy đang giảm giá, dưới {X//1000}.000đ (ngày {dd}/{mm}):\n{dong}\n\n"
        f"Còn {tong-5} game bán chạy nữa dưới {X//1000}.000đ. Deal sớm nhất hết lúc {cuoi_s} (giờ VN).\n"
        f"Giá quy đổi theo giá thẻ PSN ở Việt Nam, có thể đổi theo tỷ giá. Tra giá 6 vùng PS Store: https://sangame.com.vn/")
-tit=f"Top 5 game PS5 bán chạy dưới {X//1000}.000đ hôm nay ({dd}/{mm})"
+tit=f"Top 5 game PlayStation bán chạy dưới {X//1000}.000đ hôm nay ({dd}/{mm})"
 json.dump(dict(tieu_de=tit[:100],mo_ta=mo_ta[:2000],hashtag=['#SănGame','#PlayStation','#PS5','#GiảmGiá'],link='https://sangame.com.vn/'),open(T/'loi-dang.json','w'),ensure_ascii=False,indent=1)
 json.dump(dict(trang_thai='du',muc=X,tong=tong,ngay=ngay_dang,ghi_chu_lich_su=ghi_chu_ls,loai=nhat_ky[-30:]),open(T/'ket-qua-chon.json','w'),ensure_ascii=False,indent=1)
 print(f'muc {X//1000}K, tong {tong} game ban chay duoi muc (con lai {tong-5}); top 5:')
