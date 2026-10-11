@@ -28,7 +28,7 @@ for nt,(v,b,kj) in files.items():
     ban[nt]=dict(video=f'video-{nt}.mp4',sha256=sha(R/f'video-{nt}.mp4'),bia=f'bia-{nt}.jpg',bia_sha256=sha(R/f'bia-{nt}.jpg'),giay=dur(v),
                  kiem=dict(dat=True,phep=[dict(ten=p['ten'],dat=bool(p['dat']),so_do=p['so_do']) for p in kj['phep']]))
 # loi dang tam: tu kich ban (B/C/D se thay bang tieu de + mo ta tu du lieu ngay)
-TD={'tin-nhanh':'Bản tin game PlayStation sáng nay: 3 tin nóng','top5':'Top 5 game PS5 bán chạy giá rẻ hôm nay','keo-thom':'Kèo thơm hôm nay: game PS5 đang giảm sâu'}
+TD={'tin-nhanh':'Bản tin game PlayStation sáng nay: 3 tin nóng','top5':'Top 5 game PlayStation bán chạy giá rẻ hôm nay','keo-thom':'Kèo thơm hôm nay: game PlayStation đang giảm sâu'}
 loi_txt=(K/'loi.txt').read_text(encoding='utf-8').strip() if (K/'loi.txt').exists() else ''
 loi_txt=re.sub(r'\[[^\]]*\]\s*','',loi_txt)
 loi_dang=dict(tieu_de=TD[a.dang][:100],mo_ta=(loi_txt+'\n\nTra giá mọi game ở 6 vùng PS Store: https://sangame.com.vn/')[:2000],
