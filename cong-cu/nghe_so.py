@@ -110,6 +110,7 @@ def _tien_tu(T,i,r):
             v2,t2,j2,h2=r2; y=_w(T,j2) if _lien(T,j2) else None
             if y in NGHIN or y=='k': return tong+round(v2*1000),j2+1
             if _pt_het(T,j2) is not None or h2=='thap': return tong,j       # (khong chan theo 'giờ': 'hai triệu hai… giờ còn có' Whisper nghe '2 triệu 2 giờ còn có')
+            if h2=='nhom' and v2<1_000_000: return tong+v2,j2                      # '1 triệu 48.000' = 1.048.000 (CI that 11/10: Whisper viet 'một triệu không trăm bốn mươi tám nghìn' nhu vay)
             if h2=='don' or (h2=='nguyen' and v2<10): return tong+v2*100_000,j2     # 'mot trieu ba' = 1.300.000
             return tong+round(v2*1000),j2                                           # 'mot trieu ba tram' = 1.300.000 ; 'mot trieu nam muoi' = 1.050.000
         return tong,j
@@ -441,10 +442,14 @@ def co_tu_khoa(nghe,alts,nguong=0.78):
     return False
 def doc_diem_cham(van_ban):
     """Diem sao nghe duoc TRONG MENH DE DANH GIA: 'cham <diem> tren 5 sao' / 'cham <diem> sao' / 'cham <diem>/5' (<diem> = 4,4 · 4.4 · 4 phay 4 · bon phay bon · bon). Thang khac ('tren 10 sao'), so khong di
-    kem 'cham' ('phien ban 4.4') -> KHONG tinh. -> [float]."""
+    kem 'cham' ('phien ban 4.4') -> KHONG tinh; rieng '<diem> tren 5 sao' tinh ca khi Whisper nghe sai/mat chu 'cham'. -> [float]."""
     t=bo_dau(nfc(van_ban)); ra=[]
     def so(x): return int(x) if x.isdigit() else _SO_CHU_BD.get(x)
-    for m in re.finditer(r'(?<![a-z0-9])cham\s+(?:duoc\s+)?(\d\s*[.,]\s*\d|[a-z0-9]+\s+phay\s+[a-z0-9]+|[a-z0-9]+)(?:\s*/\s*5|\s+tren\s+(?:5|nam)\s+sao|\s+sao)(?![a-z0-9])',t):
+    D=r'(\d\s*[.,]\s*\d|[a-z0-9]+\s+phay\s+[a-z0-9]+|[a-z0-9]+)'
+    # '<diem> tren 5 sao' tu no da la menh de danh gia (thang 5 sao) -> khong can 'cham' (CI that 11/10: Whisper nghe 'người chơi chấm 4,5' thanh 'người chơi trên 4,5 trên 5 sao')
+    ms=list(re.finditer(r'(?<![a-z0-9])cham\s+(?:duoc\s+)?'+D+r'(?:\s*/\s*5|\s+tren\s+(?:5|nam)\s+sao|\s+sao)(?![a-z0-9])',t))
+    ms+=list(re.finditer(r'(?<![a-z0-9.,])'+D+r'\s+tren\s+(?:5|nam)\s+sao(?![a-z0-9])',t))
+    for m in ms:
         g=m.group(1); d=re.fullmatch(r'(\d)\s*[.,]\s*(\d)',g)
         if d: ra.append(int(d.group(1))+int(d.group(2))/10); continue
         w=re.fullmatch(r'([a-z0-9]+)\s+phay\s+([a-z0-9]+)',g)
