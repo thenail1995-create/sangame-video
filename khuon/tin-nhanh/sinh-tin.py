@@ -67,8 +67,11 @@ def vang(r,k):
         doc_moc=re.sub(r'[:;]','',sc.doc_van_ban(moc,ND))
         if sc.bo_dau(doc_moc) in sc.bo_dau(doc_tit): moc=None     # nhãn đã nằm trong tít: không đọc lại
         else:
-            loi=f'{doc_tit}, {doc_moc}'
-            ci=len(f'Tin {TIN_MOT[k]}:'.split())+len(doc_tit.split()); so=[doc_moc]
+            dau=doc_tit
+            if r.get('kieu')=='sale':   # tin ĐỢT SALE: đọc rõ là đợt sale + "hết ngày …" (trước: "Player's Choice, hết hai mươi mốt tháng mười" cụt — Opus 11/10)
+                dau=f'Đợt sale {doc_tit} đang chạy'; doc_moc=re.sub(r'^hết\s+(?!ngày)','hết ngày ',doc_moc)
+            loi=f'{dau}, {doc_moc}'
+            ci=len(f'Tin {TIN_MOT[k]}:'.split())+len(dau.split()); so=[doc_moc]
     if not loi.endswith('.'): loi+='.'
     d=dict(loai=r['loai'],mau='vang',nguon=r['nguon'],tieu=cat(tit,TOI_DA['tieu']),tit=cat(tit,TOI_DA['tit']),dong=r['dong'],nhan_dong=r['nhan_dong'],anh=r['anh_tep'][:1],
            loi=f'Tin {TIN_MOT[k]}: '+loi,chi_so=dict(moc=ci),kiem=dict(ten=[doc_tit],so=[],ngay=so))
