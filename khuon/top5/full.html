@@ -86,6 +86,7 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:transparent;font
 #subW{left:120px;top:1142px;width:768px;z-index:20}
 #sub{position:relative;padding:14px 22px 16px 34px;font-weight:800;font-size:46px;line-height:1.15;white-space:nowrap;min-height:84px}
 #sub::before{content:"";position:absolute;left:0;top:0;bottom:0;width:12px;background:var(--do)}
+#subM{position:absolute;left:0;top:0;visibility:hidden;white-space:nowrap;font-weight:800;font-size:46px;line-height:1.15;pointer-events:none}   /* do be rong chu cho chiaCum() */
 #sub span{opacity:.62}#sub span.da{opacity:1}#sub span.nay{opacity:1;color:var(--do)}
 </style></head><body>
 <svg width="0" height="0" style="position:absolute"><defs>
@@ -123,7 +124,7 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:transparent;font
   <div id="quat"></div>
 </div></div>
 <div id="hangs"></div>
-<div id="subW" class="a"><div id="sub" class="giay"></div></div>
+<div id="subW" class="a"><div id="sub" class="giay"></div><div id="subM"></div></div>
 
 <script>
 window.__ready=false;
@@ -204,13 +205,37 @@ function vuaTen(el){var max=el.parentNode.getBoundingClientRect().width;vua(el,m
 })();
 var M={}; [1,2,3,4,5].forEach(function(r){M[r]=moc('h'+r)});
 /* ===== PHU DE ===== */
-// cum phu de: du lau doc (>= 0,9 s) va <= 26 ky tu (LOI-SAI H22); het doan thi cat
-var CUM=[];(function(){var cur=[];for(var i=0;i<MOC.length;i++){var thu=cur.concat([i]).map(function(x){return MOC[x].w}).join(' ');
-  if(cur.length&&thu.length>26){CUM.push(cur);cur=[]}
-  cur.push(i); var dur=MOC[i].e-MOC[cur[0]].s, het=(i+1>=MOC.length||MOC[i+1].doan!==MOC[i].doan);
-  if(het||(/[.!?…,:]$/.test(MOC[i].w)&&dur>=0.9)){CUM.push(cur);cur=[]}}if(cur.length)CUM.push(cur)})();
-function phude(t){var html='';
-  for(var k=0;k<CUM.length;k++){var c=CUM[k],a=MOC[c[0]].s,b=k+1<CUM.length?MOC[CUM[k+1][0]].s:DAI;
+// Chia cum phu de (LOI-SAI H5/H22 + Top 5 11/10 "phu de tran khung"):
+//  (1) KHONG noi qua dau ket cau [. ! ? …] hay het doan (cau "...anh em!" + "Hang nam: ..." tung bi gop 1 dong);
+//  (2) be rong do bang DOM that (#subM cung font voi #sub), KHONG dem ky tu; moi cum <= be rong noi dung cua #sub;
+//  (3) cau qua rong thi chia bang quy hoach dong: IT cum nhat, roi uu tien tach sau dau phay/hai cham, roi cum ngan nhat doc duoc lau nhat;
+//  (4) moc vao cua cum tang dan (moc chu loi cung khong lam cum chong nhau).
+var CUM=null, CUMA=[];
+function rongCum(ds){var m=$('subM');m.textContent=ds.map(function(x){return MOC[x].w.replace(/…/g,'')}).join(' ');return m.getBoundingClientRect().width}
+function chiaCum(){
+  var room=$('sub').clientWidth-34-22-6, out=[];   // padding trai 34 + phai 22 + du 6 px
+  var cau=[],cur=[];
+  for(var i=0;i<MOC.length;i++){cur.push(i);
+    if(i+1>=MOC.length||MOC[i+1].doan!==MOC[i].doan||/[.!?…]$/.test(MOC[i].w)){cau.push(cur);cur=[]}}
+  cau.forEach(function(ws){
+    var n=ws.length, ok=function(a,b){var ds=ws.slice(a,b);return ds.length===1||rongCum(ds)<=room};
+    // f[j][m] = [so cho tach sau dau phay/hai cham (nhieu hon = tot), cum ngan nhat theo giay doc (dai hon = tot)] tot nhat khi chia j tu dau thanh m cum; undefined = khong chia duoc
+    var f=[],tr=[];for(var j=0;j<=n;j++){f.push([]);tr.push([])}
+    f[0][0]=[0,99];
+    for(var j=1;j<=n;j++)for(var a=0;a<j;a++){if(!ok(a,j))continue;
+      var dur=MOC[ws[j-1]].e-MOC[ws[a]].s, th=(j<n&&/[,:]$/.test(MOC[ws[j-1]].w))?1:0;
+      for(var m=1;m<=j;m++){var p=f[a][m-1];if(!p)continue;var sc=[p[0]+th,Math.min(p[1],dur)],q=f[j][m];
+        if(!q||sc[0]>q[0]||(sc[0]===q[0]&&sc[1]>q[1])){f[j][m]=sc;tr[j][m]=a}}}
+    var best=-1;for(var m=1;m<=n;m++)if(f[n][m]){best=m;break}   // it cum nhat
+    if(best<0){ws.forEach(function(w){out.push([w])});return}   // khong chia duoc (1 chu dai hon be rong): moi chu 1 cum
+    var cuts=[],j=n,m=best;while(j>0){var a=tr[j][m];cuts.unshift(ws.slice(a,j));j=a;m--}
+    cuts.forEach(function(c){out.push(c)});
+  });
+  return out}
+function phude(t){
+  if(!CUM){CUM=chiaCum();CUMA=[];for(var k=0;k<CUM.length;k++)CUMA.push(Math.max(MOC[CUM[k][0]].s,k?CUMA[k-1]:0))}   // sau khi font da nap (phude chi duoc goi tu ve())
+  var html='';
+  for(var k=0;k<CUM.length;k++){var c=CUM[k],a=CUMA[k],b=k+1<CUM.length?CUMA[k+1]:DAI;
     if((k===0?t>=0:t>=a-0.05)&&t<b-0.05){for(var j=0;j<c.length;j++){var m=MOC[c[j]],cls=t>=m.e?'da':(t>=m.s?'nay':'');html+='<span class="'+cls+'">'+m.w.replace(/…/g,'')+'</span> '}}}
   $('sub').innerHTML=html}
 /* so hang: dap to giua khung (a0) -> giu ~0,55 s -> bay vao o so cua dai duoi (a1 .. a1+.3) */

@@ -273,6 +273,19 @@ Promise.all(FONTS.map(function(f){return document.fonts.load(f,'ĂÂÊÔƠƯăâ
      // xoay -8 do mo rong ~5 px moi ben: van trong 120-888
      var L0=888-q.width-12, T0=888-q.height-4;    dw.style.left=L0+'px'; dw.style.top=T0+'px';
      DAUN[r]={cx:L0+q.width/2, cy:T0+q.height/2}});
-   [].forEach.call(document.querySelectorAll('.mucluc .t b,.dongK .t b'),function(b){vua(b,b.parentNode.getBoundingClientRect().width,b.closest('.dongK')?32:31)});
+   /* Giu cum ten co so khong bi be dong (F1 25, Spider-Man 2, Mortal Kombat 11): khoang trang khong ngat (U+00A0) quanh moi tu co chu so */
+   function nbSo(b){var w=b.textContent.split(' ');b.textContent=w.map(function(x,i){return i?((/\d/.test(x)||/\d/.test(w[i-1]))?'\u00a0':' ')+x:x}).join('')}
+   [].forEach.call(document.querySelectorAll('.mucluc .t b,.dongK .t b'),nbSo);
+   /* Trang ket: tit dai khong co nho hon 28 px (phep kiem >= 26 px) -> xuong 2 dong duoi nhan loai, co 30 -> 27 cho vua hang 122 px */
+   [].forEach.call(document.querySelectorAll('.dongK .t b'),function(b){var t=b.parentNode,mx=t.getBoundingClientRect().width;vua(b,mx,32);
+     if(parseFloat(b.style.fontSize)>=28)return;
+     b.style.whiteSpace='normal';b.style.lineHeight='1.1';b.style.marginTop='4px';
+     var co=30;b.style.fontSize=co+'px';while(co>27&&t.getBoundingClientRect().height>108){co--;b.style.fontSize=co+'px'}});
+   /* Muc luc (Tin nhanh 11/10: tit dai co 22,9 px < 24): nhan loai van mot dong rieng, tit duoi nhan; tit khong co nho hon 27 px ->
+      xuong toi da 2 dong, co 30 -> 26, cho vua the 92 px. Chu 1 dong van 27-31 px nhu cu. */
+   [].forEach.call(document.querySelectorAll('.mucluc .t b'),function(b){var t=b.parentNode,mx=t.getBoundingClientRect().width;vua(b,mx,31);
+     if(parseFloat(b.style.fontSize)>=27)return;
+     b.style.display='block';b.style.whiteSpace='normal';b.style.lineHeight='1.05';b.style.marginTop='0';
+     var co=30;b.style.fontSize=co+'px';while(co>26&&t.getBoundingClientRect().height>90){co--;b.style.fontSize=co+'px'}});
    ve(0); window.__ready=true});
 </script></body></html>
