@@ -371,6 +371,8 @@ jobs:
         env:
           WORKERS: '4'
           WHISPER_DIR: /home/runner/whisper-cache
+          # chi khi chay fixture (hoi quy): bo kiem ngay du lieu theo NGAY (khuon/*/kiem). Khong fixture (LIVE) = khong dat. fixture + che_do=that da bi cam o kiem-moi.
+          HOI_QUY: ${{ env.FIXTURE != '' && '1' || '' }}
           UV_PYTHON_PREFERENCE: managed
           # 1 pha (Tin nhanh): chay.sh tu chon tin + thu giong -> can nguon du lieu + khoa; 3 pha: giong da thu o buoc tren
           NGUON_DU_LIEU: ${{ env.LIVE == '1' && env.BA_PHA != '1' && format('{0}/du-lieu', github.workspace) || '' }}
