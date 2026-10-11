@@ -228,13 +228,26 @@ def tin_sale(uu):
     ev=[e for e in ls.get('su_kien',[]) if e.get('bat_dau','9')<=dang<=e.get('ket_thuc','0') and e.get('nguon_url')]
     if not ev: return bo('sale',f'khong co dot sale dang chay o {dang}')
     e=min(ev,key=lambda x:x['ket_thuc'])
-    top=sorted([h for h in d['hangs'] if h['khoa'] in th and t.hop_le_bia(t.url_anh_day_du(h.get('anh')))],key=lambda h:th[h['khoa']])
-    if not top: return bo('sale','khong co bia game bat chay')
-    try: f=tc.tai_anh(t.url_anh_day_du(top[0]['anh']),TS,'sale',rong=720)
+    top=sorted([h for h in d['hangs'] if h['khoa'] in th and h.get('giam',0)>0 and t.hop_le_bia(t.url_anh_day_du(h.get('anh')))],key=lambda h:th[h['khoa']])
+    if not top: return bo('sale','khong co bia game bat chay dang giam')
+    # Ảnh phải là game NẰM TRONG đợt sale (11/10: bản thử lấy bìa Madden 27 — game bán chạy nhất nhưng không chắc thuộc Player's Choice).
+    # Danh mục đợt sale = category trong nguon_url (PS Store Mỹ) -> tập product id đang giảm; chọn game bán chạy nhất có id vùng US trong tập đó.
+    m=re.search(r'/category/([0-9a-f-]{36})',e.get('nguon_url',''))
+    if not m: return bo('sale','nguon_url khong co category PS Store - khong xac dinh duoc game trong dot')
+    try:
+        import nguon
+        trong={p['id'] for p in nguon.ps_grid_all(m.group(1),'en-US') if (p.get('price') or {}).get('discountText')}
+    except Exception as ex: return bo('sale',f'khong doc duoc danh muc dot sale: {ex}')
+    top=[h for h in top if ((d['so']['game'].get(h['khoa']) or {}).get('vung',{}).get('US') or {}).get('id') in trong]
+    if not top: return bo('sale',f'khong co game ban chay nao thuoc danh muc dot sale ({len(trong)} mon dang giam)')
+    ung_anh=[(t._ten_goc(h['ten']),t.url_anh_day_du(h['anh']),h['ten']) for h in top[:12]]
+    chua=[x for x in ung_anh if x[0] not in DA_DUNG_GOC] or ung_anh
+    print(f"  sale: anh = {chua[0][2][:40]} (thuoc danh muc dot, {len(trong)} mon dang giam; {len(ung_anh)} ung vien anh)")
+    try: f=tc.tai_anh(chua[0][1],TS,'sale',rong=720)
     except Exception as ex: return bo('sale',f'loi tai anh: {ex}')
     ten=re.sub(r'\s*\([^)]*\)\s*$','',e['ten']).strip()
     return dict(kieu='sale',mau='vang',uu=uu,khoa=f'sale:{ten}',loai='ĐỢT SALE',nguon=f'PS STORE · {ddmm(dang)}'.upper(),tit=ten[:40],
-                moc=f'HẾT {ddmm(e["ket_thuc"])}',han_iso=e["ket_thuc"][:10],anh_url=[t.url_anh_day_du(top[0]['anh'])],anh_tep=[f'tai-san/{f.name}'],bai=None,tieu_de_bai=e['ten'],
+                moc=f'HẾT {ddmm(e["ket_thuc"])}',han_iso=e["ket_thuc"][:10],anh_url=[chua[0][1]],anh_tep=[f'tai-san/{f.name}'],anh_goc=chua[0][0],anh_ung_vien=ung_anh,bai=None,tieu_de_bai=e['ten'],
                 nhan_dong='ĐANG GIẢM GIÁ',dong='sangame.com.vn · Cho sale',trailer=[],anh_chup=[])
 
 # ---------------------------------------------------------------- chọn
@@ -256,6 +269,15 @@ def ung_vien():
 
 chon=cl.chon_ba(ung_vien())
 for r in chon: print('  CHON',r['kieu'],r['khoa'])
+# Ảnh tin ĐỢT SALE không trùng game với tin khác cùng bản tin (11/10: sale và deal hot cùng ảnh It Takes Two) — tin giá tính SAU sale nên đổi ở đây
+_da={t._ten_goc(r['re_nhat']['ten']) for r in chon if r.get('re_nhat')}
+for r in chon:
+    if r['kieu']=='sale' and r.get('anh_goc') in _da:
+        moi=next((x for x in r['anh_ung_vien'] if x[0] not in _da),None)
+        if moi:
+            f=tc.tai_anh(moi[1],TS,'sale',rong=720); r.update(anh_url=[moi[1]],anh_tep=[f'tai-san/{f.name}'],anh_goc=moi[0]); print('  sale: doi anh ->',moi[2][:40],'(tranh trung tin khac)')
+        else: print('  sale: khong con ung vien anh khac, giu anh trung')
+for r in chon: r.pop('anh_ung_vien',None); r.pop('anh_goc',None)
 ORDER={'xanh':0,'do':1,'vang':2}
 chon.sort(key=lambda r:(ORDER[r['mau']],r['uu']))
 for r in chon:
