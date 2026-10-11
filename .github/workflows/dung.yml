@@ -212,7 +212,7 @@ jobs:
           fi
           [ "$rc" = "0" ] || exit "$rc"
           echo "du=1" >> "$GITHUB_OUTPUT"
-          cat "khuon/$DANG/cau-hinh.json"; echo
+          cat "khuon/$DANG/ket-qua-chon.json"; echo
       - name: Dong goi ket qua chon (game, loi, bia)
         if: steps.chon.outputs.du == '1'
         run: |
