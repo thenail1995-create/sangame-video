@@ -77,4 +77,53 @@ class ScriptHoiQuy(unittest.TestCase):
         self.assertIn('set -euo pipefail',s); self.assertNotIn('|| RC=1',s)
         for l in s.splitlines():   # buoc so khong duoc bi nuot loi bang '|| true' / '; true'
             if 'so-hai-ban.py' in l or 'so-anh.py' in l: self.assertNotRegex(l,r'\|\|\s*(true|:)')
+
+class GioiThieuGame(unittest.TestCase):       # 11/10: cau giới thieu tu bang tu co dinh (loi_chu.gioi_thieu_tu_trang); thieu du lieu -> bo, khong doan
+    DAI='Digital Deluxe Edition includes early access to in-game items which are otherwise obtainable via story progression:¹ <br/>- Electropylon Driver weapon.¹<br/>- Hollowseeker weapon.¹<br/>- One Reflex Stimulant.¹<br/>- One Adrenaline Booster.¹<br/>- One Pulsating Mass artefact.¹<br/>- PSN avatars for PS5™.<br/>- Digital soundtrack.<br/><br/>BREAK THE CYCLE<br/><br/>In this roguelike shooter, forced to restart her journey every time she dies. <br/><br/>Choose to go solo, or share your entire journey with another player in online Co-op Mode.²'
+    def tt(self,**k):
+        b=dict(the_loai=['Shooter'],diem=dict(tb=4.37,so_luot=27172),edition=dict(ten='Digital Deluxe Edition',loai='PREMIUM',tinh_nang=[]),mo_ta_dai=self.DAI,mo_ta_ngan='x'); b.update(k); return b
+    def test_returnal_dung_loi_mau_da_duyet(self):
+        g=lc.gioi_thieu_tu_trang(self.tt())
+        self.assertEqual([x['vi'] for x in g['the_loai']],['bắn súng']); self.assertEqual([x['k'] for x in g['dac_diem']],['roguelike','co_op_online'])
+        self.assertEqual((g['diem']['noi'],g['diem']['hien'],g['diem']['luot']),('bốn phẩy bốn','4,4','27K'))
+        self.assertEqual((g['ban']['ten_noi'],[m['noi'] for m in g['ban']['them']]),('Deluxe',['hai vũ khí','vật phẩm dùng sớm','ảnh đại diện','nhạc phim']))
+        self.assertEqual([m['hien'] for m in g['ban']['them']],['2 vũ khí','Vật phẩm dùng sớm','Ảnh đại diện','Nhạc phim'])
+        self.assertEqual(lc.ghep_them(g['ban']['them']),[('','hai vũ khí',''),('với','vật phẩm dùng sớm',','),('','ảnh đại diện',''),('và','nhạc phim','.')])
+    def test_it_luot_cham_thi_bo_diem(self):
+        self.assertIsNone(lc.gioi_thieu_tu_trang(self.tt(diem=dict(tb=4.9,so_luot=199)))['diem']); self.assertIsNotNone(lc.gioi_thieu_tu_trang(self.tt(diem=dict(tb=4.9,so_luot=200)))['diem'])
+        self.assertIsNone(lc.gioi_thieu_tu_trang(self.tt(diem=None))['diem'])
+    def test_lam_tron_diem_nua_len_va_so_nguyen(self):
+        for tb,r,noi,hien in ((4.37,4.4,'bốn phẩy bốn','4,4'),(4.25,4.3,'bốn phẩy ba','4,3'),(4.95,5.0,'năm','5'),(4.0,4.0,'bốn','4'),(3.04,3.0,'ba','3')):
+            self.assertEqual(lc.lam_tron_diem(tb),r,tb); self.assertEqual((lc.noi_diem(r),lc.hien_diem(r)),(noi,hien),tb)
+    def test_hien_luot(self):
+        self.assertEqual([lc.hien_luot(n) for n in (200,999,1000,1234,9999,10000,27172,1500000)],['200','999','1K','1,2K','10K','10K','27K','1,5M'])
+    def test_ban_thuong_khong_co_phan_them(self):
+        for ed in (None,dict(ten='Cliff Rush 3D',loai='',tinh_nang=[]),dict(ten='Standard Edition',loai='PREMIUM',tinh_nang=[])):
+            self.assertIsNone(lc.gioi_thieu_tu_trang(self.tt(edition=ed))['ban'],ed)
+    def test_muc_la_bi_bo_khong_doan(self):
+        d='Ultimate Edition includes:<br/>- Mystery Bonus Thing<br/>- Season Pass<br/>- 1000 in-game currency<br/>- Soundtrack<br/><br/>Story'
+        g=lc.gioi_thieu_tu_trang(self.tt(edition=dict(ten='Ultimate Edition',loai='PREMIUM',tinh_nang=[]),mo_ta_dai=d))
+        self.assertEqual([m['k'] for m in g['ban']['them']],['mo_rong','tien','nhac']); self.assertEqual(g['ban']['ten_noi'],'Ultimate'); self.assertFalse(g['ban']['dung_som'])
+    def test_toan_muc_la_thi_khong_co_cau_ban(self):
+        g=lc.gioi_thieu_tu_trang(self.tt(mo_ta_dai='Deluxe includes:<br/>- Something odd<br/>- Other odd<br/><br/>x'))
+        self.assertIsNone(g['ban'])
+    def test_toi_da_4_muc_va_dem_vu_khi(self):
+        d='Deluxe:<br/>- Two weapons<br/>- Cool outfit<br/>- Season pass<br/>- 500 credits<br/>- Booster<br/>- Soundtrack<br/><br/>x'
+        g=lc.gioi_thieu_tu_trang(self.tt(mo_ta_dai=d)); self.assertEqual([m['noi'] for m in g['ban']['them']],['hai vũ khí','trang phục','gói mở rộng','tiền trong game'])
+    def test_dac_diem_toi_da_2_theo_thu_tu_va_co_op_local(self):
+        mo='A roguelike with open world and online co-op and souls-like combat'; g=lc.gioi_thieu_tu_trang(self.tt(mo_ta_dai=mo,edition=None))
+        self.assertEqual([x['k'] for x in g['dac_diem']],['roguelike','the_gioi_mo'])
+        g=lc.gioi_thieu_tu_trang(self.tt(mo_ta_dai='Great local co-op fun',edition=None)); self.assertEqual([x['noi'] for x in g['dac_diem']],['chơi chung trên một máy'])
+        g=lc.gioi_thieu_tu_trang(self.tt(mo_ta_dai='local co-op and online co-op',edition=None)); self.assertEqual([x['noi'] for x in g['dac_diem']],['chơi chung online được'])
+        g=lc.gioi_thieu_tu_trang(self.tt(mo_ta_dai='A story about cooperation',mo_ta_ngan='',edition=None)); self.assertEqual(g['dac_diem'],[])
+    def test_the_loai_dich_khong_trung_va_bo_the_loai_la(self):
+        g=lc.gioi_thieu_tu_trang(self.tt(the_loai=['Strategy','Strategy','Brain Training','Action','Puzzle'],edition=None)); self.assertEqual([x['vi'] for x in g['the_loai']],['chiến thuật','hành động'])
+    def test_khong_co_gi_de_noi_thi_none(self):
+        self.assertIsNone(lc.gioi_thieu_tu_trang(dict(the_loai=['Brain Training'],diem=None,edition=None,mo_ta_dai='plain',mo_ta_ngan='')))
+    def test_dung_som_gan_vao_vat_pham_hoac_muc_dau(self):
+        d='Deluxe includes early access to weapons obtainable via story progression:<br/>- Big weapon<br/>- Avatar<br/><br/>x'
+        g=lc.gioi_thieu_tu_trang(self.tt(mo_ta_dai=d)); self.assertEqual([m['noi'] for m in g['ban']['them']],['một vũ khí dùng sớm','ảnh đại diện'])
+    def test_du_phong_edition_features_khi_khong_co_dong_gach(self):
+        g=lc.gioi_thieu_tu_trang(self.tt(mo_ta_dai='No bullets here.',edition=dict(ten='Gold Edition',loai='PREMIUM',tinh_nang=['Game™','Season Pass.¹','Digital artbook'])))
+        self.assertEqual((g['ban']['ten_noi'],[m['noi'] for m in g['ban']['them']]),('Gold',['gói mở rộng','sách tranh']))
 if __name__=='__main__': unittest.main()

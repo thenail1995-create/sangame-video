@@ -98,13 +98,16 @@ cu(doi('so',lambda a,b:a==TA['goc'] and b!=a and b!='???')[0]-SOM,'dem',0,520,'s
 dap('tk','dap',-1,670,'dau DA TIET KIEM')
 cu(cham('tk')-SOM+0.01,'kaching',0,670,'')
 cu(TA['dut']+0.12,'vut',-8,540,'day dut, the roi (dy2 = 4500 t^2)')
-# trang 02 hoi
-cu(M['hoi']['khoan_e'],'rit',0,540,'dia rit + dung hinh den trang (9,36) — ngay sau chu "khoan"')
-cu(TA['g3']+0.02+0.04,'vut',-7,300,'la thu truot vao tu trai (eo5, nhanh nhat dau)')
-for key,x,ghi,db in [('tw1',238,'tem MY',-2),('tw2',504,'tem HONG KONG (trung chu "Hong")',-5),('tw3',778,'tem SINGAPORE',-2)]: dap(key,'dau',db,x,ghi)
-dap('buuC','dap',-9,750,'dau buu dien tron')
-dap('khong','dap',+1,504,'dau KHONG!')
-cu(TA['v4']+0.04,'lat2',0,540,'lat trang: la thu bay trai + bang so vao tu phai (khoang nghi truoc "Quy")')
+# trang 02: HO SO GAME (11/10, thay canh hoi-dap): ho so truot vao khi the gia da roi; moi hang hien theo chu (khung cham do tren trang that); hang khong co du lieu thi khong co cue
+def dapk(key,k,db,x,ghi):
+    t=cham(key)
+    if t: cu(t-SOM,k,db,x,ghi+' (khung cham do duoc)')
+cu(TA['g3']+0.04,'vut',-7,300,'ho so game truot vao tu trai (eo5, nhanh nhat dau)')
+dapk('gtG','dau',-6,230,'con dau the loai')
+dapk('gtScore','dau',-8,520,'so diem sao dong dau')
+dapk('gtB','dau',-7,300,'dai BAN ... CO THEM')
+for i in range(1,5): dapk(f'gtI{i}','go' if i%2 else 'go2',-9,220+80*i,f'phan them {i} hien')
+cu(TA['ra3']+0.05,'lat2',0,540,'lat trang: ho so game bay trai (khoang nghi truoc "Store")')
 # bang so
 for i in range(3):
     cu(doi('b',lambda a,b,i=i:a[i]==0 and b[i]>0)[0]-SOM,'to',0,300,f'thanh gia hang {i+1} bat dau dai ra (0,55 s)')

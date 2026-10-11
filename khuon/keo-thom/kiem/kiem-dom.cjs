@@ -18,8 +18,7 @@ const r=await pg.evaluate(([MOC_DUNG,V])=>{
  for(let f=0;f<nf;f++){const t=f/30;window.__seek(t);const s=document.getElementById("sub");const w=document.getElementById("subW");
    if(w&&w.style.display!=="none"&&s.scrollWidth>s.clientWidth+1)out.tranPhuDe.push(t.toFixed(2)+": "+s.textContent.trim())}
  // chi kiem phan tu CHUA CHU/GIA/LOGO (than sticker/tem giay la trang tri, duoc tran)
- const SEL=["#mast","#title","#issue","#hdr1","#focus","#chip1","#saoIn .c","#t2h","#t2g","#t2m","#tk","#khoan","#hoiN","#hoiS","#q1","#q2","#q3",
-   ".tem .in span","#khong","#bang .tit2","#bang .dong .g","#bang .dong .n","#bang .pill","#h5","#lat","#p5a","#p5b","#b6a","#b6b","#chips","#url","#b6c","#logoW img","#sub","#mini","#toc"];
+ const SEL=["#mast","#title","#issue","#hdr1","#focus","#chip1","#saoIn .c","#t2h","#t2g","#t2m","#tk","#gtH span","#gtG","#gtC1","#gtC2","#gtScore","#gtLuot","#gtB","#gtI1","#gtI2","#gtI3","#gtI4","#bang .tit2","#bang .dong .g","#bang .dong .n","#bang .pill","#h5","#lat","#p5a","#p5b","#b6a","#b6b","#chips","#url","#b6c","#logoW img","#sub","#mini","#toc"];
  const vis=el=>{let c=el;while(c){const s=getComputedStyle(c);if(s.display==="none"||+s.opacity===0)return false;c=c.parentElement}return true};
  for(const t of MOC_DUNG){window.__seek(t);
    for(const sel of SEL){for(const e of document.querySelectorAll(sel)){if(!vis(e))continue;const q=e.getBoundingClientRect();if(!q.width)continue;
@@ -28,7 +27,7 @@ const r=await pg.evaluate(([MOC_DUNG,V])=>{
  // CAT/TRAN CHU (Top 5 11/10: "Little Nightmares Complet…" cut cut tren the): moi phan tu chu — ten, gia, vung, gio — o MOI moc dung yen:
  //  (a) chu thuc (Range) rong/cao hon chinh phan tu > 1 px; (b) chu bi cat boi to tien overflow != visible; (c) tieu de the gia lan vao goc vat cheo cua the (#tag).
  out.catChu=[];
- const SELC=["#title","#issue","#chip1","#t2h","#t2g","#t2l2","#t2m","#tk","#q1","#q2","#q3",".tem .in span","#bang .tit","#bang .tit2","#bang .dong .n","#bang .dong .g","#bang .pill","#bang .chu","#p5a","#p5b","#lat","#b6a","#b6b","#b6c","#sub"];
+ const SELC=["#title","#issue","#chip1","#t2h","#t2g","#t2l2","#t2m","#tk","#gtG","#gtC1","#gtC2","#gtScore","#gtLuot","#gtB","#gtI1","#gtI2","#gtI3","#gtI4","#bang .tit","#bang .tit2","#bang .dong .n","#bang .dong .g","#bang .pill","#bang .chu","#p5a","#p5b","#lat","#b6a","#b6b","#b6c","#sub"];
  for(const t of MOC_DUNG){window.__seek(t);
    for(const sel of SELC){for(const e of document.querySelectorAll(sel)){if(!vis(e))continue;
      const rg=document.createRange();rg.selectNodeContents(e);const tb=rg.getBoundingClientRect(),eb=e.getBoundingClientRect();if(!tb.width||!eb.width)continue;
@@ -43,7 +42,9 @@ const r=await pg.evaluate(([MOC_DUNG,V])=>{
  if(MOC_DUNG.length>=8){
   window.__seek(MOC_DUNG[0]);nd['bia.issue']=tx(q('#issue span'));nd['bia.sao']=tx(q('#saoIn .c b'));nd['bia.chip']=tx(q('#chip1'));nd['bia.title']=tx(q('#title'));
   window.__seek(MOC_DUNG[1]);nd['the.goc']=tx(q('#t2g'));nd['the.con']=tx(q('#moiso'))+tx(q('#du2'));nd['the.tk']=tx(q('#tk b'));nd['the.vung']=tx(q('#t2l2'));
-  window.__seek(MOC_DUNG[3]);nd['thu.tem']=[1,2,3].map(i=>tx(q('#tw'+i+' span')));
+  // ho so game (canh 3, 11/10): CHI phan tu dang HIEN o moc nay (an/opacity 0 = khong tinh) -> hang bi ket an se lech keo.json (D1)
+  window.__seek(MOC_DUNG[3]);const vt=sel=>{const e=q(sel);return e&&vis(e)?tx(e):null};
+  nd['gioi.the_loai']=vt('#gtG');nd['gioi.chip']=[vt('#gtC1'),vt('#gtC2')].filter(Boolean);nd['gioi.diem']=vt('#gtScore');nd['gioi.luot']=vt('#gtLuot');nd['gioi.ban']=vt('#gtB');nd['gioi.them']=[1,2,3,4].map(i=>vt('#gtI'+i)).filter(Boolean);
   window.__seek(MOC_DUNG[5]);nd['bang.tit']=tx(q('#bang .tit'));nd['bang.n']=[1,2,3].map(i=>tx(q('#r'+i+' .n')));nd['bang.g']=[1,2,3].map(i=>tx(q('#r'+i+' .g')));nd['bang.pill']=[1,2,3].map(i=>tx(q('#r'+i+' .pill')));
   window.__seek(MOC_DUNG[6]);nd['phieu.so']=[1,2,3,4].map(i=>tx(q('#o'+i))).join('');nd['phieu.ngay']=tx(q('#p5b'));
  }

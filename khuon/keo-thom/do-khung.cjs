@@ -10,12 +10,12 @@ const neo=await pg.evaluate(()=>window.__NEO);const NF=await pg.evaluate(()=>Mat
 const r=await pg.evaluate((NF)=>{
  const sc=el=>{const m=getComputedStyle(el).transform;if(!m||m==="none")return 1;const v=m.match(/matrix\(([^)]+)\)/);if(!v)return 1;const a=v[1].split(",").map(Number);return Math.hypot(a[0],a[1])};
  const vis=el=>{let c=el;while(c){const s=getComputedStyle(c);if(s.display==="none"||+s.opacity===0)return false;c=c.parentElement}return true};
- const ids=["ronde","sao","tk","tw1","tw2","tw3","khong","d1","d2","d3","logoW","khoan","saoNho"];const ch=[...document.getElementById("chips").children];
+ // gt*: ho so game (canh 3, 11/10); phan tu khong co trong du lieu = display:none -> 0
+ const ids=["ronde","sao","tk","gtG","gtC1","gtC2","gtB","gtI1","gtI2","gtI3","gtI4","gtScore","d1","d2","d3","logoW","saoNho"];const ch=[...document.getElementById("chips").children];
  const rows=[];
  for(let f=0;f<NF;f++){const t=f/30;window.__seek(t);const o={f};
-   for(const id of ids){const e=document.getElementById(id);o[id]=vis(e)?+sc(e).toFixed(3):0}
+   for(const id of ids){const e=document.getElementById(id);o[id]=e&&vis(e)?+sc(e).toFixed(3):0}
    ch.forEach((e,i)=>o["chip"+i]=vis(e)?+sc(e).toFixed(3):0);
-   const bc=document.getElementById("buuC");o.buuC=bc.style.display==="none"?0:bc.getAttribute("transform");
    o.url=document.getElementById("urlc").textContent.length;
    o.so=document.getElementById("moiso").textContent;
    o.lat=[1,2,3,4].map(i=>document.getElementById("o"+i).textContent).join("");

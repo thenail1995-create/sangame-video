@@ -73,9 +73,15 @@ _so=f"{int(KEO.get('so_ky',1)):03d}"
 _ten=_G['ten'].replace('®','').replace('™','').replace("'",'’')
 exp={'bia.issue':f"SỐ {_so} · THÁNG {_nd.month:02d} · {_nd.year}",'bia.sao':f"{_G['giam']}%",'bia.chip':f"PS STORE · {_VH[_V[0]['ma']]}",
      'the.goc':_d(KEO['goc_vnd']),'the.con':_k(int(round(KEO['con_vnd']/1000)))+'.000đ','the.tk':_d(KEO['goc_vnd']-KEO['con_vnd']),'the.vung':f"CÒN LẠI · STORE {_VH[_V[0]['ma']]}",
-     'thu.tem':[_VH[x['ma']] for x in _V[:3]],'bang.g':[_d(x['vnd']) for x in _V[:3]],'bang.n':[_VH[x['ma']] for x in _V[:3]],
+     'bang.g':[_d(x['vnd']) for x in _V[:3]],'bang.n':[_VH[x['ma']] for x in _V[:3]],
      'bang.pill':['✓ RẺ NHẤT','+'+_d(_V[1]['vnd']-_V[0]['vnd']),'+'+_d(_V[2]['vnd']-_V[0]['vnd'])],'bang.tit':f"Giá ngày {_dl.day:02d}/{_dl.month:02d} · đổi ra đồng",
      'phieu.so':f"{_h.hour:02d}{_h.minute:02d}",'phieu.ngay':f"ngày {_h.day:02d}/{_h.month:02d} · giờ Việt Nam"}
+# GIOI THIEU game (11/10): tinh LAI tu so lieu tho trong keo.json.gioi_thieu (diem trung binh, so luot) bang loi_chu — khong doc chuoi da dinh dang san
+from loi_chu import lam_tron_diem,hien_diem,hien_luot
+_GT=KEO.get('gioi_thieu') or {}; _gb=_GT.get('ban'); _gd=_GT.get('diem')
+exp.update({'gioi.the_loai':' · '.join(x['vi'].upper() for x in _GT.get('the_loai',[])) or None,'gioi.chip':[x['hien'] for x in _GT.get('dac_diem',[])[:2]],
+            'gioi.diem':(hien_diem(lam_tron_diem(_gd['tb']))+'/5') if _gd else None,'gioi.luot':(hien_luot(_gd['so_luot'])+' lượt chấm') if _gd else None,
+            'gioi.ban':('BẢN '+_gb['ten_noi']+' CÓ THÊM').upper() if _gb else None,'gioi.them':[m['hien'] for m in (_gb or {}).get('them',[])[:4]]})
 nd=d.get('noiDung',{}); sai=[]
 for k,v in exp.items():
     got=nd.get(k)
@@ -121,7 +127,7 @@ def sc(x):
         mm=re.search(r"scale\(([\d.]+)\)",x); return float(mm.group(1)) if mm else 0
     return x or 0
 ev=[]
-for k in ["ronde","sao","tk","tw1","tw2","tw3","buuC","khong","d1","d2","d3","logoW"]+[f"chip{i}" for i in range(6)]:
+for k in ["ronde","sao","tk","gtG","gtScore","gtB","gtI1","gtI2","gtI3","gtI4","d1","d2","d3","logoW"]+[f"chip{i}" for i in range(6)]:
     for f in range(1,F):
         x=sc(K[f][k])
         if x and x<=1.03: ev.append((f/30,k)); break
@@ -183,12 +189,13 @@ if not SOM:   # can video da dung - KIEM SOM bo qua (bo kiem cuoi van chay)
     ghi('Whisper tung cau: ban ghep nghe khong kem giong goc',rv>=rg-0.05 and not xau,f"{len(cau)} cau; khop kich ban: giong goc {rg:.2f}, ban ghep {rv:.2f}"+(f"; cau kem: {xau}" if xau else ''),'A2')
 
 
-# 5d) D3 (B2) — nghe GIONG SACH (G16, khong phai ban ghep: CI 11/10 Whisper nghe nhac+tieng dong thanh «ANM RETURNAL DIGITAL DELUX…») tung doan, so GIA TRI theo VAI TRO: mo (ten, % giam, vung A) · gia (goc ROI con) · hoi (vung B, C) · dap (cap vung -> chenh lech) · han (gio + buoi + ngay).
+# 5d) D3 (B2) — nghe GIONG SACH (G16, khong phai ban ghep: CI 11/10 Whisper nghe nhac+tieng dong thanh «ANM RETURNAL DIGITAL DELUX…») tung doan, so GIA TRI theo VAI TRO: mo (ten, % giam, vung A) · gia (goc ROI con) · gioi (DIEM SAO dung gia tri + tu khoa the loai/dac diem/phan them) · dap (cap vung -> chenh lech) · han (gio + buoi + ngay).
 #     Ky vong tinh lai tu keo.json (cung luat lam tron voi loi_chu.py). % / vung chi doi o doan ma LOI co doc. 3 ban chung luong tieng -> chung 1 lan Whisper (cache theo bam PCM).
-from loi_chu import ten_noi
+from loi_chu import ten_noi,lam_tron_diem
+_GT=KEO.get('gioi_thieu') or {}; _gd=_GT.get('diem')    # (D3 tu chua du: tinh lai o day de khoi nay chay doc lap trong test)
 KBD={x['k']:x['loi'] for x in json.load(open(B/'kich-ban.json'))['doan']}
 cs={}
-for k in ('mo','gia','hoi','dap','han'):
+for k in ('mo','gia','gioi','dap','han'):
     ws=[w for w in moc if w.get('doan')==k]
     if ws: cs[k]=(max(0,int((ws[0]['s']-0.15)*16000)),int((ws[-1]['e']+0.25)*16000))
 heard,NGHE_BC=NS.nghe_doan(G16,cs,nghe_kiem,B/'kiem',rev=(os.environ.get('WHISPER_REV') or mo_hinh.REV_GHIM)+'|'+mo_hinh.ten_nghe_kiem())
@@ -196,7 +203,7 @@ heard_s,_bc_s=NS.nghe_doan(G16,cs,nghe,B/'kiem',rev=os.environ.get('WHISPER_REV'
 _ma=[x['ma'] for x in _V[:3]]; _round=lambda v,q:max(1,int(v/q+0.5))*q
 _ky={'mo':dict(ten=[ten_noi(_G['ten'])],phan_tram=[_G['giam']],vung=[_ma[0]]),
      'gia':dict(tien=[_round(KEO['goc_vnd'],100000),_round(KEO['con_vnd'],1000)],tien_thu_tu=[_round(KEO['goc_vnd'],100000),_round(KEO['con_vnd'],1000)]),
-     'hoi':dict(vung=[_ma[1],_ma[2]]),
+     'gioi':dict(diem=[lam_tron_diem(_gd['tb'])] if _gd else [],tu_khoa=NS.tu_khoa_gioi(_GT)),
      'dap':dict(tien_tat=[_round(_V[1]['vnd']-_V[0]['vnd'],10000),_round(_V[2]['vnd']-_V[0]['vnd'],10000)],vung=_ma,cap=[(_ma[1],_round(_V[1]['vnd']-_V[0]['vnd'],10000)),(_ma[2],_round(_V[2]['vnd']-_V[0]['vnd'],10000))],chu_the=_ma[0],tien=[_round(_V[1]['vnd']-_V[0]['vnd'],10000),_round(_V[2]['vnd']-_V[0]['vnd'],10000)]),
      'han':dict(han=NS.han_ky_vong(_h,_nd))}
 _sai=[]; TEN_BO=None
@@ -209,7 +216,7 @@ for k,ky in _ky.items():
     if k=='mo':
         _ok,TEN_BO,_ly=NS.ten_hai_bo(ky['ten'][0],{'turbo':heard[k],'small':heard_s.get(k)})
         if not _ok: _sai.append(f"mo TEN «{ky['ten'][0]}»: {_ly}")
-ghi('D3 giong sach: ten + % + vung + goc roi con + cap vung-chenh + han khop keo.json (theo vai tro)',not _sai,f"{len(cs)} doan; ten dat boi {TEN_BO}; pcm {NGHE_BC['pcm_sha256'][:12]} (nghe moi {NGHE_BC['nghe_moi']}, dung lai {NGHE_BC['dung_lai']})"+(f"; SAI: {_sai}" if _sai else ''),'D3')
+ghi('D3 giong sach: ten + % + vung + goc roi con + diem sao & tu khoa gioi thieu + cap vung-chenh + han khop keo.json (theo vai tro)',not _sai,f"{len(cs)} doan; ten dat boi {TEN_BO}; pcm {NGHE_BC['pcm_sha256'][:12]} (nghe moi {NGHE_BC['nghe_moi']}, dung lai {NGHE_BC['dung_lai']})"+(f"; SAI: {_sai}" if _sai else ''),'D3')
 
 
 # 5c) NEN trailer khong co anh giu cho / man phang: OCR + mang mau phang tren khung nen (khong co chu cua khuon) o 6 moc dung yen
