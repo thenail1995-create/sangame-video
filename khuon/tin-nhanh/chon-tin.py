@@ -6,6 +6,7 @@
 # THỨ TỰ ƯU TIÊN (Opus chốt 12/10, luật thuần ở chon_logic.py + test_chon_tin.py): bài tin-nong có ngay >= ngày ĐĂNG - 1 (PS Plus tháng trước)
 #   -> GIẢM SÂU -> PS Plus kho mới (>= 1 game) -> đợt sale lớn đang chạy/sắp hết (lich-sale.json) -> MỚI GIẢM -> DEAL HOT (thứ Sáu đảo).
 #   KHÔNG 2 tin cùng loại "danh sách giảm giá" (giảm sâu / mới giảm / deal hot) trừ khi hết loại khác.
+#   DỰ PHÒNG: SẮP HẾT GIẢM (game bán chạy hết giảm trong 2–4 ngày) — xét SAU deal hot, chỉ khi thiếu tin; là "loại khác" nên không bị luật trên chặn (Hào chốt 11/10).
 # Deal (giá) chỉ nhận khi trang sản phẩm PS Store ĐÚNG VÙNG của giá còn hạn >= 2 ngày tính từ 07:30 ngày đăng (endTime của đúng khối giá khớp giá trong sổ).
 # Mã thoát: 0 đủ 3 tin · 3 KHÔNG đủ 3 tin (bỏ khung + ntfy; khuôn cố định 3 tin: full.html, am-tin.py) · 4 dữ liệu cũ · 2 lỗi tham số.
 import argparse,datetime as dtm,json,os,pathlib,re,subprocess,sys
@@ -132,7 +133,8 @@ def ung_tin_nong(uu0):
         if r: yield r
 
 # ---------------------------------------------------------------- tin giá (tin_tu_sinh)
-LOAI_GIA={'giam-sau':('GIẢM SÂU','giảm sâu','RẺ NHẤT'),'vua-giam':('MỚI GIẢM','vừa vào đợt giảm','MỚI GIẢM'),'deal-hot':('DEAL HOT','đang giảm mạnh','RẺ NHẤT')}
+LOAI_GIA={'giam-sau':('GIẢM SÂU','giảm sâu','RẺ NHẤT'),'vua-giam':('MỚI GIẢM','vừa vào đợt giảm','MỚI GIẢM'),'deal-hot':('DEAL HOT','đang giảm mạnh','RẺ NHẤT'),
+          'sap-het':('SẮP HẾT GIẢM','sắp hết giảm','RẺ NHẤT')}
 def xac_minh(h):
     """(thong_tin, None) nếu trang PS Store đúng vùng xác nhận giá khớp + còn hạn; (None, lý do)."""
     ma=h['ma']; b=d['so']['game'][h['khoa']]['vung'].get(ma) or {}
@@ -153,6 +155,22 @@ def ds_giam_sau():
     return t.chon_giam_sau(d['hangs'],th,t.lich_su_giam_sau(t.THU_MUC_BAI,hn1),hn1,slug_loai=t.slug_keo_gan_day(t.THU_MUC_BAI,hn1))
 def ds_vua_giam(): return t.chon_vua_giam(d['so'],d['dls'],th,NGAY_DUNG)
 def ds_deal_hot(): return t.chon_deal_hot(d['hangs'],th)
+MAX_XET_SAP_HET=60
+def ds_sap_het():
+    """Game bán chạy đang giảm (cùng luật hạng/% giảm/không gói với giảm sâu) có hạn nằm trong [HAN_MIN, HAN_MIN + 2 ngày] theo trang PS Store đúng vùng.
+    Xếp theo hạng; xét tối đa MAX_XET_SAP_HET ứng viên; dừng sớm khi đủ TOI_DA_GAME game."""
+    ung=[h for h in d['hangs'] if h['khoa'] in th and th[h['khoa']][0]+1<=t.GIAM_SAU_HANG_TOI_DA and h['giam']>=t.GIAM_TOI_THIEU
+         and not t._la_goi_nhieu_game(h) and h.get('vnd')]
+    ung.sort(key=lambda h:(th[h['khoa']],h['slug'])); ung=t._bo_trung_ten(ung)[:MAX_XET_SAP_HET]
+    ra=[]; xa=0; loi=0; xet=0
+    for h in ung:
+        if len(ra)>=t.TOI_DA_GAME: break
+        xet+=1; kq,ly=xac_minh(h)
+        if not kq: loi+=1; continue
+        if cl.trong_khoang_sap_het(kq['end'],HAN_MIN_MS): ra.append(h)
+        else: xa+=1
+    print(f'  sap-het: xet {xet}/{len(ung)} ung vien, {len(ra)} hop khoang han, {xa} het sau khoang (> 4 ngay), {loi} khong xac minh/het han < 2 ngay')
+    return ra
 
 DA_DUNG_GOC=set()
 def tin_gia(loai,ham,uu):
@@ -166,9 +184,12 @@ def tin_gia(loai,ham,uu):
         kq,ly=xac_minh(h)
         if kq: ok.append((h,kq))
         else: print('    loai game',h['ten'][:40],'-',ly)
-    if len(ok)<3: return bo(loai,f'chi {len(ok)} game con han >= 2 ngay (can >= 3)')
+    # Game đã là "rẻ nhất" của tin khác -> bỏ khỏi DANH SÁCH này (không chọn game rẻ nhì rồi vẫn gọi "rẻ nhất"); số game N đọc/hiện = danh sách sau khi bỏ.
+    trung=[x for x in ok if t._ten_goc(x[0]['ten']) in DA_DUNG_GOC]
+    if trung: print('    bo khoi danh sach (da la game re nhat cua tin khac):',', '.join(x[0]['ten'][:30] for x in trung))
+    ok=[x for x in ok if t._ten_goc(x[0]['ten']) not in DA_DUNG_GOC]
+    if len(ok)<3: return bo(loai,f'chi {len(ok)} game con han >= 2 ngay va khong trung tin khac (can >= 3)')
     h,kq=min(ok,key=lambda x:x[0]['vnd'])
-    if t._ten_goc(h['ten']) in DA_DUNG_GOC: return bo(loai,f'game re nhat "{h["ten"]}" trung tin khac')
     anh=t.url_anh_day_du(h.get('anh'))
     if not t.hop_le_bia(anh): return bo(loai,'game re nhat khong co bia hop le')
     try:
@@ -230,6 +251,8 @@ def ung_vien():
     for loai,ham,uu in phu:
         r=tin_gia(loai,ham,uu)
         if r: yield r
+    r=tin_gia('sap-het',ds_sap_het,6.0)      # DỰ PHÒNG: sau mọi loại khác, chỉ tới khi ngày thiếu tin (ung_vien lười)
+    if r: yield r
 
 chon=cl.chon_ba(ung_vien())
 for r in chon: print('  CHON',r['kieu'],r['khoa'])

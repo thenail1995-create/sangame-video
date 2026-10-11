@@ -245,7 +245,12 @@ for i,g in enumerate(TJ['tin'],1):
     if g['mau']=='do':   # B2: tien / phan tram / vung theo GIA TRI, ky vong tu tin.json (khong doc tu loi)
         vg_=(g.get('kiem') or {}).get('vung')
         if not vg_: d3_xau.append(f'tin {i}: tin.json thieu kiem.vung (B4) - khong kiem duoc vung doc')
-        for x in NS.doi_chieu(nghe_goc,tien=[int(''.join(c for c in g['gia'] if c.isdigit()))],phan_tram=[g['giam']],vung=[vg_] if vg_ else []): d3_xau.append(f'tin {i} {x}'); 
+        han_=(g.get('kiem') or {}).get('han'); ngay_=[]
+        if han_:     # the SAP HET GIAM: nghe dung NGAY+THANG het giam (so gia tri, khong so chu)
+            try: _dh=datetime.date.fromisoformat(han_); ngay_=[(_dh.day,_dh.month)]
+            except Exception: d3_xau.append(f'tin {i}: kiem.han «{han_}» khong phai ngay ISO')
+        elif g.get('kieu')=='sap-het': d3_xau.append(f'tin {i}: the sap-het thieu kiem.han - khong kiem duoc ngay het giam')
+        for x in NS.doi_chieu(nghe_goc,tien=[int(''.join(c for c in g['gia'] if c.isdigit()))],phan_tram=[g['giam']],vung=[vg_] if vg_ else [],ngay=ngay_): d3_xau.append(f'tin {i} {x}'); 
         d3.append(1.0)
     for so in (g['kiem']['so'] if g['mau']!='do' else []):
         r_=dau_hieu(heard_so,sc.chuan_so_sanh(so),'so'); d3.append(r_)
