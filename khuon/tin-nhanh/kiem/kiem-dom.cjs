@@ -1,5 +1,6 @@
 // Kiem tren TRANG THAT (full.build.html), cung cach capture.mjs seek (t = f/30):
 //  1) phu de tran khung o BAT KY khung nao (loi 14 lan nhap nhay cua ban 07/08)
+//  3) (goi B / B3) NOI DUNG tung the tin tren hinh (tit, nguon, ten game, nhan, giam %, gia, moc) -> noiDung{} de kiem-tat-ca.py doi chieu CHINH XAC voi tin.json
 //  2) chu/gia/logo nam trong hop an toan CUA NEN TANG: x 120-888, y tren..duoi theo nen-tang.json (dung sai 6 px) o cac moc da dung yen
 // node kiem/kiem-dom.cjs <tiktok|reels|shorts> [moc,...]  -> in JSON {tranPhuDe:[...], ngoaiVung:{t:[...]}}
 const MG=process.env.MG_SCRIPTS||process.env.HOME+"/.claude/skills/motion-graphics/scripts";   // A3: khong ghi cung duong dan Mac
@@ -9,7 +10,7 @@ const NT=process.argv[2]||"tiktok", V=JSON.parse(require("fs").readFileSync(B+"/
 const C=JSON.parse(require("fs").readFileSync(B+"/canh.json"));const MOC_DUNG=(process.argv[3]?process.argv[3].split(",").map(Number):[1.8].concat(C.filter(c=>/^t\d/.test(c.k)).map(c=>+(c.b-0.3).toFixed(2)),[C[C.length-1].b-0.4]));
 (async()=>{const b=await chromium.launch();const pg=await b.newPage({viewport:{width:1080,height:1920}});
 await pg.goto("file://"+B+"/full-"+NT+".build.html");await pg.waitForFunction(()=>window.__ready);
-const r=await pg.evaluate(([MOC_DUNG,V])=>{
+const r=await pg.evaluate(([MOC_DUNG,V,C])=>{
  const out={tranPhuDe:[],ngoaiVung:{},trungId:[],ngay:{n1:(document.getElementById('ngay1')||{}).textContent||'',n6:(document.getElementById('ngay6')||{}).textContent||''}};   // ngay tren giay (C3)
  // ma phan tu TRUNG (Top 5 "so5", Tin nhanh "tit3": getElementById tra phan tu dau -> CSS/hieu ung ap nham cho)
  const dem={};document.querySelectorAll("[id]").forEach(e=>{dem[e.id]=(dem[e.id]||0)+1});out.trungId=Object.keys(dem).filter(k=>dem[k]>1);
@@ -35,5 +36,13 @@ const r=await pg.evaluate(([MOC_DUNG,V])=>{
      if(fs<MIN[sel]-0.01)out.catChu.push(t+"s "+sel+" co chu "+fs.toFixed(1)+"px < "+MIN[sel]+": "+e.textContent.slice(0,40));
      out.coChu.push(sel+" "+fs.toFixed(0))}}}
  out.coChu=[...new Set(out.coChu)];
- return out},[MOC_DUNG,V]);
+ // noi dung hien thi cua tung the tin (moc dung yen cua canh t<r>), cung nguon voi chu nguoi xem thay
+ const tx=e=>e?e.textContent.replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim():null, nd={tin:[]};
+ for(const c of C.filter(c=>/^t\d$/.test(c.k))){const r=+c.k.slice(1);window.__seek(+(c.b-0.3).toFixed(2));
+   const cat=document.getElementById('cat'+r);if(!cat)continue;
+   nd.tin.push({r,k:tx(cat.querySelector('.k')),tit:tx(document.getElementById('tit'+r)),ten:[...cat.querySelectorAll('.dong .tt b')].map(tx),nhan:tx(cat.querySelector('.dong .tt small')),
+     gm:tx(document.getElementById('gm'+r)),g:tx(document.getElementById('g'+r)),loai:tx(document.getElementById('dau'+r)),
+     muc:tx(document.querySelector('#m'+(r-1)+' .t b')),dk:tx(document.querySelector('#dk'+(r-1)+' .t b'))})}
+ nd.tieuK=tx(document.getElementById('tieuK'));nd.so3=tx(document.getElementById('so3'));out.noiDung=nd;
+ return out},[MOC_DUNG,V,C]);
 console.log(JSON.stringify(r));await b.close()})();

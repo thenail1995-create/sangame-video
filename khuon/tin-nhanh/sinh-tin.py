@@ -48,7 +48,8 @@ def gia(r,k):
     tit=f'{r["n"]} game bán chạy {kt} {rg}'
     return dict(loai=r['loai'],mau='do',nguon=r['nguon'],tieu=cat(tit,TOI_DA['tieu']),tit=cat(tit,TOI_DA['tit']),ten_re=cat(x['ten_hien'],TOI_DA['ten_re']),
                 nhan_dong=r['nhan_dong'],gia=x['gia'],giam=x['giam'],anh=r['anh_tep'][:1],
-                loi=f'Tin {TIN_MOT[k]}: '+loi,chi_so=dict(ten=i_ten,gia=i_gia),kiem=dict(ten=[ten_chu],so=[f'{kg} phần trăm',gc])),loi
+                loi=f'Tin {TIN_MOT[k]}: '+loi,chi_so=dict(ten=i_ten,gia=i_gia),kiem=dict(ten=[ten_chu],so=[f'{kg} phần trăm',gc],vung=x['ma'],       # B4: ma vung de D3 kiem vung doc; B5: the_gia = ban ghi kiem_lai cua THE nay (doi chieu theo pid+loc)
+                          the_gia=dict(pid=x['pid'],loc=x['loc'],gia_vnd=x['gia_vnd'],gia_cuc_bo=x['gia_cuc_bo'],tien_te=x['tien_te'],endTime=str(x['end'])))),loi
 
 def vang(r,k):
     tit=r['tit']; doc_tit=re.sub(r'[:;]','',sc.doc_van_ban(tit,ND)); moc=r.get('moc')
