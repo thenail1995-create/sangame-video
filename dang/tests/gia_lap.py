@@ -16,6 +16,25 @@ def P(status=200, body=None, headers=None, raw=None):
     return http.Phan(status, headers or {}, b)
 
 
+def trang_ps(pid, gia="HK$100.00", end=None, khac=(), goc="HK$300.00"):
+    """HTML trang san pham PS Store toi gian (cung cau truc that: <script id="env:..."> + cache GameCTA/Product).
+    gia/end cua khoi mua dut DUNG pid; khac = [(pid_khac, gia, end)] la khoi cua san pham khac tren trang (game goi y)."""
+    def khoi(p, g, e):
+        try:
+            v = int(round(float(g.replace(",", "").lstrip("HK$ ")) * 100))
+        except ValueError:
+            v = 0   # "Included" (PS Plus) va tuong tu: khong phai gia
+        return {f"GameCTA:ADD_TO_CART:ADD_TO_CART:{p}-H001:OUTRIGHT": {"__typename": "GameCTA", "price": {
+            "__typename": "Price", "basePrice": goc, "discountedPrice": g, "basePriceValue": 30000, "discountedValue": v,
+            "currencyCode": "HKD", "endTime": e}}}
+    cache = {}
+    if gia is not None:
+        cache.update(khoi(pid, gia, end))
+    for p, g, e in khac:
+        cache.update(khoi(p, g, e))
+    return ('<html><script id="env:a" type="application/json">' + json.dumps({"cache": cache}) + "</script></html>").encode()
+
+
 class Mang:
     """mang.them('POST', 'video_reels', P(...)) hoac list (lan luot) hoac ham f(method,url,kw)->Phan.
     Luat khop dau tien theo (method, chuoi con trong url). Khong co luat -> AssertionError (test hong ro rang)."""

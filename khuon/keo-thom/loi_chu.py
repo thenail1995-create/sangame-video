@@ -33,8 +33,10 @@ def noi_chenh(vnd):
     """Chenh lech tien noi mieng, lam tron CHUC nghin: 51.000 -> 'năm chục'; 120.000 -> 'một trăm hai'; 150.000 -> 'một trăm rưỡi'; 300.000 -> 'ba trăm'."""
     n=max(1,int(vnd/10000+0.5))
     if n<10: return so_chu(n)+' chục'
-    if n>=100:   # tu 1 trieu tro len
-        tr,r=divmod(n,100); r=r//10 if r%10==0 else None
+    if n>=100:   # tu 1 trieu tro len: phan du CHAN tram nghin noi tat ("mot trieu ba", "mot trieu ruoi"); phan du le -> doc DAY DU bang nghin() (Sol bcd #16)
+        tr,r=divmod(n,100)
+        if r%10: return nghin(n*10000)   # 1.310.000 -> 'một triệu ba trăm mười nghìn' (truoc day bi doc hut thanh 'một triệu')
+        r=r//10
         return so_chu(tr)+' triệu'+('' if not r else ' rưỡi' if r==5 else ' '+SO[r])
     h,r=divmod(n,10); ten=so_chu(h)+' trăm'
     return ten+('' if r==0 else ' rưỡi' if r==5 else ' mười' if r==1 else ' '+SO[r])

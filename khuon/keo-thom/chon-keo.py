@@ -8,8 +8,9 @@
 #  - Khong lap 14 ngay: doc Release `v-*-keo-thom` cua sangame-video (manifest.json cua tung ban) qua `gh`; khong doc duoc -> DUNG (khong chon bua).
 #  - Kiem LAI tren trang san pham DUNG vung (3 vung): gia tren trang ±2% so voi so; endTime >= 20:00 ngay dang + 1 ngay (vung noi tren bia);
 #    CA 3 vung deu phai co endTime >= moc nay (may dang kiem lai ca 3 qua `kiem_lai`, thieu endTime = bo khung); gia/endTime ghi vao keo.json la GIA TRI DAU TIEN
-#    tren trang (dung cach dang/gia.py kiem lai) va phai trung khoi gia SKU chinh; trailer + anh lay tu trang vung noi tren bia (khong gia dinh en-us).
+#    tren trang = khoi gia mua dut cua DUNG pid (cong-cu/gia_trang.py, cung ham voi dang/gia.py kiem lai; khoi mo ho/khong co endTime -> loai); trailer + anh lay tu trang vung noi tren bia (khong gia dinh en-us).
 #  - Xuat keo.json (+ kiem_lai + loi_dang cho manifest), loi-dang.json, ket-qua-chon.json (cung quy uoc voi Top 5: thoat 3 = BO KHUNG, workflow ntfy).
+#  - LOAI game co nut UPSELL_PS_PLUS_GAME_CATALOG cua dung pid tren bat ky trang vung nao (dang trong PS Plus Game Catalog); ly do loai ghi vao ket-qua-chon.json[loai].
 #    Ma thoat: 0 chon duoc · 3 bo khung (du lieu cu / khong ung vien dat) · 4 da co Release hom nay · 5 khong doc duoc lich su Release.
 import argparse,datetime,hashlib,json,os,pathlib,re,subprocess,sys,urllib.request,zoneinfo
 T=pathlib.Path(__file__).resolve().parent; sys.path.insert(0,str(T))
@@ -27,13 +28,16 @@ sys.path.insert(0,A.repo); os.chdir(A.repo)
 import tin_tu_sinh as t, trang_game
 import tempfile
 import media_xau
+import importlib.util
+_sp=importlib.util.spec_from_file_location('sangame_gia_trang',str(T.parent.parent/'cong-cu'/'gia_trang.py')); GT=importlib.util.module_from_spec(_sp); _sp.loader.exec_module(GT)   # doc gia/han/media dung pid (dung chung voi Top 5 va dang/gia.py); nap theo duong dan de khong them cong-cu vao sys.path
 GIAM_MIN=40; HANG_TOI_DA=300; SO_NGAY_LAP=14; CHENH_MIN=20000; CHENH_PCT=0.04; DUNG_SAI_GIA=0.02
 GIO_DANG=datetime.datetime.combine(NGAY,datetime.time(20,0),VN); HAN_TOI_THIEU=GIO_DANG+datetime.timedelta(days=1)
 LOC={ma:v[3] for ma,v in VUNG.items()}
 KQ=pathlib.Path(A.ra).resolve().parent/'ket-qua-chon.json'
+NHAT_KY=[]   # ung vien bi loai + ly do (ghi vao ket-qua-chon.json)
 def thoat(ma,msg):
     print(msg,file=sys.stderr)
-    json.dump(dict(du=False,ma=ma,ly_do=msg,ngay=NGAY.isoformat()),open(KQ,'w',encoding='utf-8'),ensure_ascii=False,indent=1); sys.exit(ma)
+    json.dump(dict(du=False,ma=ma,ly_do=msg,ngay=NGAY.isoformat(),loai=NHAT_KY[-30:]),open(KQ,'w',encoding='utf-8'),ensure_ascii=False,indent=1); sys.exit(ma)
 d=t.nap_du_lieu()
 if not d: thoat(3,'KHONG nap duoc du lieu (thieu trang-game.json)')
 if not A.khong_kiem_do_moi:
@@ -89,52 +93,24 @@ def ung_vien():
 UV=ung_vien()
 print(f'{len(UV)} ung vien (chenh vung mua duoc bang the, giam >= {GIAM_MIN}%, hang <= {HANG_TOI_DA}, chua len 14 ngay); kiem tren trang san pham toi da {A.toi_da}:')
 # ---------- trang san pham dung vung
-def doc_gia(chuoi):   # = dang/gia.py:doc_gia (may dang kiem lai bang CHINH ham nay) — chep de khuon doc lap, khong import tu dang/
-    m=re.search(r"\d[\d.,\s\u00a0\u202f]*\d|\d",str(chuoi or ""))
-    if not m: return None
-    s=re.sub(r"[\s\u00a0\u202f]","",m.group(0))
-    if "." in s and "," in s:
-        tp="." if s.rfind(".")>s.rfind(",") else ","; nghin="," if tp=="." else "."
-        s=s.replace(nghin,"").replace(tp,".")
-    else:
-        for d in (".",","):
-            if d in s:
-                s=s.replace(d,"") if (s.count(d)>1 or len(s.rsplit(d,1)[1])==3) else s.replace(d,".")
-    try: return float(s)
-    except ValueError: return None
 def lay_trang(loc,pid):
     return urllib.request.urlopen(urllib.request.Request(f'https://store.playstation.com/{loc}/product/{pid}',headers={'User-Agent':UA}),timeout=40).read().decode('utf-8','ignore')
 def doc_trang(html,pid):
-    """-> dict(gia_cuc_bo, tien_te, endTime(ms str|None), video[], anh_chup[], anh) tu cache JSON cua trang (khong dung regex toan trang: trang chua ca game goi y)."""
-    video=[];anh=[];shots=[];gia=None
-    for m in re.finditer(r'<script id="env:[^"]+"[^>]*>(.*?)</script>',html,re.S):
-        try: c=json.loads(m.group(1)).get('cache',{})
-        except Exception: continue
-        p=c.get(f'Product:{pid}')
-        if p:
-            for x in p.get('media') or []:
-                if x.get('type')=='VIDEO' and 'vulcan.dl.playstation.net' in (x.get('url') or '') and x['url'].endswith('.mp4'): video.append(x['url'])
-                elif x.get('role')=='SCREENSHOT': shots.append(x['url'])
-                elif x.get('role') in ('MASTER','EDITION_KEY_ART') and not anh: anh.append(x['url'])
-        for k,v in c.items():
-            if k.startswith('GameCTA:') and f':{pid}-' in k and (v.get('price') or {}).get('discountedValue') is not None:
-                pr=v['price']
-                if gia is None or ('OUTRIGHT' in k and pr['discountedValue']<gia['discountedValue']) : gia=pr
-    # MAY DANG (dang/gia.py kiem_lai) kiem lai bang GIA TRI DAU TIEN `"discountedPrice"` va `"endTime"` tren trang -> lay dung 2 gia tri do lam gia_cuc_bo/endTime
-    # trong keo.json va yeu cau trung voi khoi gia cua SKU chinh doc tu cache (nhieu phien ban/khoi gia khac nhau -> loai, nhu Top 5 B1)
-    gm=re.search(r'"discountedPrice":"([^"]+)"',html); em=re.findall(r'"endTime":"(\d+)"',html)
-    dau=doc_gia(gm.group(1)) if gm else None; cache_gia=(gia['discountedValue']/100 if gia else None)
-    dong_nhat=bool(gia) and dau is not None and abs(dau-cache_gia)<=0.005*max(cache_gia,1) and (not em or em[0]==(gia.get('endTime') or em[0]))
-    return dict(gia_cuc_bo=dau,tien_te=(gia or {}).get('currencyCode'),endTime=em[0] if em else None,dong_nhat=dong_nhat,
-                video=list(dict.fromkeys(video)),anh_chup=list(dict.fromkeys(shots)),anh=anh[0] if anh else None)
+    """-> dict(gia_cuc_bo, tien_te, endTime(ms str|None), video[], anh_chup[], anh, khoi) CHI tu KHOI GIA cua dung pid + Product:{pid} trong cache JSON
+    (cong-cu/gia_trang.py; khong regex toan trang, khong 'gia dau tien': trang chua ca game goi y/ban khac). Khong co khoi ro rang -> gia_cuc_bo None.
+    Luu y: dang/gia.py kiem lai cung bang gia_trang.khoi_gia nen gia/endTime ghi vao keo.json = gia/endTime may dang se doc."""
+    k=GT.khoi_gia(html,pid); m=GT.media(html,pid)
+    return dict(ps_plus=GT.ps_plus_catalog(html,pid),gia_cuc_bo=k['gia_cuc_bo'] if k else None,tien_te=k['tien_te'] if k else None,endTime=k['endTime'] if k else None,khoi=k,
+                video=m['video'],anh_chup=m['anh_chup'],anh=m['anh'])
 def kiem_ung_vien(u):
     """-> (keo|None, ly do loai)"""
     v3=u['v3']; tr=[]
     for i,v in enumerate(v3):
         try: p=doc_trang(lay_trang(LOC[v['ma']],v['id']),v['id'])
         except Exception as e: return None,f"khong mo duoc trang {LOC[v['ma']]} {v['id']}: {str(e)[:80]}"
-        if p['gia_cuc_bo'] is None: return None,f"trang {LOC[v['ma']]} khong co gia (khong con ban/giam?)"
-        if not p['dong_nhat']: return None,f"trang {LOC[v['ma']]}: khoi gia dau tien khac khoi gia SKU chinh (nhieu phien ban) — may dang se kiem lech"
+        # Opus 11/10: game nam trong PS Plus Game Catalog (nut UPSELL_PS_PLUS_GAME_CATALOG cua DUNG pid) -> nguoi co Extra choi duoc, khong phai "keo" dang mua -> LOAI
+        if p['ps_plus']: return None,f"{LOC[v['ma']]}: game co trong PS Plus Game Catalog (nut UPSELL_PS_PLUS_GAME_CATALOG cua dung pid) — nguoi co Extra choi duoc, khong phai keo dang mua"
+        if p['gia_cuc_bo'] is None: return None,f"trang {LOC[v['ma']]} khong co khoi gia mua dut ro rang cua dung pid (het ban / nhieu khoi gia khac nhau / doi cau truc)"
         if abs(p['gia_cuc_bo']-v['con_so'])>DUNG_SAI_GIA*v['con_so']: return None,f"gia trang {LOC[v['ma']]} {p['gia_cuc_bo']:.2f} lech so {v['con_so']:.2f} > 2%"
         # may dang kiem lai CA 3 vung (kiem_lai) va coi thieu endTime la loi -> vung nao cung phai co endTime >= moc
         if not p['endTime']: return None,f"vung {LOC[v['ma']]} khong co endTime (may dang se bo khung)"
@@ -162,6 +138,7 @@ chon=None
 for i,u in enumerate(UV[:A.toi_da],1):
     h=u['h']; v3=u['v3']
     tr,ly=kiem_ung_vien(u)
+    if not tr: NHAT_KY.append(f"#{u['hang']} {h['ten'][:50]}: {ly}")
     print(f"  {i:2d}. #{u['hang']} {h['ten'][:44]:44s} {v3[0]['ma']} {v3[0]['vnd']:,}d -{v3[0]['giam']}% | {v3[1]['ma']} +{v3[1]['vnd']-v3[0]['vnd']:,} | {v3[2]['ma']} +{v3[2]['vnd']-v3[0]['vnd']:,} -> "+('DAT' if tr else 'loai: '+ly))
     if tr: chon=(u,tr); break
 if not chon: thoat(3,f'KHONG ung vien nao qua kiem tren trang san pham ({len(UV)} ung vien so bo, da thu {min(len(UV),A.toi_da)})')
@@ -185,5 +162,5 @@ keo=dict(phien_ban=1,che_do_hoi_quy=False,ngay_dang=NGAY.isoformat(),gio_dang=GI
     loi_dang=dict(tieu_de=f"{chinh} giảm {a['giam']}% ở PS Store {a['dd']}: còn {con_goc(a['vnd'])}"[:100],mo_ta=mo_ta[:2000],hashtag=['#SănGame','#PlayStation','#PS5','#GiảmGiá'],link='https://sangame.com.vn/'))
 json.dump(keo,open(A.ra,'w',encoding='utf-8'),ensure_ascii=False,indent=1)
 json.dump(keo['loi_dang'],open(pathlib.Path(A.ra).resolve().parent/'loi-dang.json','w',encoding='utf-8'),ensure_ascii=False,indent=1)
-json.dump(dict(du=True,ngay=NGAY.isoformat(),game=h['ten'],hang=u['hang'],vung=[x['ma'] for x in vung],thu=i,ung_vien=len(UV)),open(KQ,'w',encoding='utf-8'),ensure_ascii=False,indent=1)
+json.dump(dict(du=True,ngay=NGAY.isoformat(),game=h['ten'],hang=u['hang'],vung=[x['ma'] for x in vung],thu=i,ung_vien=len(UV),loai=NHAT_KY[-30:]),open(KQ,'w',encoding='utf-8'),ensure_ascii=False,indent=1)
 print(f"CHON: #{u['hang']} {h['ten']} — {a['dd']} {con_goc(a['vnd'])} (-{a['giam']}%), so voi {vung[1]['dd']} +{con_goc(vung[1]['vnd']-a['vnd'])}, {vung[2]['dd']} +{con_goc(vung[2]['vnd']-a['vnd'])}; het giam {het:%d/%m %H:%M}; ky so {LS['so_ky']:03d} -> {A.ra}")

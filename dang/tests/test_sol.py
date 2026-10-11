@@ -11,7 +11,7 @@ from unittest import mock
 from dang import chay, chung, fb, gia, http, manifest, site, so, tiktok, yt
 from dang.chung import LoiDang
 from dang.tests import gia_lap as g
-from dang.tests.gia_lap import Mang, P, NGAY, DANG, TOKEN_GIA, tao_nc
+from dang.tests.gia_lap import Mang, P, NGAY, DANG, TOKEN_GIA, tao_nc, trang_ps
 from dang.tests.test_dieu_phoi import Khung, KenhGia, vo_ngu
 
 GOC = pathlib.Path(__file__).resolve().parents[2]
@@ -346,13 +346,23 @@ class TestGiaFailClosed(unittest.TestCase):
             return gia.kiem_lai([muc or self.MUC], g.GIO_DANG)[0]
 
     def test_timeout_http_thieu_endtime_gia_deu_bo_khung(self):  # gia.py:37
+        pid = self.MUC["pid"]
         self.assertTrue(self.kiem(http.LoiMang("timeout")))
         self.assertTrue(self.kiem(P(503, {})))
-        self.assertTrue(self.kiem(lambda con: P(raw=b'"discountedPrice":"HK$100.00"')))              # mat endTime
-        self.assertTrue(self.kiem(lambda con: P(raw=f'"endTime":"{con}"'.encode())))                 # khong doc duoc gia
-        self.assertTrue(self.kiem(lambda con: P(raw=f'"endTime":"{con}" "discountedPrice":"HK$100"'.encode()),
+        self.assertTrue(self.kiem(lambda con: P(raw=trang_ps(pid, "HK$100.00", None))))              # mat endTime
+        self.assertTrue(self.kiem(lambda con: P(raw=trang_ps(pid, "Included", con))))                # khong doc duoc gia
+        self.assertTrue(self.kiem(lambda con: P(raw=trang_ps(pid, "HK$100", con)),
                                   {**self.MUC, "gia_cuc_bo": None}))                                  # thieu gia_cuc_bo
-        self.assertEqual(self.kiem(lambda con: P(raw=f'"endTime":"{con}" "discountedPrice":"HK$100.00"'.encode())), [])
+        self.assertEqual(self.kiem(lambda con: P(raw=trang_ps(pid, "HK$100.00", con))), [])
+
+    def test_gia_han_lay_tu_khoi_dung_pid_khong_muon_cua_khoi_khac(self):  # Sol bcd #14/#15
+        pid = self.MUC["pid"]
+        # SKU chinh khong co endTime, game goi y tren trang co han + cung gia -> KHONG duoc muon han do (code cu: dat)
+        self.assertTrue(self.kiem(lambda con: P(raw=trang_ps(pid, "HK$100.00", None, khac=[("UP2000-Y_00-GOIY", "HK$100.00", con)]))))
+        # trang chi co khoi gia cua san pham khac (khong chua pid) -> khong nhan (code cu: dat vi regex toan trang)
+        self.assertTrue(self.kiem(lambda con: P(raw=trang_ps(None, None, None, khac=[("UP2000-Y_00-GOIY", "HK$100.00", con)]))))
+        # khoi gia khac cua san pham khac KHONG lam hong ket qua khi khoi dung pid day du
+        self.assertEqual(self.kiem(lambda con: P(raw=trang_ps(pid, "HK$100.00", con, khac=[("UP2000-Y_00-GOIY", "HK$999.00", None)]))), [])
 
     def test_manifest_khong_co_kiem_lai_thi_bo(self):
         self.assertTrue(gia.kiem_lai([], g.GIO_DANG)[0])
