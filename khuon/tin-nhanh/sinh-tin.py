@@ -75,6 +75,17 @@ def vang(r,k):
     if not loi.endswith('.'): loi+='.'
     d=dict(loai=r['loai'],mau='vang',nguon=r['nguon'],tieu=cat(tit,TOI_DA['tieu']),tit=cat(tit,TOI_DA['tit']),dong=r['dong'],nhan_dong=r['nhan_dong'],anh=r['anh_tep'][:1],
            loi=f'Tin {TIN_MOT[k]}: '+loi,chi_so=dict(moc=ci),kiem=dict(ten=[doc_tit],so=[],ngay=so))
+    if r.get('kieu')=='sale':   # kiem.han = ISO ngay het sale (nhu the sap-het) de D3 so GIA TRI ngay+thang; uu tien han_iso do chon-tin.py luu, khong co thi suy tu «HẾT dd/mm» + nam ngay dang
+        han=r.get('han_iso')
+        if not han:
+            m_=re.search(r'(\d{1,2})/(\d{1,2})',r.get('moc') or '')
+            if m_:
+                try:
+                    c_=dtm.date(ND.year,int(m_.group(2)),int(m_.group(1)))
+                    if (ND-c_).days>180: c_=dtm.date(ND.year+1,c_.month,c_.day)
+                    han=c_.isoformat()
+                except ValueError: han=None
+        if han: d['kiem']['han']=han
     if moc: d['moc']=moc
     return d,loi
 

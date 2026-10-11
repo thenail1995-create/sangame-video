@@ -224,8 +224,8 @@ _bo5b=next((b for b in ('turbo','small') if _kq5b[b][0]),None)
 ghi('Whisper nghe dung ten game trong giong sach (D3)',_bo5b is not None,f"ten «{' '.join(w['w'] for w in _mo[_i0:_i1])}»: dat boi {_bo5b}; "+'; '.join(f"{b}: {v[1]}/{len(_tok)} tu, {v[2]}, «{v[3][:50]}»" for b,v in _kq5b.items()),'D3')
 # 5e) D3 (doi thiet ke 11/10, Sol #10) — "giong trong video = giong da kiem": am thanh 16 kHz trich tu MP4 nay phai TUONG QUAN duong bao nang luong (RMS 20 ms, khung co giong, lech +-300 ms) voi
 #     GIONG SACH `dau-vao/giong.mp3` (dung tep da kiem noi dung o D3). Giong khac / lan thu khac => truot. Nguong hieu chinh bang so that: xem cong-cu/lien_ket_giong.py.
-LK_KQ=LK.lien_ket(G16,X16); _ok_lk,_so_lk=LK.dat_lien_ket(LK_KQ)
-ghi('D3 giong trong video = giong sach da kiem noi dung (tuong quan duong bao nang luong, lech +-300 ms)',_ok_lk,_so_lk,'D3/Sol#10')
+LK_KQ=LK.lien_ket(G16,X16,cua_so=LK.cua_so_moc_chu(moc)); _ok_lk,_so_lk=LK.dat_lien_ket(LK_KQ)
+ghi('D3 giong trong video = giong sach da kiem noi dung (tuong quan duong bao nang luong + phu + cua so moc-chu, lech +-300 ms)',_ok_lk,_so_lk,'D3/Sol#10')
 
 dat=sum(1 for x in KQ if x[1]); tong=len(KQ)
 with open(B/f'kiem/bao-cao-{NT}.md','w',encoding='utf-8') as f:

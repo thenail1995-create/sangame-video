@@ -157,21 +157,23 @@ def cmd_giong(a,cong=None,el=None,ngu=time.sleep,tai=None):
         hau='luot sau tu phuc hoi tu kho rieng, khong thu lai' if ghi_ok else 'tep CHUA ghi vao so: luot sau se BI CHAN (dong chua ro) cho toi khi doi soat'
         raise Loi(f'LOI tai mp3 (credit DA TRU, so van giu muc giu; {hau}): '+che(str(e),bi_mat)[:200])
     shutil.copy(f,ra)
-    # 7) quyet toan: chenh lech tai khoan truoc/sau. So dung cua ElevenLabs cap nhat TRE (CI that 11/10: chenh=0 ca 2 luot) => doc lai toi 6 lan, cach 10 s
-    that=giu; chenh=None; ghi='chua doc'; so_lan=0
-    for i in range(6):
+    # 7) quyet toan: chenh lech tai khoan truoc/sau. So dung cua ElevenLabs cap nhat TRE va TUNG NAC (CI that 11/10: chenh=0; Sol soi cuoi: 100->110->160 dung o 110 ghi 10 trong khi that la 60)
+    #    => doc lai toi 8 lan, cach 10 s, CHI chot khi 2 lan doc LIEN TIEP bang nhau va 0 < chenh <= giu. Chua on dinh / ngoai khoang => khong_ro (giu nguyen muc giu).
+    that=giu; chenh=None; ghi='chua doc'; so_lan=0; truoc=None; on_dinh=False
+    for i in range(8):
         so_lan=i+1
         try:
             tk1=el.goi({'action':'goi'},30); chenh=round(tk1['da_dung']-tk0['da_dung'],1)
-            if 0<chenh<=giu: break
-            ghi=f'chenh do duoc {chenh} ngoai khoang (0,{giu}]'
-            if chenh>giu or chenh<0: break   # khong the tu sua bang cho them
-        except Exception as e: chenh=None; ghi=che(f'khong doc duoc da_dung sau: {e}',bi_mat)[:150]
-        if i<5: ngu(10)
+            if chenh>giu or chenh<0:
+                ghi=f'chenh do duoc {chenh} ngoai khoang (0,{giu}]'; break   # khong the tu sua bang cho them
+            if chenh>0 and truoc is not None and chenh==truoc: on_dinh=True; break
+            ghi=f'chenh {chenh} chua on dinh (lan doc truoc {truoc})'; truoc=chenh if chenh>0 else None
+        except Exception as e: chenh=None; truoc=None; ghi=che(f'khong doc duoc da_dung sau: {e}',bi_mat)[:150]
+        if i<7: ngu(10)
     print(f'DOC SO DUNG SAU: {so_lan} lan, chenh={chenh}')
     try:
         if not ghi_ok: cong.goi('khong_ro_credit',id=idc,ghi_chu='chua ghi duoc tep')   # chua co tep trong so: KHONG xong (dong xong khong tep bi luot sau bo qua => thu lai)
-        elif chenh is not None and 0<chenh<=giu: cong.goi('xong_credit',id=idc,credit_that=chenh); that=chenh
+        elif on_dinh and chenh is not None and 0<chenh<=giu: cong.goi('xong_credit',id=idc,credit_that=chenh); that=chenh
         else: cong.goi('khong_ro_credit',id=idc,ghi_chu=ghi)
     except Exception as e: _canh_bao('quyet toan loi (file da co, dong van giu = tinh du tran): '+che(str(e),bi_mat)[:200])
     print(f'GOI: {n} ky tu, {that} credit (giu toi da {giu}) -> {ra}  [khoa kho {khoa}]'); return 'goi',that

@@ -25,6 +25,19 @@ class TestDungYml(unittest.TestCase):
         self.assertIn('-pass env:GOI_KHOA', buoc('- name: Dong goi + MA HOA'))
         self.assertIn('-iter 200000', buoc('- name: Go loi'))
 
+    def test_go_loi_khoa_rong_thoat_1_truoc_khi_dong_goi(self):   # Sol soi cuoi: ARTIFACT_KEY rong van ma hoa duoc bang mat khau rong roi upload
+        import subprocess, tempfile, os
+        b = buoc('- name: Go loi - dong goi'); run = b[b.index('run: |') + len('run: |'):]
+        run = '\n'.join(l[10:] if l.startswith(' ' * 10) else l for l in run.split('\n'))
+        self.assertLess(run.index('ARTIFACT_KEY:-'), run.index('mkdir -p go-loi')); self.assertLess(run.index('ARTIFACT_KEY:-'), run.index('openssl enc'))
+        with tempfile.TemporaryDirectory() as d:
+            for k in ('', None):
+                env = {kk: vv for kk, vv in os.environ.items() if kk != 'ARTIFACT_KEY'}
+                if k is not None: env['ARTIFACT_KEY'] = k
+                r = subprocess.run(['bash', '-c', run], cwd=d, env=env, capture_output=True, text=True)
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr); self.assertIn('ARTIFACT_KEY', r.stdout)
+                self.assertFalse(os.path.exists(os.path.join(d, 'go-loi.enc'))); self.assertFalse(os.path.exists(os.path.join(d, 'go-loi')))
+
     def test_a4_cam_fixture_that(self):  # #1
         v = buoc('- name: Kiem dau vao'); self.assertRegex(v, r'\[ -n "\$FIXTURE" \] && \[ "\$CHE_DO" = "that" \].*exit 1')
         ph = Y[Y.index('  phat-hanh:'):Y.index('  bao-loi:')]
