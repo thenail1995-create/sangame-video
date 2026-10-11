@@ -1,40 +1,22 @@
-"""Kiem lai gia / han deal ngay truoc gio dang (B4, Sol #13). Cao trang san pham PS Store dung `loc` + `pid` cua manifest.
-FAIL-CLOSED: khong xac minh duoc (timeout, HTTP loi, mat endTime, khong doc duoc gia, thieu gia_cuc_bo) -> coi la van de, bo khung.
-# CHUA KIEM: truong "discountedPrice" trong JSON nhung cua trang san pham (chua co mau that); lay gia tri DAU TIEN trong trang.
+"""Kiem lai gia / han deal ngay truoc gio dang (B4, Sol #13; C1 Sol bcd #14/#15). Cao trang san pham PS Store dung `loc` + `pid` cua manifest.
+FAIL-CLOSED: khong xac minh duoc (timeout, HTTP loi, khong co khoi gia mua dut gan DUNG pid, khoi gia mo ho, mat endTime, thieu gia_cuc_bo) -> coi la van de, bo khung.
+Gia + han doc tu KHOI GIA CUA DUNG PID trong cache JSON cua trang (cong-cu/gia_trang.py), KHONG lay "gia dau tien tren trang".
 """
+import importlib.util
+import pathlib
 import re
 
 from . import http
 
+_f = pathlib.Path(__file__).resolve().parent.parent / "cong-cu" / "gia_trang.py"   # nap theo duong dan (cong-cu khong phai package, tranh them sys.path)
+_spec = importlib.util.spec_from_file_location("sangame_gia_trang", _f)
+gia_trang = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(gia_trang)
+doc_gia = gia_trang.doc_gia
+
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36"
 DUNG_SAI_GIA = 0.02
 DEM_SAU_GIO_DANG = 2 * 3600
-
-
-def doc_gia(chuoi):
-    """Doc so tien theo ca dinh dang US (1,299.00 / HK$47.70) lan EU/VN (1.234.000 / 47,70) va ngan cach nghin don le:
-      - co ca '.' va ',' -> dau xuat hien SAU CUNG la thap phan, dau con lai la ngan cach nghin;
-      - mot loai dau xuat hien nhieu lan -> ngan cach nghin;
-      - mot dau xuat hien 1 lan: sau no dung 3 chu so -> ngan cach nghin (1,299 / 1.299), nguoc lai -> thap phan (47,70)."""
-    m = re.search(r"\d[\d.,\s  ]*\d|\d", str(chuoi or ""))
-    if not m:
-        return None
-    s = re.sub(r"[\s  ]", "", m.group(0))
-    if "." in s and "," in s:
-        tp = "." if s.rfind(".") > s.rfind(",") else ","
-        nghin = "," if tp == "." else "."
-        s = s.replace(nghin, "").replace(tp, ".")
-    else:
-        for d in (".", ","):
-            if d in s:
-                if s.count(d) > 1 or len(s.rsplit(d, 1)[1]) == 3:
-                    s = s.replace(d, "")
-                else:
-                    s = s.replace(d, ".")
-    try:
-        return float(s)
-    except ValueError:
-        return None
 
 
 def kiem_lai(muc, gio_dang):
@@ -57,19 +39,19 @@ def kiem_lai(muc, gio_dang):
         if r.status != 200:
             van_de.append(f"{ten}: trang san pham HTTP {r.status}, khong kiem lai duoc")
             continue
-        html = r.text
-        ends = re.findall(r'"endTime":"(\d+)"', html)
-        if not ends:
-            van_de.append(f"{ten}: trang khong con endTime (deal co the da ket thuc hoac doi cau truc trang)")
-        elif int(ends[0]) / 1000 < han_toi_thieu:
-            van_de.append(f"{ten}: het han luc {ends[0]} (< gio dang + 2 h)")
+        khoi = gia_trang.khoi_gia(r.text, pid)
+        if khoi is None:
+            van_de.append(f"{ten}: trang khong co khoi gia mua dut ro rang cua dung pid (doi cau truc trang, het ban hoac nhieu khoi gia khac nhau)")
+            continue
+        end = khoi["endTime"]
+        if not end:
+            van_de.append(f"{ten}: khoi gia khong con endTime (deal co the da ket thuc hoac doi cau truc trang)")
+        elif int(end) / 1000 < han_toi_thieu:
+            van_de.append(f"{ten}: het han luc {end} (< gio dang + 2 h)")
         goc = m.get("gia_cuc_bo")
-        gia_m = re.search(r'"discountedPrice":"([^"]+)"', html)
-        moi = doc_gia(gia_m.group(1)) if gia_m else None
+        moi = khoi["gia_cuc_bo"]
         if not isinstance(goc, (int, float)) or goc <= 0:
             van_de.append(f"{ten}: manifest thieu gia_cuc_bo hop le - khong so gia duoc")
-        elif moi is None:
-            van_de.append(f"{ten}: khong doc duoc gia tren trang")
         elif abs(moi - goc) / goc > DUNG_SAI_GIA:
             van_de.append(f"{ten}: gia doi {goc} -> {moi} (> 2%)")
     return van_de, canh_bao

@@ -8,6 +8,8 @@
 import sys,json,re,os,pathlib,time,urllib.request,urllib.error,datetime
 T=pathlib.Path(__file__).resolve().parent; sys.path.insert(0,str(T))
 import ten_rut_gon as tr, lich_su_top5 as ls
+import importlib.util
+_sp=importlib.util.spec_from_file_location('sangame_gia_trang',str(T.parent.parent/'cong-cu'/'gia_trang.py')); GT=importlib.util.module_from_spec(_sp); _sp.loader.exec_module(GT)   # khoi gia/han/media cua DUNG pid (dung chung voi Keo thom va dang/gia.py)
 args=[a for a in sys.argv[1:] if not a.startswith('--')]
 ngay_dang=next((sys.argv[i+1] for i,a in enumerate(sys.argv) if a=='--ngay'),None) or os.environ.get('NGAY') or ''
 if ngay_dang in args: args.remove(ngay_dang)
@@ -29,12 +31,6 @@ cung_game=lambda ten:t._ten_goc(ten) or ten   # dung de DEM: chi gop cac ban cua
 dong_game=ls.ten_dong_game
 da_len,ghi_chu_ls=ls.da_len(ngay_dang,3); print('lich su Top 5:',ghi_chu_ls,'| dong game da len:',sorted(da_len))
 TIEN_TE={'US':'USD','HK':'HKD','SG':'SGD','ID':'IDR','TH':'THB','IN':'INR'}
-def so_gia(s):   # 'HK$367.16' / 'Rp 756,430' / 'THB 1,601.00' / 'Rs 2,799' -> float
-    n=re.sub(r'[^\d.,]','',s or '')
-    if not n: return None
-    if ',' in n and '.' in n: n=n.replace(',','')
-    elif ',' in n: n=n.replace(',','') if re.fullmatch(r'\d{1,3}(,\d{3})+',n) else n.replace(',','.')
-    return float(n)
 _trang={}
 def lay_trang(loc,pid):
     k=(loc,pid)
@@ -48,18 +44,6 @@ def lay_trang(loc,pid):
             time.sleep(2*(lan+1))
         except Exception: time.sleep(2*(lan+1))
     time.sleep(0.3); _trang[k]=ket; return ket
-def gia_trang(html,con_du_lieu):
-    """Khoi Price tren trang khop gia dang giam trong du lieu vung (chuoi y het, hoac lech <= 2%) -> dict hoac None."""
-    cs=[]
-    for m in re.finditer(r'"__typename":"Price","basePrice":"([^"]*)","discountedPrice":"([^"]*)"(.*?)"currencyCode":"(\w+)"',html,re.S):
-        e=re.search(r'"endTime":(?:"(\d+)"|null)',m.group(3)); cs.append(dict(goc=m.group(1),con=m.group(2),end=e.group(1) if e else None,tien=m.group(4)))
-    a=so_gia(con_du_lieu)
-    for c in cs:
-        if c['con'].replace('\xa0',' ')==(con_du_lieu or '').replace('\xa0',' '): return c
-    for c in cs:
-        b=so_gia(c['con'])
-        if a and b and abs(a-b)/a<=0.02 and c['goc']!=c['con']: return c
-    return None
 bia_da=set()
 def xet(h):
     """Ung vien -> dict hoac None (kem ly do). Goi trang PS Store DUNG vung cua gia duoc chon."""
@@ -74,16 +58,12 @@ def xet(h):
     pid=rec['id']; con=rec.get('con')
     html=lay_trang(loc,pid)
     if not html: return None,f'khong mo duoc trang {loc}/{pid}'
-    g=gia_trang(html,con)
-    if not g: return None,f'gia tren trang {loc} khong khop du lieu ({con})'
-    if not g['end']: return None,'khong co endTime (khong biet han giam)'
-    # May dang (dang/gia.py) kiem lai bang gia + endTime DAU TIEN tren trang -> chi nhan game ma khoi gia da chon CHINH la khoi dau tien (nhieu phien ban -> bo)
-    m1=re.search(r'"discountedPrice":"([^"]+)"',html); e1=re.findall(r'"endTime":"(\d+)"',html); a1,b1=(so_gia(m1.group(1)) if m1 else None),so_gia(g['con'])
-    if not (a1 and b1 and abs(a1-b1)/b1<=0.02 and e1 and e1[0]==g['end']): return None,'trang nhieu phien ban: gia/han dau tien tren trang khac khoi gia da chon (may dang kiem lai se lech)'
-    if int(g['end'])<han_ms: return None,f"het han som ({datetime.datetime.fromtimestamp(int(g['end'])/1000,VN):%d/%m %H:%M} < gio dang + 2h)"
-    vids=sorted(set(re.findall(r'"type":"VIDEO","url":"(https://vulcan\.dl\.playstation\.net[^"]+\.mp4)"',html)))
-    ss=list(dict.fromkeys(re.findall(r'"role":"SCREENSHOT","type":"IMAGE","url":"([^"]+)"',html)))
-    return dict(h=h,pid=pid,loc=loc,trailer=vids,anh_chup=ss[:6],endTime=g['end'],gia_cuc_bo=so_gia(g['con']),tien_te=g['tien'] or TIEN_TE.get(ma)),None
+    g,ly=GT.khoi_khop(html,pid,con)   # khoi mua dut cua DUNG pid (khong regex toan trang: trang chua ca game goi y/phien ban khac); mo ho/khong khop du lieu -> loai
+    if not g: return None,f'gia tren trang {loc} khong khop du lieu ({con}): {ly}'
+    if not g['endTime']: return None,'khong co endTime (khong biet han giam)'
+    if int(g['endTime'])<han_ms: return None,f"het han som ({datetime.datetime.fromtimestamp(int(g['endTime'])/1000,VN):%d/%m %H:%M} < gio dang + 2h)"
+    m=GT.media(html,pid)   # trailer + anh chup CHI cua Product:{pid}
+    return dict(h=h,pid=pid,loc=loc,trailer=sorted(m['video']),anh_chup=m['anh_chup'][:6],endTime=g['endTime'],gia_cuc_bo=g['gia_cuc_bo'],tien_te=g['tien_te'] or TIEN_TE.get(ma)),None
 def ung_vien(X):
     u=[h for h in d['hangs'] if h['khoa'] in th and th[h['khoa']][0]+1<=HANG_DEM and h['giam']>0 and h['vnd'] is not None
        and not t._la_goi_nhieu_game(h) and gia(h)<=X]

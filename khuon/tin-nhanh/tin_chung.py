@@ -2,6 +2,8 @@
 # Ảnh Sony / trailer chỉ TẢI LÚC DỰNG vào tai-san/ (bị .gitignore chặn, không bao giờ vào repo công khai).
 import hashlib,json,pathlib,re,subprocess,time,urllib.request,sys
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parent)); import anh_gia
+import importlib.util
+_sp=importlib.util.spec_from_file_location('sangame_gia_trang',str(pathlib.Path(__file__).resolve().parent.parent.parent/'cong-cu'/'gia_trang.py')); GT=importlib.util.module_from_spec(_sp); _sp.loader.exec_module(GT)   # khoi gia/han/media cua DUNG pid
 
 UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36"
 LOC={'SG':'en-sg','HK':'en-hk','IN':'en-in','ID':'en-id','US':'en-us','TH':'en-th'}
@@ -33,27 +35,19 @@ def so_tien(s):
     try: return float(t)
     except ValueError: return None
 
-def cac_gia_trang(html):
-    """Mọi khối giá trong trang: [{base, disc, disc_so, tien_te, endTime(ms hoặc None)}]."""
-    ra=[]
-    for m in re.finditer(r'"__typename":"Price","basePrice":"([^"]*)","discountedPrice":"([^"]*)"[^{}]*?"endTime":(null|"(\d+)")[^{}]*?"discountedValue":(\d+)[^{}]*?"currencyCode":"([A-Z]+)"',html):
-        ra.append(dict(base=m.group(1),disc=m.group(2),end=int(m.group(4)) if m.group(4) else None,disc_so=int(m.group(5))/100.0,tien_te=m.group(6)))
-    return ra
+def gia_khop(html,con,ma,pid):
+    """Khối giá mua đứt của ĐÚNG pid trên trang đúng vùng (cong-cu/gia_trang.py), khớp giá đang giảm trong dữ liệu (con = chuỗi trong sổ, vd 'HK$148.00',
+    lệch <= 1%) và cùng loại tiền, có hạn. Trả dict(base,disc,disc_so,tien_te,end(ms)) hoặc None — khi đó KHÔNG được coi là deal xác minh được.
+    Không quét toàn trang: trang chứa cả game gợi ý/phiên bản khác."""
+    k,_=GT.khoi_khop(html,pid,con,dung_sai=0.01)
+    if not k or k['tien_te']!=TIEN_TE.get(ma) or not k['endTime']: return None
+    return dict(base=k['gia_goc'],disc=con,disc_so=k['gia_cuc_bo'],tien_te=k['tien_te'],end=int(k['endTime']))
 
-def gia_khop(html,con,ma):
-    """Khối giá của TRANG ĐÚNG VÙNG khớp giá đang giảm trong dữ liệu (con = chuỗi trong sổ, vd 'HK$148.00'). None nếu không khớp
-    (giá lệch > 1% hoặc khác loại tiền) — khi đó KHÔNG được coi là deal xác minh được."""
-    can=so_tien(con)
-    if can is None: return None
-    ung=[g for g in cac_gia_trang(html) if g['tien_te']==TIEN_TE.get(ma) and g['end']]
-    tot=[g for g in ung if g['disc']==con] or [g for g in ung if abs(g['disc_so']-can)<=max(0.011,can*0.01)]
-    return tot[0] if tot else None
+def trailers(html,pid):
+    return GT.media(html,pid)['video']
 
-def trailers(html):
-    return list(dict.fromkeys(re.findall(r'"type":"VIDEO","url":"(https://vulcan\.dl\.playstation\.net[^"]+\.mp4)"',html)))
-
-def anh_chup(html):
-    return list(dict.fromkeys(re.findall(r'"role":"SCREENSHOT","type":"IMAGE","url":"([^"]+)"',html)))
+def anh_chup(html,pid):
+    return GT.media(html,pid)['anh_chup']
 
 def thong_trailer(u):
     """(w, h, giây) đọc đầu file bằng ffprobe; None nếu không đọc được."""

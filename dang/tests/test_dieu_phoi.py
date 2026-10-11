@@ -338,11 +338,11 @@ class TestGiaVaSite(unittest.TestCase):
     def test_het_han_va_lech_gia(self):
         muc = [{"ten": "A", "pid": "UP1001-X_00", "loc": "en-hk", "gia_cuc_bo": 100.0, "endTime": "1"}]
         gio = g.GIO_DANG
-        html = lambda end, gia_: f'x"endTime":"{end}" y"discountedPrice":"HK$ {gia_}"'
+        html = lambda end, gia_: g.trang_ps("UP1001-X_00", f"HK$ {gia_}", end)
         con = str(int((gio.timestamp() + 5 * 3600) * 1000))
         het = str(int((gio.timestamp() + 3600) * 1000))
         for end, gia_, mong in [(con, "101.00", 0), (het, "100.00", 1), (con, "130.00", 1), (con, "1,001.00", 1)]:
-            m = Mang().them("GET", "store.playstation.com/en-hk/product/UP1001-X_00", P(raw=html(end, gia_).encode()))
+            m = Mang().them("GET", "store.playstation.com/en-hk/product/UP1001-X_00", P(raw=html(end, gia_)))
             with mock.patch("dang.http.gui", m):
                 van_de, _ = gia.kiem_lai(muc, gio)
             self.assertEqual(len(van_de), mong, (end, gia_, van_de))

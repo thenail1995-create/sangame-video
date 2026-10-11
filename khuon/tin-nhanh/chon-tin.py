@@ -71,11 +71,11 @@ def tin_vang(b,uu):
                 tit=rut_tit(b),moc=moc_hien(b),anh_url=[anh],anh_tep=[f'tai-san/{f.name}'],bai=b['ten_file'],tieu_de_bai=b['tieu_de'],
                 nhan_dong='CHI TIẾT TẠI',dong='sangame.com.vn · Tin hot',trailer=[],anh_chup=[])
 
-def nen_tu_trang(html):
-    """Trailer (xếp theo H21) rồi ảnh chụp màn hình đầu tiên (nền dự phòng) từ HTML trang sản phẩm."""
-    tr=tc.xep_trailer(tc.trailers(html)); shot=[]
+def nen_tu_trang(html,pid):
+    """Trailer (xếp theo H21) rồi ảnh chụp màn hình đầu tiên (nền dự phòng) CHỈ của Product:<pid> trên trang sản phẩm."""
+    tr=tc.xep_trailer(tc.trailers(html,pid)); shot=[]
     if not tr:
-        ss=tc.anh_chup(html)
+        ss=tc.anh_chup(html,pid)
         if ss:
             try: shot=[f'tai-san/{tc.tai_anh(ss[0],TS,"man",rong=1920).name}']
             except Exception as e: print('  khong tai duoc anh chup:',e)
@@ -116,7 +116,7 @@ def tin_ps_plus_thang(b,uu):
     pid=next((g['pid'] for g in game if g['pid'] and not bo_doc(g)),None) or next((g['pid'] for g in game if g['pid']),None)
     tr,shot=[],[]
     if pid:
-        try: tr,shot=nen_tu_trang(tc.lay_trang('en-sg',pid))
+        try: tr,shot=nen_tu_trang(tc.lay_trang('en-sg',pid),pid)
         except Exception as e: print('  khong mo duoc trang game PS Plus (nen dung bia):',e)
     return dict(kieu='ps-plus-thang',mau='xanh',uu=uu,khoa=f'ps-plus-thang:{b["ngay"]}',loai='PS PLUS',nguon=f'PLAYSTATION SG · {ddmm(b["ngay"])}',
                 n_moi=n_moi,ten_game=ten_hien,ten_doc=doc,ten_noi=noi,anh_url=[g['anh'] for g in game],anh_tep=[f'tai-san/{f.name}' for f in tep],
@@ -139,7 +139,7 @@ def xac_minh(h):
     if not b.get('id') or not b.get('con'): return None,'so thieu id/gia vung'
     try: html=tc.lay_trang(tc.LOC[ma],b['id'])
     except Exception as e: return None,f'khong mo duoc trang: {e}'
-    g=tc.gia_khop(html,b['con'],ma)
+    g=tc.gia_khop(html,b['con'],ma,b['id'])
     if not g: return None,f'trang {tc.LOC[ma]} khong co khoi gia {b["con"]} co han (khong xac minh duoc)'
     if g['end']<HAN_MIN_MS: return None,f'het han {dtm.datetime.fromtimestamp(g["end"]/1000,VN):%d/%m %H:%M} (< han toi thieu)'
     return dict(pid=b['id'],loc=tc.LOC[ma],end=g['end'],gia_cuc_bo=tc.so_tien(b['con']),tien_te=tc.TIEN_TE[ma],html=html),None
@@ -173,7 +173,7 @@ def tin_gia(loai,ham,uu):
     if not t.hop_le_bia(anh): return bo(loai,'game re nhat khong co bia hop le')
     try:
         f=tc.tai_anh(anh,TS,'gia',rong=720)
-        tr,shot=nen_tu_trang(kq['html'])
+        tr,shot=nen_tu_trang(kq['html'],kq['pid'])
     except Exception as e: return bo(loai,f'loi tai anh/trailer: {e}')
     DA_DUNG_GOC.add(t._ten_goc(h['ten']))
     hien=so_chu.ten_hien_thi(h['ten'])
