@@ -149,3 +149,19 @@ class D3TheoLuatKhuon(unittest.TestCase):      # Sol vong 2b #11/#12 o CAP SCRIP
             r=self.keo(dict(self.HK,**{k:moi})); self.assertFalse(r[1],(k,r)); self.assertIn(dau,r[2],(k,r[2]))
 
 if __name__=='__main__': unittest.main()
+
+
+class TenNhayDonTinNhanh(unittest.TestCase):
+    """CI that 11/10 (run 38111579743): tin DOT SALE «Player's Choice» bi bao «Player's» khong co trong tin.json vi so ca chuoi 'players'
+    voi tap manh ['player','s']. Phep phai tach dau nhay giong bag()."""
+    def test_tach_dau_nhay(self):
+        import pathlib, re
+        src = (pathlib.Path(__file__).resolve().parents[2] / 'khuon' / 'tin-nhanh' / 'kiem' / 'kiem-tat-ca.py').read_text(encoding='utf-8')
+        self.assertIn("all(x in cho for x in re.findall(r'[a-z0-9]+',sc.bo_dau(tk)))", src)
+        sys_path = str(pathlib.Path(__file__).resolve().parents[2] / 'khuon' / 'tin-nhanh')
+        import sys
+        if sys_path not in sys.path: sys.path.insert(0, sys_path)
+        import so_chu as sc
+        cho = set(re.findall(r'[a-z0-9]+', sc.bo_dau("Player's Choice ĐỢT SALE")))
+        ok = lambda tk: all(x in cho for x in re.findall(r'[a-z0-9]+', sc.bo_dau(tk)))
+        self.assertTrue(ok("Player's")); self.assertTrue(ok("Player’s")); self.assertTrue(ok("Đợt")); self.assertFalse(ok("Witcher"))
