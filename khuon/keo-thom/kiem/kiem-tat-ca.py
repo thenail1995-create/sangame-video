@@ -13,6 +13,7 @@ import os
 SK=pathlib.Path(os.environ.get('MG_SCRIPTS') or pathlib.Path.home()/'.claude/skills/motion-graphics/scripts')   # A3: khong ghi cung duong dan Mac
 sys.path.insert(0,str(B.parent.parent/'cong-cu')); import mo_hinh   # A4: Whisper ghim revision
 import nghe_so as NS   # goi B: doc so/vung/han/ten theo GIA TRI
+import lien_ket_giong as LK   # D3 doi thiet ke 11/10: noi dung nghe tren GIONG SACH + phep 'giong trong video = giong da kiem'
 import traceback
 (B/f'kiem/kiem-{NT}.json').unlink(missing_ok=True); (B/f'kiem/bao-cao-{NT}.md').unlink(missing_ok=True)   # A5: khong de ket qua cu lam bao 'dat' oan
 def _crash(t,v,tb):   # A5: crash = ma thoat != 0 + kiem.json ghi ro
@@ -148,16 +149,24 @@ def chuan(t):
 def nghe(x16):
     seg,_=wm.transcribe(x16,language='vi',beam_size=5,temperature=0.0,condition_on_previous_text=False,vad_filter=False)
     return ' '.join(x.text.strip() for x in seg)
+_WT=[]
+def wt():
+    """Mo hinh NGHE KIEM D3 noi dung (large-v3-turbo, ghim revision) — nap lan dau khi can (cache nghe_doan trung thi khong nap)."""
+    if not _WT: _WT.append(mo_hinh.nap_whisper_nghe_kiem())
+    return _WT[0]
+def nghe_kiem(x16):
+    seg,_=wt().transcribe(x16,language='vi',beam_size=5,temperature=0.0,condition_on_previous_text=False,vad_filter=False)
+    return ' '.join(x.text.strip() for x in seg)
 cau=[];cur=[]
 for k,w in enumerate(moc):
     cur.append(w)
     if re.search(r'[.!?…]$',w['w']) and (k+1==len(moc) or moc[k+1]['s']-w['e']>=0.3): cau.append(cur); cur=[]
 if cur: cau.append(cur)
-G16=doc(V/'giong.mp3',16000); X16=doc(VID,16000)
+GS=LK.ten_giong_sach(V); G16=doc(GS,16000); X16=doc(VID,16000)   # GS = tep giong SACH dung de tron video; D3 noi dung nghe tren G16, KHONG nghe tren ban ghep (CI 11/10)
 tong_g=tong_v=0; xau=[]; tong_chu=0; TVS=[]
 for c in cau:
     a=max(0,int((c[0]['s']-0.15)*16000)); b=int((c[-1]['e']+0.2)*16000)
-    kb=' '.join(w['w'] for w in c); tg=nghe(G16[a:b]); tv=nghe(X16[a:b]); n=len(chu(kb)); TVS.append((c[0]['s'],c[-1]['e'],tv))
+    kb=' '.join(w['w'] for w in c); tg=nghe(G16[a:b]); tv=nghe(X16[a:b]); n=len(chu(kb)); TVS.append((c[0]['s'],c[-1]['e'],tg))
     rg=difflib.SequenceMatcher(None,chu(kb),chu(tg)).ratio(); rv=difflib.SequenceMatcher(None,chu(kb),chu(tv)).ratio()
     tong_g+=rg*n; tong_v+=rv*n; tong_chu+=n
     # cau bi coi la KEM chi khi: khop kich ban sut > 0.10 VA ban ghep khac ban chep giong goc (bo dau thanh, chuan hoa so "784 nghin"="784.000")
@@ -167,14 +176,8 @@ for c in cau:
 rg,rv=tong_g/tong_chu,tong_v/tong_chu
 ghi('Whisper tung cau: ban ghep nghe khong kem giong goc',rv>=rg-0.05 and not xau,f"{len(cau)} cau; khop kich ban: giong goc {rg:.2f}, ban ghep {rv:.2f}"+(f"; cau kem: {xau}" if xau else ''),'A2')
 
-# 5b) Whisper nghe TEN GAME trong ban ghep (D3: ten doc dung — vd 'Spider-Man 2', khong thanh 'Spider Men'): >= 60% tu cua ten (>= 3 chu) co mat trong cau chua ten
-KBJ=json.load(open(B/'kich-ban.json'))['doan'][0]; _mo=[w for w in moc if w['doan']=='mo']; _i0=KBJ['neo']['ten']; _i1=next(i for i,w in enumerate(_mo) if w['w'].lower()=='đang')
-_tok=[chuan(w['w']) for w in _mo[_i0:_i1]]; _tok=[t for t in _tok if len(t)>=3 or t.isdigit()]
-_t0=_mo[_i0]['s']; _cau=next((tv for s,e,tv in TVS if s-0.05<=_t0<=e+0.05),'')
-_tt=chuan(_cau); _co=[t for t in _tok if t in _tt]
-ghi('Whisper nghe dung ten game trong ban ghep (D3)',len(_co)>=max(1,int(0.6*len(_tok)+0.5)),f"ten «{' '.join(w['w'] for w in _mo[_i0:_i1])}»: nghe duoc {len(_co)}/{len(_tok)} tu; «{_cau[:60]}»",'D3')
 
-# 5d) D3 (B2) — nghe AM THANH MP4 CUOI tung doan, so GIA TRI theo VAI TRO: mo (ten, % giam, vung A) · gia (goc ROI con) · hoi (vung B, C) · dap (cap vung -> chenh lech) · han (gio + buoi + ngay).
+# 5d) D3 (B2) — nghe GIONG SACH (G16, khong phai ban ghep: CI 11/10 Whisper nghe nhac+tieng dong thanh «ANM RETURNAL DIGITAL DELUX…») tung doan, so GIA TRI theo VAI TRO: mo (ten, % giam, vung A) · gia (goc ROI con) · hoi (vung B, C) · dap (cap vung -> chenh lech) · han (gio + buoi + ngay).
 #     Ky vong tinh lai tu keo.json (cung luat lam tron voi loi_chu.py). % / vung chi doi o doan ma LOI co doc. 3 ban chung luong tieng -> chung 1 lan Whisper (cache theo bam PCM).
 from loi_chu import ten_noi
 KBD={x['k']:x['loi'] for x in json.load(open(B/'kich-ban.json'))['doan']}
@@ -182,21 +185,26 @@ cs={}
 for k in ('mo','gia','hoi','dap','han'):
     ws=[w for w in moc if w.get('doan')==k]
     if ws: cs[k]=(max(0,int((ws[0]['s']-0.15)*16000)),int((ws[-1]['e']+0.25)*16000))
-heard,NGHE_BC=NS.nghe_doan(X16,cs,nghe,B/'kiem',rev=os.environ.get('WHISPER_REV') or mo_hinh.REV_GHIM)
+heard,NGHE_BC=NS.nghe_doan(G16,cs,nghe_kiem,B/'kiem',rev=(os.environ.get('WHISPER_REV') or mo_hinh.REV_GHIM)+'|'+mo_hinh.ten_nghe_kiem())
+heard_s,_bc_s=NS.nghe_doan(G16,cs,nghe,B/'kiem',rev=os.environ.get('WHISPER_REV') or mo_hinh.REV_GHIM)   # small: CHI cho TEN game (Opus 11/10)
 _ma=[x['ma'] for x in _V[:3]]; _round=lambda v,q:max(1,int(v/q+0.5))*q
 _ky={'mo':dict(ten=[ten_noi(_G['ten'])],phan_tram=[_G['giam']],vung=[_ma[0]]),
      'gia':dict(tien=[_round(KEO['goc_vnd'],100000),_round(KEO['con_vnd'],1000)],tien_thu_tu=[_round(KEO['goc_vnd'],100000),_round(KEO['con_vnd'],1000)]),
      'hoi':dict(vung=[_ma[1],_ma[2]]),
      'dap':dict(tien_tat=[_round(_V[1]['vnd']-_V[0]['vnd'],10000),_round(_V[2]['vnd']-_V[0]['vnd'],10000)],vung=_ma,cap=[(_ma[1],_round(_V[1]['vnd']-_V[0]['vnd'],10000)),(_ma[2],_round(_V[2]['vnd']-_V[0]['vnd'],10000))],chu_the=_ma[0],tien=[_round(_V[1]['vnd']-_V[0]['vnd'],10000),_round(_V[2]['vnd']-_V[0]['vnd'],10000)]),
      'han':dict(han=NS.han_ky_vong(_h,_nd))}
-_sai=[]
+_sai=[]; TEN_BO=None
 for k,ky in _ky.items():
     if k not in heard: _sai.append(f'doan {k}: khong co chu trong moc-chu'); continue
     # Sol vong 2b #11: % / vung BAT BUOC theo LUAT khuon (nghe_so.KEO_*, = kich-ban.py) — KHONG con bo phep khi `loi` thieu cau; test_kiem_tat_ca.py doi chieu luat voi kich-ban.py that
     if k not in NS.KEO_PHAN_TRAM: ky.pop('phan_tram',None)
     if k not in NS.KEO_VUNG: ky.pop('vung',None); ky.pop('cap',None)
-    _sai+=[f'{k} {x}' for x in NS.doi_chieu(heard[k],**ky)]
-ghi('D3 am thanh MP4 cuoi: ten + % + vung + goc roi con + cap vung-chenh + han khop keo.json (theo vai tro)',not _sai,f"{len(cs)} doan; pcm {NGHE_BC['pcm_sha256'][:12]} (nghe moi {NGHE_BC['nghe_moi']}, dung lai {NGHE_BC['dung_lai']})"+(f"; SAI: {_sai}" if _sai else ''),'D3')
+    _sai+=[f'{k} {x}' for x in NS.doi_chieu(heard[k],kiem_ten=False,**ky)]
+    if k=='mo':
+        _ok,TEN_BO,_ly=NS.ten_hai_bo(ky['ten'][0],{'turbo':heard[k],'small':heard_s.get(k)})
+        if not _ok: _sai.append(f"mo TEN «{ky['ten'][0]}»: {_ly}")
+ghi('D3 giong sach: ten + % + vung + goc roi con + cap vung-chenh + han khop keo.json (theo vai tro)',not _sai,f"{len(cs)} doan; ten dat boi {TEN_BO}; pcm {NGHE_BC['pcm_sha256'][:12]} (nghe moi {NGHE_BC['nghe_moi']}, dung lai {NGHE_BC['dung_lai']})"+(f"; SAI: {_sai}" if _sai else ''),'D3')
+
 
 # 5c) NEN trailer khong co anh giu cho / man phang: OCR + mang mau phang tren khung nen (khong co chu cua khuon) o 6 moc dung yen
 sys.path.insert(0,str(B))
@@ -204,11 +212,26 @@ import media_xau
 _xau=media_xau.kiem_video_o(B/f'nen-{NT}.mp4',TA['moc'])
 ghi('Nen khong co anh giu cho (PLACEHOLDER/SCREENSHOT/COMING SOON/TBA) hoac man mau phang (OCR + do phang)',not _xau,f"{len(TA['moc'])} khung nen"+(f": {_xau}" if _xau else ' sach'),'D12')
 
+# 5b) Whisper nghe TEN GAME trong GIONG SACH (D3; Opus 11/10): DAT neu small (cau A2, TVS) HOAC turbo (doan 'mo') phu >= 60% tu cua ten (>= 3 chu) VA token phan biet khop tuyet doi trong chinh ban nghe do
+KBJ=json.load(open(B/'kich-ban.json'))['doan'][0]; _mo=[w for w in moc if w['doan']=='mo']; _i0=KBJ['neo']['ten']; _i1=next(i for i,w in enumerate(_mo) if w['w'].lower()=='đang')
+_tok=[chuan(w['w']) for w in _mo[_i0:_i1]]; _tok=[t for t in _tok if len(t)>=3 or t.isdigit()]
+_t0=_mo[_i0]['s']; _cau=next((tv for s,e,tv in TVS if s-0.05<=_t0<=e+0.05),''); _ten5b=ten_noi(_G['ten'])
+_kq5b={}
+for _bo,_van in (('turbo',heard.get('mo','')),('small',_cau)):
+    _tt=chuan(_van); _co=[t for t in _tok if t in _tt]; _pb=NS.so_phan_biet(_ten5b,_van)
+    _kq5b[_bo]=(len(_co)>=max(1,int(0.6*len(_tok)+0.5)) and _pb[0],len(_co),_pb[1],_van)
+_bo5b=next((b for b in ('turbo','small') if _kq5b[b][0]),None)
+ghi('Whisper nghe dung ten game trong giong sach (D3)',_bo5b is not None,f"ten «{' '.join(w['w'] for w in _mo[_i0:_i1])}»: dat boi {_bo5b}; "+'; '.join(f"{b}: {v[1]}/{len(_tok)} tu, {v[2]}, «{v[3][:50]}»" for b,v in _kq5b.items()),'D3')
+# 5e) D3 (doi thiet ke 11/10, Sol #10) — "giong trong video = giong da kiem": am thanh 16 kHz trich tu MP4 nay phai TUONG QUAN duong bao nang luong (RMS 20 ms, khung co giong, lech +-300 ms) voi
+#     GIONG SACH `dau-vao/giong.mp3` (dung tep da kiem noi dung o D3). Giong khac / lan thu khac => truot. Nguong hieu chinh bang so that: xem cong-cu/lien_ket_giong.py.
+LK_KQ=LK.lien_ket(G16,X16); _ok_lk,_so_lk=LK.dat_lien_ket(LK_KQ)
+ghi('D3 giong trong video = giong sach da kiem noi dung (tuong quan duong bao nang luong, lech +-300 ms)',_ok_lk,_so_lk,'D3/Sol#10')
+
 dat=sum(1 for x in KQ if x[1]); tong=len(KQ)
 with open(B/f'kiem/bao-cao-{NT}.md','w',encoding='utf-8') as f:
     f.write(f"# Bao cao kiem — {VID.name} ({NTS[NT]['ten']}) — {datetime.datetime.now():%d/%m/%Y %H:%M}\n\n**{dat}/{tong} DAT**\n\n| Phep kiem | Ket qua | So do | Loi da tung gap |\n|---|---|---|---|\n")
     for t,ok,so,ma in KQ: f.write(f"| {t} | {'DAT' if ok else '**LOI**'} | {so.replace('|','/')} | {ma} |\n")
-json.dump(dict(nt=NT,video=VID.name,dat=(dat==tong),so_dat=dat,tong=tong,nghe_d3=NGHE_BC,luc=datetime.datetime.now().isoformat(timespec='seconds'),phien_ban=mo_hinh.in_phien_ban(),
+json.dump(dict(nt=NT,video=VID.name,dat=(dat==tong),so_dat=dat,tong=tong,nghe_d3=NGHE_BC,ten_dat_boi=TEN_BO,lien_ket_giong=LK_KQ,giong_sach=GS.name,luc=datetime.datetime.now().isoformat(timespec='seconds'),phien_ban=mo_hinh.in_phien_ban(),
      phep=[dict(ten=a,dat=bool(b),so_do=c,loi=d) for a,b,c,d in KQ]),open(B/f'kiem/kiem-{NT}.json','w'),ensure_ascii=False,indent=1)
 print(f"\n{dat}/{tong} DAT -> {B/f'kiem/bao-cao-{NT}.md'}")
 sys.exit(0 if dat==tong else 1)

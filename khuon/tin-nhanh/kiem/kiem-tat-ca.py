@@ -12,6 +12,7 @@ import os
 SK=pathlib.Path(os.environ.get('MG_SCRIPTS') or pathlib.Path.home()/'.claude/skills/motion-graphics/scripts')   # A3: khong ghi cung duong dan Mac
 sys.path.insert(0,str(B.parent.parent/'cong-cu')); import mo_hinh   # A4: Whisper ghim revision
 import nghe_so as NS,sau_manifest_chung as SMC   # goi B: doc so/vung/ten theo GIA TRI; doi chieu kiem_lai
+import lien_ket_giong as LK   # D3 doi thiet ke 11/10: noi dung nghe tren GIONG SACH + phep 'giong trong video = giong da kiem'
 import traceback
 (B/f'kiem/kiem-{NT}.json').unlink(missing_ok=True); (B/f'kiem/bao-cao-{NT}.md').unlink(missing_ok=True)   # A5: khong de ket qua cu lam bao 'dat' oan
 def _crash(t,v,tb):   # A5: crash = ma thoat != 0 + kiem.json ghi ro
@@ -99,12 +100,20 @@ def chu2(t):
 def nghe(x16):
     seg,_=wm.transcribe(x16,language='vi',beam_size=5,temperature=0.0,condition_on_previous_text=False,vad_filter=False)
     return ' '.join(x.text.strip() for x in seg)
+_WT=[]
+def wt():
+    """Mo hinh NGHE KIEM D3 noi dung (large-v3-turbo, ghim revision) — nap lan dau khi can (cache nghe_doan trung thi khong nap)."""
+    if not _WT: _WT.append(mo_hinh.nap_whisper_nghe_kiem())
+    return _WT[0]
+def nghe_kiem(x16):
+    seg,_=wt().transcribe(x16,language='vi',beam_size=5,temperature=0.0,condition_on_previous_text=False,vad_filter=False)
+    return ' '.join(x.text.strip() for x in seg)
 cau=[];cur=[]
 for k,w in enumerate(moc):
     cur.append(w)
     if re.search(r'[.!?…]$',w['w']) and (k+1==len(moc) or moc[k+1]['s']-w['e']>=0.3): cau.append(cur); cur=[]
 if cur: cau.append(cur)
-G16=doc(V/'giong.mp3',16000); X16=doc(VID,16000)
+GS=LK.ten_giong_sach(V); G16=doc(GS,16000); X16=doc(VID,16000)   # GS = tep giong SACH dung de tron video; D3 noi dung nghe tren G16, KHONG nghe tren ban ghep (CI 11/10)
 tong_g=tong_v=0; xau=[]; tong_chu=0
 for c in cau:
     a=max(0,int((c[0]['s']-0.15)*16000)); b=int((c[-1]['e']+0.2)*16000)
@@ -121,7 +130,8 @@ ghi('Whisper tung cau: ban ghep nghe khong kem giong goc',rv>=rg-0.05 and not xa
 
 # 6) C3 — kiem tin TU DONG (chon-tin.py / sinh-tin.py). Moi phep gan voi mot loi that cua may tu dong: ten bia, ngay, so doc sai, loi dang.
 sys.path.insert(0,str(B)); import so_chu as sc
-TJ=json.load(open(B/'tin.json')); KB={x['k']:x['loi'] for x in json.load(open(B/'kich-ban.json'))}
+TJ=json.load(open(B/'tin.json')); THIEU_KIEM=[i for i,g_ in enumerate(TJ['tin'],1) if not isinstance(g_.get('kiem'),dict)]   # fixture dinh dang CU (hoi quy) khong co `kiem` tung tin
+KB={x['k']:x['loi'] for x in json.load(open(B/'kich-ban.json'))}
 # B6 + ngay dang: tin.json THIEU ngay_dang (fixture cu) thi KHONG crash — thuc te TRUOT B6 co ly do; HOI_QUY=1 bo qua phep ngay (cac phep khac van chay, ngay suy tu 'ngay'/'thu')
 HOI_QUY=os.environ.get('HOI_QUY')=='1'
 ok_ng,so_ng,exp=NS.kiem_ngay(TJ.get('ngay_dang') or '',os.environ.get('NGAY',''),HOI_QUY)
@@ -132,6 +142,7 @@ ND_DL=_iso(TJ.get('ngay_dang') or '')
 exp=exp or ND_DL or NS.ngay_tu_ddmm(TJ.get('ngay'),TJ.get('thu')) or datetime.date.today()
 ND=ND_DL or exp
 # 6a) ten game DOC trong loi phai co trong tin.json (khong de may bịa/ghi sai ten): moi tu viet hoa trong loi tung tin phai nam trong du lieu cua tin do
+def f_thieu_kiem(i): return i in THIEU_KIEM       # HOI_QUY=1 + thieu `kiem`: bo qua phep noi dung (ghi ro); THUC TE: TRUOT co ly do (xem ghi o duoi)
 def bag(o,ra,bo=('loi','chi_so','kiem','anh','khoa','kieu')):
     if isinstance(o,dict):
         for kk,v in o.items():
@@ -146,6 +157,7 @@ for i,g in enumerate(TJ['tin'],1):
     for tk in re.findall(r"[^\W\d_][\w'’]*",loi):
         if tk[0].isupper() and re.sub(r"['’]",'',sc.bo_dau(tk)) not in {re.sub(r"['’]",'',x) for x in cho} and sc.bo_dau(tk) not in cho:
             sai_ten.append(f"tin {i}: «{tk}» khong co trong tin.json")
+    if f_thieu_kiem(i): continue
     for ten in g['kiem']['ten']:
         if ten not in loi: sai_ten.append(f"tin {i}: ten «{ten}» khong nam trong loi")
     if g['mau']=='xanh':
@@ -154,7 +166,8 @@ for i,g in enumerate(TJ['tin'],1):
             if ten not in hop: sai_ten.append(f"tin {i}: ten doc «{ten}» khong suy ra duoc tu ten_game {g['ten_game']}")
     if g['mau']=='do' and g['kiem']['ten'][0]!=sc.ten_doc(g['ten_re']): sai_ten.append(f"tin {i}: ten doc «{g['kiem']['ten'][0]}» khac ten_re «{g['ten_re']}»")
     if re.search(r'\d',re.sub(r'\bF1\b','',loi)): sai_ten.append(f"tin {i}: loi con chu so")
-ghi('Ten game doc trong loi co trong tin.json (khong chu so, khong tu la)',not sai_ten,f"{len(TJ['tin'])} tin"+(f"; {sai_ten[:4]}" if sai_ten else ''),'C3')
+if THIEU_KIEM and not HOI_QUY: sai_ten.append(f"tin {THIEU_KIEM}: tin.json THIEU `kiem` (khong kiem duoc noi dung doc) — chi fixture hoi quy (HOI_QUY=1) moi duoc bo qua")
+ghi('Ten game doc trong loi co trong tin.json (khong chu so, khong tu la)',not sai_ten,f"{len(TJ['tin'])} tin"+(f"; BO QUA {len(THIEU_KIEM)} tin thieu `kiem` — fixture dinh dang cu (hoi quy)" if THIEU_KIEM and HOI_QUY else '')+(f"; {sai_ten[:4]}" if sai_ten else ''),'C3')
 
 # 6b) ngay tren giay = ngay DANG (khong phai ngay dung): tin.json, chu tren trang that, loi dao dau. B6: ngay du lieu PHAI = env NGAY (thieu NGAY -> TRUOT; ngoai le DUY NHAT HOI_QUY=1)
 ghi('B6 ngay du lieu (tin.json) = NGAY dang cua luot chay',ok_ng,so_ng,'B6')
@@ -179,19 +192,20 @@ for h,g in zip(tg_,TJ['tin']):
     elif g['mau']=='do':
         pa+=[('ten',[_n(x) for x in h['ten']],[_n(g['ten_re'])]),('nhan',_n(h['nhan']),_n(g['nhan_dong'])),('giam',_n(h['gm']),f"−{g['giam']}%"),('gia',_tien(h['g']),_tien(g['gia']))]
         ma=(g.get('kiem') or {}).get('vung'); sv=_n(g['nhan_dong']).rsplit('STORE ',1)[-1]
-        if ma not in NS.VUNG_HIEN: sai_dom.append(f'the {r}: tin.json kiem.vung «{ma}» khong hop le')
+        if f_thieu_kiem(r) and HOI_QUY: pass      # fixture dinh dang cu (hoi quy): khong co kiem.vung -> bo qua phep vung (ghi o duoi)
+        elif ma not in NS.VUNG_HIEN: sai_dom.append(f'the {r}: tin.json kiem.vung «{ma}» khong hop le')
         elif _n(h['nhan']).rsplit('STORE ',1)[-1]!=NS.VUNG_HIEN[ma]: sai_dom.append(f"the {r}: vung tren hinh «{_n(h['nhan'])}» != vung du lieu {ma} ({NS.VUNG_HIEN[ma]})")
     else: pa+=[('dong',[_n(x) for x in h['ten']],[_n(g['dong'])]),('nhan',_n(h['nhan']),_n(g['nhan_dong']))]+([('moc',_n(h['g']),_n(g['moc']))] if g.get('moc') else [])
     for k,got,mong in pa:
         if got!=mong: sai_dom.append(f"the {r} {k}: hinh «{got}» != tin.json «{mong}»")
 if _n(ND_.get('tieuK'))!=f"Sáng nay có {n_t} tin": sai_dom.append(f"tieuK «{ND_.get('tieuK')}»")
-ghi('B3 noi dung tung the tren hinh (tit, ten, gia, vung, %, nhan) khop tin.json',not sai_dom,f"{len(tg_)} the; {len(sai_dom)} lech"+(f": {sai_dom[:4]}" if sai_dom else ''),'B3')
+ghi('B3 noi dung tung the tren hinh (tit, ten, gia, vung, %, nhan) khop tin.json',not sai_dom,f"{len(tg_)} the; {len(sai_dom)} lech"+(f"; BO QUA vung {len(THIEU_KIEM)} tin thieu `kiem` — fixture dinh dang cu (hoi quy)" if THIEU_KIEM and HOI_QUY else '')+(f": {sai_dom[:4]}" if sai_dom else ''),'B3')
 # B5: moi the co gia phai co DUNG 1 ban ghi kiem_lai (pid, loc, gia_vnd, gia_cuc_bo, tien_te, endTime)
 _KL=json.load(open(B/'kiem-lai.json')) if (B/'kiem-lai.json').exists() else []
-_lk=SMC.loi_kiem_lai(TJ,_KL)
-ghi('B5 moi the co gia co DUNG 1 ban ghi kiem_lai du truong (pid/loc/gia/tien te/endTime)',not _lk,f"{sum(1 for g in TJ['tin'] if g['mau']=='do')} the co gia; {len(_KL)} ban ghi"+(f"; {_lk[:3]}" if _lk else ''),'B5')
+_lk=[] if (THIEU_KIEM and HOI_QUY) else SMC.loi_kiem_lai(TJ,_KL)      # hoi quy + fixture cu: khong co kiem.the_gia -> bo qua (ghi ro); thuc te thieu -> loi_kiem_lai bao TRUOT
+ghi('B5 moi the co gia co DUNG 1 ban ghi kiem_lai du truong (pid/loc/gia/tien te/endTime)',not _lk,f"{sum(1 for g in TJ['tin'] if g['mau']=='do')} the co gia; {len(_KL)} ban ghi"+('; BO QUA — fixture dinh dang cu (hoi quy), tin.json khong co `kiem`' if THIEU_KIEM and HOI_QUY else '')+(f"; {_lk[:3]}" if _lk else ''),'B5')
 
-# 6c) D3 (B2) — Whisper KHONG goi y phai nghe ra TEN + TIEN + PHAN TRAM + VUNG cua tung tin tren AM THANH MP4 CUOI (co tieng dong), so GIA TRI. Truot = LOI (ma thoat != 0).
+# 6c) D3 (B2) — Whisper KHONG goi y phai nghe ra TEN + TIEN + PHAN TRAM + VUNG cua tung tin tren GIONG SACH G16 (doi thiet ke 11/10: khong nghe ban ghep co nhac + tieng dong), so GIA TRI. Truot = LOI (ma thoat != 0).
 CHU_SO={'khong':'0','mot':'1','hai':'2','ba':'3','bon':'4','nam':'5','sau':'6','bay':'7','tam':'8','chin':'9'}
 def chuan_ten(t):
     """Ten game de so voi Whisper: bo dau, so doc tung chu ('hai lam') va so Whisper viet ('25'/'125') cung ve DANG CHU SO LIEN (F1 hai lam -> f125)."""
@@ -219,34 +233,49 @@ def dau_hieu(heard,exp_toks,kieu):
     if kieu=='mem': return tu
     a=''.join(exp_toks); b=''.join(heard); m=difflib.SequenceMatcher(None,a,b).find_longest_match(0,len(a),0,len(b))
     return max(tu,m.size/len(a))
+def _diem_ten(ten,jt,g,ws,cs_,nghe_goc,mdl):
+    """Diem ten game cua MOT bo nghe: `nghe_goc` (cau nghe duoc cua bo do) + nghe lai RIENG doan ten (en/vi, 2 do dem) bang chinh `mdl()`. -> (diem, [cac cau nghe], van_ban_hien_thi)."""
+    nghe_raw=nghe_goc; r_=dau_hieu(chuan_ten(nghe_goc),chuan_ten(ten),'ten'); cands=[nghe_goc]
+    if g['mau'] in ('xanh','do') and jt<len(cs_):   # ten game la tieng Anh: nghe RIENG doan ten (chi so tu trong loi) bang Whisper tieng Anh, khong goi y; lay diem cao hon
+        sp=ws[cs_[jt]:cs_[jt]+len(ten.split())]
+        if sp:
+            en_all=[]
+            for lg in ('en','vi'):
+                for pad in (0.12,0.3):
+                    a2=max(0,int((sp[0]['s']-pad)*16000)); b2=int((sp[-1]['e']+0.15)*16000)
+                    seg_,_=mdl().transcribe(G16[a2:b2],language=lg,beam_size=5,temperature=0.0,condition_on_previous_text=False)
+                    h_=' '.join(x.text.strip() for x in seg_); en_all.append(h_); cands.append(h_)
+                    ht=chuan_ten(h_); r_=max(r_,dau_hieu(ht,chuan_ten(ten),'ten'),difflib.SequenceMatcher(None,''.join(chuan_ten(ten)),''.join(ht)).ratio())   # + ti le ca chuoi (Whisper nho nghe ten Anh: 'hustle down' ~ 'Hunt Showdown')
+            if r_<0.6: nghe_raw=nghe_raw+' | doan ten: '+' / '.join(en_all)
+    return r_,cands,nghe_raw
 d3=[];d3_xau=[]; cs={}
+TEN_BO={}
 for i,g in enumerate(TJ['tin'],1):
     ws=[w for w in moc if w['doan']==f't{i}']
     if ws: cs[f't{i}']=(max(0,int((ws[0]['s']-0.15)*16000)),int((ws[-1]['e']+0.2)*16000))
-heard,NGHE_BC=NS.nghe_doan(X16,cs,nghe,B/'kiem',rev=os.environ.get('WHISPER_REV') or mo_hinh.REV_GHIM)
+heard,NGHE_BC=NS.nghe_doan(G16,cs,nghe_kiem,B/'kiem',rev=(os.environ.get('WHISPER_REV') or mo_hinh.REV_GHIM)+'|'+mo_hinh.ten_nghe_kiem())
+heard_s,_bc_s=NS.nghe_doan(G16,cs,nghe,B/'kiem',rev=os.environ.get('WHISPER_REV') or mo_hinh.REV_GHIM)   # small: CHI cho TEN game
 for i,g in enumerate(TJ['tin'],1):
+    if f_thieu_kiem(i):
+        if not HOI_QUY: d3_xau.append(f'tin {i}: tin.json thieu `kiem` — khong kiem duoc D3')
+        continue
     if f't{i}' not in cs: d3_xau.append(f'tin {i}: khong co chu trong moc-chu'); continue
     ws=[w for w in moc if w['doan']==f't{i}']
-    nghe_raw=heard[f't{i}']; nghe_goc=nghe_raw; heard_so=sc.chuan_so_sanh(nghe_raw); heard_ten=chuan_ten(nghe_raw)
+    nghe_raw=heard[f't{i}']; nghe_goc=nghe_raw; heard_so=sc.chuan_so_sanh(nghe_raw)
     cs_=g.get('chi_so',{}).get('ten'); cs_=cs_ if isinstance(cs_,list) else ([cs_] if cs_ is not None else [])
     for jt,ten in enumerate(g['kiem']['ten']):
-        r_=dau_hieu(heard_ten,chuan_ten(ten),'ten'); cands=[nghe_goc]
-        if g['mau'] in ('xanh','do') and jt<len(cs_):   # ten game la tieng Anh: nghe RIENG doan ten (chi so tu trong loi) bang Whisper tieng Anh, khong goi y; lay diem cao hon
-            sp=ws[cs_[jt]:cs_[jt]+len(ten.split())]
-            if sp:
-                en_all=[]
-                for lg in ('en','vi'):
-                    for pad in (0.12,0.3):
-                        a2=max(0,int((sp[0]['s']-pad)*16000)); b2=int((sp[-1]['e']+0.15)*16000)
-                        seg_,_=wm.transcribe(X16[a2:b2],language=lg,beam_size=5,temperature=0.0,condition_on_previous_text=False)
-                        h_=' '.join(x.text.strip() for x in seg_); en_all.append(h_); cands.append(h_)
-                        ht=chuan_ten(h_); r_=max(r_,dau_hieu(ht,chuan_ten(ten),'ten'),difflib.SequenceMatcher(None,''.join(chuan_ten(ten)),''.join(ht)).ratio())   # + ti le ca chuoi (Whisper nho nghe ten Anh: 'hustle down' ~ 'Hunt Showdown')
-                if r_<0.6: nghe_raw=nghe_raw+' | doan ten: '+' / '.join(en_all)
-        d3.append(r_)
-        # TEN game: nguong LONG 0,40 (cung luat Top 5, Opus chot 12/10) - Whisper tieng Viet nghe ten Anh sai ('Hunt Showdown' -> 'han sau dao' ngay tren giong goc); SO TIEN/%/ngay giu chat (>= 0,85)
-        if r_<0.40: d3_xau.append(f"tin {i} ten «{ten}» {r_:.2f} nghe: «{nghe_raw[:60]}»")
-        pb=[NS.so_phan_biet(ten,c) for c in cands]    # token phan biet (so phan 'hai lam' = 25, phien ban) phai KHOP CHINH XAC trong cua so ten
-        if g['mau'] in ('xanh','do') and not any(ok for ok,_ in pb): d3_xau.append(f"tin {i} ten «{ten}» {pb[0][1]}")
+        # TEN (Opus 11/10): DAT neu MOT trong hai bo nghe (turbo, small; moi bo van nghe lai en/vi) dat nguong 0,40 VA token phan biet khop tuyet doi TRONG CHINH ban nghe do. Tien/%/vung/ngay chi turbo.
+        kq_bo={}
+        for bo,hd,mdl in (('turbo',nghe_goc,wt),('small',heard_s.get(f't{i}'),lambda:wm)):
+            if hd is None: continue
+            r_,cands,nraw=_diem_ten(ten,jt,g,ws,cs_,hd,mdl)
+            pb=[NS.so_phan_biet(ten,c) for c in cands]    # token phan biet (so phan 'hai lam' = 25, phien ban) phai KHOP CHINH XAC trong cua so ten
+            ok_pb=g['mau'] not in ('xanh','do') or any(ok for ok,_ in pb)
+            kq_bo[bo]=(r_,ok_pb,pb[0][1],nraw)
+        dat_bo=next((b for b,(r_,ok_pb,_,_) in kq_bo.items() if r_>=0.40 and ok_pb),None); TEN_BO[f'tin{i}.{jt}']=dat_bo
+        d3.append(kq_bo[dat_bo][0] if dat_bo else max([v[0] for v in kq_bo.values()] or [0.0]))
+        # TEN game: nguong LONG 0,40 (cung luat Top 5, Opus chot 12/10) - Whisper tieng Viet nghe ten Anh sai ('Hunt Showdown' -> 'han sau dao'); SO TIEN/%/ngay giu chat (>= 0,85)
+        if dat_bo is None: d3_xau.append(f"tin {i} ten «{ten}» khong bo nao dat: "+' | '.join(f"{b} {v[0]:.2f}{'' if v[1] else ' '+v[2]} nghe: «{v[3][:60]}»" for b,v in kq_bo.items()))
     if g['mau']=='do':   # B2: tien / phan tram / vung theo GIA TRI, ky vong tu tin.json (khong doc tu loi)
         vg_=(g.get('kiem') or {}).get('vung')
         if not vg_: d3_xau.append(f'tin {i}: tin.json thieu kiem.vung (B4) - khong kiem duoc vung doc')
@@ -263,7 +292,13 @@ for i,g in enumerate(TJ['tin'],1):
     for ng in g['kiem'].get('ngay',[]):
         r_=dau_hieu(heard_so,sc.chuan_so_sanh(ng),'mem'); d3.append(r_)
         if r_<0.75: d3_xau.append(f"tin {i} ngay/moc «{ng}» {r_:.2f} nghe: «{nghe_raw[:70]}»")
-ghi('D3 am thanh MP4 cuoi: TEN (so phan) + TIEN + PHAN TRAM + VUNG tung tin khop du lieu',not d3_xau,f"{len(d3)} muc, thap nhat {min(d3) if d3 else 1:.2f}"+f"; pcm {NGHE_BC['pcm_sha256'][:12]} (nghe moi {NGHE_BC['nghe_moi']}, dung lai {NGHE_BC['dung_lai']})"+(f"; {d3_xau}" if d3_xau else ''),'D3')
+ghi('D3 giong sach: TEN (so phan) + TIEN + PHAN TRAM + VUNG tung tin khop du lieu',not d3_xau,f"{len(d3)} muc, thap nhat {min(d3) if d3 else 1:.2f}"+f"; ten dat boi {TEN_BO}"+f"; pcm {NGHE_BC['pcm_sha256'][:12]} (nghe moi {NGHE_BC['nghe_moi']}, dung lai {NGHE_BC['dung_lai']})"+(f"; BO QUA {len(THIEU_KIEM)} tin thieu `kiem` — fixture dinh dang cu (hoi quy)" if THIEU_KIEM and HOI_QUY else '')+(f"; {d3_xau}" if d3_xau else ''),'D3')
+
+
+# 6c2) D3 (doi thiet ke 11/10, Sol #10) — "giong trong video = giong da kiem": am thanh 16 kHz trich tu MP4 nay phai TUONG QUAN duong bao nang luong (RMS 20 ms, khung co giong, lech +-300 ms) voi
+#     GIONG SACH `dau-vao/giong.mp3` (dung tep da kiem noi dung o D3). Giong khac / lan thu khac => truot. Nguong hieu chinh bang so that: xem cong-cu/lien_ket_giong.py.
+LK_KQ=LK.lien_ket(G16,X16); _ok_lk,_so_lk=LK.dat_lien_ket(LK_KQ)
+ghi('D3 giong trong video = giong sach da kiem noi dung (tuong quan duong bao nang luong, lech +-300 ms)',_ok_lk,_so_lk,'D3/Sol#10')
 
 # 6e) khung GIUA moi canh khong co anh giu cho / chu cam (PLACEHOLDER SCREENSHOTS...) — OCR tesseract + mang mau phang (lỗi thật Top 5 11/10)
 import anh_gia
@@ -293,7 +328,7 @@ dat=sum(1 for x in KQ if x[1]); tong=len(KQ)
 with open(B/f'kiem/bao-cao-{NT}.md','w',encoding='utf-8') as f:
     f.write(f"# Bao cao kiem — {VID.name} ({NTS[NT]['ten']}) — {datetime.datetime.now():%d/%m/%Y %H:%M}\n\n**{dat}/{tong} DAT**\n\n| Phep kiem | Ket qua | So do | Loi da tung gap |\n|---|---|---|---|\n")
     for t,ok,so,ma in KQ: f.write(f"| {t} | {'DAT' if ok else '**LOI**'} | {so.replace('|','/')} | {ma} |\n")
-json.dump(dict(nt=NT,video=VID.name,dat=(dat==tong),so_dat=dat,tong=tong,nghe_d3=NGHE_BC,luc=datetime.datetime.now().isoformat(timespec='seconds'),phien_ban=mo_hinh.in_phien_ban(),
+json.dump(dict(nt=NT,video=VID.name,dat=(dat==tong),so_dat=dat,tong=tong,nghe_d3=NGHE_BC,ten_dat_boi=TEN_BO,lien_ket_giong=LK_KQ,giong_sach=GS.name,luc=datetime.datetime.now().isoformat(timespec='seconds'),phien_ban=mo_hinh.in_phien_ban(),
      phep=[dict(ten=a,dat=bool(b),so_do=c,loi=d) for a,b,c,d in KQ]),open(B/f'kiem/kiem-{NT}.json','w'),ensure_ascii=False,indent=1)
 print(f"\n{dat}/{tong} DAT -> {B/f'kiem/bao-cao-{NT}.md'}")
 sys.exit(0 if dat==tong else 1)

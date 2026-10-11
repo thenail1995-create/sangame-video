@@ -322,7 +322,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/whisper-cache
-          key: whisper-small-536b0662742c02347bc0e980a01041f333bce120
+          key: whisper-small-536b0662742c02347bc0e980a01041f333bce120-turbo-0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf   # small (can chu, A2) + large-v3-turbo (D3 noi dung); doi revision nao thi doi khoa
       - name: Lay tai san + fixture
         if: env.LIVE != '1'
         run: |
