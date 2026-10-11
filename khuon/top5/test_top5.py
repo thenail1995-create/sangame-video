@@ -40,13 +40,13 @@ class KiemDoMoi(unittest.TestCase):
         dl=pathlib.Path(d)/'du-lieu'; dl.mkdir(parents=True,exist_ok=True)
         json.dump({'cap_nhat':ngay,'so_mon_giu_lai':{v:5 for v in ('SG','HK','IN','ID','US','TH')}},open(dl/'bang-gia.json','w'))
         json.dump({'cap_nhat':ngay},open(dl/'trang-game.json','w')); json.dump({'ngay':ngay},open(dl/'gia-the.json','w'))
-        for v in vung: json.dump({'so_mon':3},open(dl/f'giam-gia-en-{v}.json','w'))
+        for v in vung: json.dump({'so_mon':3,'cap_nhat':ngay},open(dl/f'giam-gia-en-{v}.json','w'))   # moc rieng tung feed (Sol bcd #19)
     def test_moi(self):
         with tempfile.TemporaryDirectory() as d:
             self.dung(d,'2026-10-12'); self.assertEqual(km.kiem(d,'2026-10-12'),(True,[]))
     def test_chua_moi_hom_qua(self):
         with tempfile.TemporaryDirectory() as d:
-            self.dung(d,'2026-10-11'); moi,ly=km.kiem(d,'2026-10-12'); self.assertFalse(moi); self.assertEqual(len(ly),3)
+            self.dung(d,'2026-10-11'); moi,ly=km.kiem(d,'2026-10-12'); self.assertFalse(moi); self.assertEqual(len(ly),9)   # 3 file tong + 6 feed vung
     def test_thieu_an_do(self):
         with tempfile.TemporaryDirectory() as d:
             self.dung(d,'2026-10-12',vung=('SG','HK','ID','US','TH')); moi,ly=km.kiem(d,'2026-10-12'); self.assertFalse(moi); self.assertTrue(any('IN' in x for x in ly))
@@ -67,21 +67,22 @@ class ElevenGia:
 def args(loi_file,ra,**kw):
     d=dict(loi=None,loi_file=str(loi_file),voice=gi.VOICE_MAC_DINH,model='eleven_v3',on_dinh=0.0,toc_do=1.0,muoi='',ra=str(ra),du_an='san-game',dang='top5',tran=None,du_phong=10000,cho_vuot=False); d.update(kw)
     return types.SimpleNamespace(**d)
+TTS_OK={'ok':True,'bytes':6000,'path':'giong/1791000000000-123456.mp3','nghe_thu':'https://x/y.mp3'}   # dang tra ve that cua doc-giong
 class Giong(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory(); self.d=pathlib.Path(self.tmp.name); self.loi=self.d/'loi.txt'; self.loi.write_text('Top năm game bán chạy. '*20,encoding='utf-8')
         self.env=unittest.mock.patch.dict(os.environ,{'GIONG_KHO':str(self.d/'kho'),'SUPABASE_ANON_THENAIL':'anon-gia-khong-that-0123456789','SG_CONG_KHOA':'khoa-cong-gia-0123456789'}); self.env.start()
     def tearDown(self): self.env.stop(); self.tmp.cleanup()
-    def mp3(self): return unittest.mock.patch.object(gi,'lay_mp3',lambda url,dich,lan=3:pathlib.Path(dich).write_bytes(b'x'*6000))
+    def mp3(self): return unittest.mock.patch.object(gi,'lay_mp3',lambda url,dich,lan=3,**kw:pathlib.Path(dich).write_bytes(b'x'*6000))
     def test_khoa_giong_el_py(self):
         import hashlib; l='xin chao'; self.assertEqual(gi.khoa_kho(l,'v','m',0.0,1.0),hashlib.sha256(json.dumps([l,'v','m',0.0,1.0]).encode()).hexdigest()[:20])
     def test_muoi_doi_khoa(self):
         a=gi.khoa_kho('x','v','m',0.0,1.0); self.assertNotEqual(a,gi.khoa_kho('x','v','m',0.0,1.0,'lan2')); self.assertEqual(a,gi.khoa_kho('x','v','m',0.0,1.0,''))
     def test_thanh_cong_ghi_so_va_kho(self):
-        cong=CongGia(); el=ElevenGia({'nghe_thu':'https://x/y.mp3'}); ra=self.d/'o'/'giong.mp3'
+        cong=CongGia(); el=ElevenGia(TTS_OK); ra=self.d/'o'/'giong.mp3'
         with self.mp3(): kq=gi.cmd_giong(args(self.loi,ra),cong,el)
         self.assertEqual(kq[0],'goi'); self.assertEqual(kq[1],230.0)   # chenh da_dung 330-100 (<= 3 x uoc) la credit that
-        self.assertEqual([c[0] for c in cong.goi_],['giu_credit','xong_credit']); self.assertEqual(cong.goi_[0][1]['tran'],20000); self.assertEqual(cong.goi_[1][1]['credit_that'],230.0)
+        self.assertEqual([c[0] for c in cong.goi_],['tim_credit_khoa','giu_credit','ghi_tep_credit','xong_credit']); self.assertEqual(cong.goi_[1][1]['tran'],20000); self.assertEqual(cong.goi_[3][1]['credit_that'],230.0)
         self.assertTrue(ra.exists())
         # lan 2 cung loi: kho -> 0 credit, khong goi mang/so
         cong2=CongGia(); el2=ElevenGia({'nghe_thu':'x'}); ra2=self.d/'giong2.mp3'
@@ -94,23 +95,25 @@ class Giong(unittest.TestCase):
         for ma,viec in ((502,'khong_ro_credit'),(400,'huy_credit')):
             cong=CongGia(); el=ElevenGia(urllib.error.HTTPError('u',ma,'e',{},None))
             with self.assertRaises(SystemExit): gi.cmd_giong(args(self.loi,self.d/f'g{ma}.mp3'),cong,el)
-            self.assertEqual([c[0] for c in cong.goi_],['giu_credit',viec])
+            self.assertEqual([c[0] for c in cong.goi_],['tim_credit_khoa','giu_credit',viec])
     def test_mat_ket_noi_khong_ro(self):
         cong=CongGia(); el=ElevenGia(TimeoutError('het gio'))
         with self.assertRaises(SystemExit): gi.cmd_giong(args(self.loi,self.d/'g.mp3'),cong,el)
-        self.assertEqual([c[0] for c in cong.goi_],['giu_credit','khong_ro_credit'])
+        self.assertEqual([c[0] for c in cong.goi_],['tim_credit_khoa','giu_credit','khong_ro_credit'])
     def test_khong_nghe_thu_huy(self):
-        cong=CongGia(); el=ElevenGia({'loi':'quota'})
-        with self.assertRaises(SystemExit): gi.cmd_giong(args(self.loi,self.d/'g.mp3'),cong,el)
-        self.assertEqual([c[0] for c in cong.goi_],['giu_credit','huy_credit'])
+        # doc-giong tra HTTP 200 kem {"ok":false,"loi":"tts 4xx: ..."} khi ElevenLabs tu choi => huy; loi khong ro dang => khong_ro (Sol bcd #6)
+        for tts,viec in (({'ok':False,'loi':'tts 401: quota_exceeded'},'huy_credit'),({'loi':'quota'},'khong_ro_credit')):
+            cong=CongGia(); el=ElevenGia(tts)
+            with self.assertRaises(SystemExit): gi.cmd_giong(args(self.loi,self.d/'g.mp3'),cong,el)
+            self.assertEqual([c[0] for c in cong.goi_],['tim_credit_khoa','giu_credit',viec])
     def test_du_phong_huy_giu_cho(self):
         cong=CongGia(); el=ElevenGia({'nghe_thu':'x'},da_dung=(99900,))
         with self.assertRaises(SystemExit) as c: gi.cmd_giong(args(self.loi,self.d/'g.mp3'),cong,el)
-        self.assertIn('du phong',str(c.exception)); self.assertEqual([c[0] for c in cong.goi_],['giu_credit','huy_credit']); self.assertNotIn('tts',el.goi_)
+        self.assertIn('du phong',str(c.exception)); self.assertEqual([c[0] for c in cong.goi_],['tim_credit_khoa','giu_credit','huy_credit']); self.assertNotIn('tts',el.goi_)
     def test_bo_cai_dat_chua_thu_ngan_tu_choi(self):
         cong=CongGia(); el=ElevenGia({'nghe_thu':'x'})
         with self.assertRaises(SystemExit) as c: gi.cmd_giong(args(self.loi,self.d/'g.mp3',on_dinh=0.5),cong,el)
-        self.assertIn('cau ngan',str(c.exception)); self.assertEqual(cong.goi_,[])
+        self.assertIn('cau ngan',str(c.exception)); self.assertEqual([c[0] for c in cong.goi_],['tim_credit_khoa']); self.assertEqual(el.goi_,[])   # chi tra kho rieng (0 credit), khong giu/khong goi ElevenLabs
     def test_khong_in_khoa(self):
         out=io.StringIO(); cong=CongGia(); el=ElevenGia(RuntimeError('loi co anon-gia-khong-that-0123456789 trong thong bao'))
         with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as c: gi.cmd_giong(args(self.loi,self.d/'g.mp3'),cong,el)
