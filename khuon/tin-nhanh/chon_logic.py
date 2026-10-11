@@ -3,6 +3,12 @@
 #  (b) đa dạng: không 2 tin cùng loại "danh sách giảm giá" (giam-sau / vua-giam / deal-hot); chỉ khi hết loại khác mới chấp nhận trùng loại.
 import datetime as dtm
 LOAI_DS_GIA=frozenset({'giam-sau','vua-giam','deal-hot'})
+#  (c) 'sap-het' (SẮP HẾT GIẢM) là tin DỰ PHÒNG, KHÔNG thuộc LOAI_DS_GIA: coi như loại khác, xếp SAU vua-giam/deal-hot trong ung_vien() (chon-tin.py);
+#      bộ chọn lười nên ngày đủ tin không bao giờ tới nó. Hạn: HAN_MIN <= end <= HAN_MIN + 2 ngày (hết giảm trong 2–4 ngày kể từ 07:30 ngày đăng).
+KHOANG_SAP_HET_MS=2*24*3600*1000
+def trong_khoang_sap_het(end_ms,han_min_ms):
+    """endTime (ms) nằm trong [han_min, han_min + 2 ngày] (biên hai đầu đều nhận)."""
+    return han_min_ms<=int(end_ms)<=han_min_ms+KHOANG_SAP_HET_MS
 
 def tin_nong_hop_le(ngay_bai_iso,ngay_dang):
     """Bài tin-nong còn đủ 'tươi' để lên bản tin ngày ngay_dang: ngay >= ngay_dang - 1."""

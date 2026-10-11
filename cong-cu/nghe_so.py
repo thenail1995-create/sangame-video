@@ -5,6 +5,7 @@
 #   doc_phan_tram(van_ban) -> [(so, vi_tri)]                     "54%" / "54 phan tram" / "chin muoi phan tram"
 #   doc_vung(van_ban)      -> [(ma, vi_tri)]                     My/Hoa Ky->US, Hong Kong->HK, Sing->SG, Thai->TH, Indo->ID, An Do->IN
 #   doc_han(van_ban)       -> [{gio24, buoi, ngay}]              "hai gio chieu ngay hai muoi hai thang muoi" / "muoi gio dem ngay mai"
+#   doc_ngay(van_ban)      -> [(ngay, thang)]                    "het giam ngay hai muoi mot thang muoi" (khong can gio)
 #   so_ten(mong, nghe)     -> (dat, ly_do)                       token phan biet (so phan, so La Ma, so chu, Deluxe/Remake/...) phai KHOP CHINH XAC; phan con lai theo nguong 0,40
 # `doi_chieu` gom cac phep tren cho mot doan; `nghe_doan` nghe tren am thanh MP4 cuoi (+ cache theo bam PCM de 3 ban chung mot lan Whisper).
 # Chu thich file nay khong dau theo phong cach repo; chuoi tieng Viet trong ma giu day du dau (Whisper tra chu co dau; "sáu" != "sau").
@@ -212,6 +213,18 @@ def doc_han(van_ban):
         kq.append(dict(gio24=gio24,buoi=buoi,ngay=ngay))
     return kq
 
+def doc_ngay(van_ban):
+    """-> [(ngay, thang)] cho cum 'ngày X tháng Y' (khong can gio): 'hết giảm ngày hai mươi mốt tháng mười' -> [(21,10)]; Whisper viet '14 tháng 10' / '14/10' cung nhan."""
+    t=re.sub(r'(?<=\d)\s*/\s*(?=\d)',' tháng ',nfc(van_ban)); T=_tach(t); kq=[]
+    for i in range(len(T)):
+        if _w(T,i)!='ngày': continue
+        r=_so(T,i+1) if _lien(T,i+1) else None
+        if r and _w(T,r[2])=='tháng' and _lien(T,r[2]):
+            m=_so(T,r[2]+1) if _lien(T,r[2]+1) else None
+            mo=m[0] if m else (4 if _w(T,r[2]+1)=='tư' and _lien(T,r[2]+1) else None)
+            if mo and r[0]==int(r[0]) and mo==int(mo): kq.append((int(r[0]),int(mo)))
+    return kq
+
 # ---------------------------------------------------------------- ten game
 VERSION={'deluxe':'deluxe','ultimate':'ultimate','definitive':'definitive','remastered':'remastered','remaster':'remastered','remake':'remake',
          'complete':'complete','goty':'goty'}
@@ -318,7 +331,7 @@ def noi_tat_literal(vnd):
     return None
 def _la_day_con(can,co):
     it=iter(co); return all(any(x==y for y in it) for x in can)
-def doi_chieu(nghe,tien=(),phan_tram=(),vung=(),ten=(),han=None,tien_thu_tu=(),cap=(),tien_tat=()):
+def doi_chieu(nghe,tien=(),phan_tram=(),vung=(),ten=(),han=None,tien_thu_tu=(),cap=(),tien_tat=(),ngay=()):
     """So cau Whisper nghe duoc (`nghe`) voi gia tri KY VONG tinh tu du lieu. -> list loi (rong = dat).
     tien_tat: [vnd] ky vong dang noi tat 'X tram Y' (cho phep viet literal '706') · tien_thu_tu: [vnd] phai xuat hien DUNG THU TU · cap: [(ma_vung, vnd)] tien di sau vung tuong ung
     tien: [vnd] moi gia tri phai co mat DUNG (doc_tien) · phan_tram: [so] · vung: [ma] · ten: [ten mong (chu doc)] · han: han_ky_vong()."""
@@ -340,6 +353,10 @@ def doi_chieu(nghe,tien=(),phan_tram=(),vung=(),ten=(),han=None,tien_thu_tu=(),c
     for t in ten:
         ok,ly=so_ten(t,cat_hang(nghe))
         if not ok: loi.append(f'TEN «{t}»: {ly} («{nghe[:70]}»)')
+    if ngay:
+        ng=doc_ngay(nghe)
+        for n in ngay:
+            if tuple(n) not in ng: loi.append(f'NGAY: mong {tuple(n)} (ngay, thang) nghe duoc {ng or "khong co"} («{nghe[:70]}»)')
     if han is not None:
         hs=doc_han(nghe)
         if not any(h['gio24']==han['gio24'] and h['buoi']==han['buoi'] and h['ngay']==han['ngay'] for h in hs):
