@@ -3,7 +3,7 @@
 #   - py_compile ca 3 file
 #   - luat khuon (% / vung bat buoc) khop kich-ban.py that · khoi B6 cua tin-nhanh khong sap khi tin.json thieu ngay_dang
 #   uv run --frozen python -m pytest cong-cu/tests/test_kiem_tat_ca.py -q       (khong mang, khong Whisper, khong ffmpeg)
-import datetime,json,os,pathlib,py_compile,shutil,subprocess,sys,tempfile,types,unittest
+import re,datetime,json,os,pathlib,py_compile,shutil,subprocess,sys,tempfile,types,unittest
 ROOT=pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'cong-cu'))
 import nghe_so as ns
@@ -86,6 +86,21 @@ class TinNhanhB6(unittest.TestCase):         # khoi B6 THAT trong kiem-tat-ca.py
     def test_khong_con_chi_muc_cung_ngay_dang(self):
         src=KIEM('tin-nhanh').read_text(encoding='utf-8'); self.assertNotIn("TJ['ngay_dang']",src.replace("TJ['ngay_dang']!=exp","").replace("{TJ['ngay_dang']}",""))
 
+class TinNhanhThieuKiem(unittest.TestCase):     # fixture tin-nhanh-01 dinh dang CU: tin khong co `kiem` -> hoi quy bo qua co ly do, thuc te TRUOT; khong KeyError
+    SRC=KIEM('tin-nhanh').read_text(encoding='utf-8')
+    def test_khong_con_truy_cap_kiem_tran_khong_bao_ve(self):
+        for m in re.finditer(r"g\['kiem'\]",self.SRC):
+            dong=self.SRC[:m.start()].count('\n')+1; dd=self.SRC.split('\n')[:dong]
+            j=max(k for k,l in enumerate(dd) if l.startswith("for i,g in enumerate(TJ['tin'],1):")); ctx='\n'.join(dd[j:])     # tu dau vong lap tin den dong dung `kiem`
+            self.assertIn('f_thieu_kiem(i)',ctx,f'dong {dong}: g[\'kiem\'] khong duoc bao ve boi f_thieu_kiem')
+    def test_khoi_dau_thieu_kiem_nhan_ra_tin_cu(self):
+        a=self.SRC.index("THIEU_KIEM=["); b=self.SRC.index("\n",a); g=dict(TJ=dict(tin=[{'mau':'do'},{'kiem':{'ten':['x']}},{'kiem':None}])); exec(self.SRC[a:b],g); self.assertEqual(g['THIEU_KIEM'],[1,3])
+    def test_b3_b5_cung_bo_qua_o_hoi_quy_va_truot_o_thuc_te(self):
+        self.assertIn("if f_thieu_kiem(r) and HOI_QUY: pass",self.SRC); self.assertIn("_lk=[] if (THIEU_KIEM and HOI_QUY) else SMC.loi_kiem_lai(TJ,_KL)",self.SRC)
+    def test_hoi_quy_bo_qua_va_thuc_te_truot_co_ly_do(self):
+        self.assertIn("if THIEU_KIEM and not HOI_QUY: sai_ten.append",self.SRC); self.assertIn("if not HOI_QUY: d3_xau.append(f'tin {i}: tin.json thieu `kiem`",self.SRC)
+        self.assertIn("BO QUA {len(THIEU_KIEM)} tin thieu `kiem` — fixture dinh dang cu (hoi quy)",self.SRC)
+
 def chay_d3(khuon,a,b,ns_extra,heard,cs_keys):
     """Chay khoi D3 THAT cua kiem-tat-ca.py (giua 2 moc `a`..`b`) voi cau Whisper nghe duoc GIA DINH `heard`. -> list (ten,dat,so_do)."""
     src=KIEM(khuon).read_text(encoding='utf-8'); i=src.index(a); j=src.index(b,i)+(len(b) if b.startswith('NGHE') else 0); kq=[]
@@ -94,7 +109,7 @@ def chay_d3(khuon,a,b,ns_extra,heard,cs_keys):
     try:
         with tempfile.TemporaryDirectory() as d:
             NS=types.SimpleNamespace(**{k:getattr(ns,k) for k in dir(ns) if not k.startswith('__')}); NS.nghe_doan=lambda x16,cs,nghe,thu_muc,rev='':({k:heard[k] for k in cs},dict(pcm_sha256='gia-dinh-000000',dung_lai=0,nghe_moi=len(cs)))
-            g=dict(json=json,os=os,sys=sys,re=__import__('re'),datetime=datetime,B=pathlib.Path(d),moc=moc,X16=None,nghe=None,NS=NS,mo_hinh=types.SimpleNamespace(REV_GHIM='r',in_phien_ban=lambda:''),ghi=lambda t,ok,so,ma:kq.append((t,bool(ok),so)),**ns_extra)
+            g=dict(json=json,os=os,sys=sys,re=__import__('re'),datetime=datetime,B=pathlib.Path(d),moc=moc,X16=None,G16=None,nghe=None,nghe_kiem=None,NS=NS,mo_hinh=types.SimpleNamespace(REV_GHIM='r',ten_nghe_kiem=lambda:'turbo',in_phien_ban=lambda:''),ghi=lambda t,ok,so,ma:kq.append((t,bool(ok),so)),**ns_extra)
             (pathlib.Path(d)/'kich-ban.json').write_text(json.dumps(ns_extra.pop('_kb',[])),encoding='utf-8')
             exec(compile(src[i:j],'d3-'+khuon,'exec'),g)
     finally: sys.path.remove(str(ROOT/'khuon'/khuon))
@@ -125,6 +140,9 @@ class D3TheoLuatKhuon(unittest.TestCase):      # Sol vong 2b #11/#12 o CAP SCRIP
         'dap':'Không nha! Quy ra tiền Việt, Mỹ vẫn dạy hơn Hồng Kông 600 rưỡi, dạy hơn sinh tới 706 lận.','han':'Nhưng mà nhanh tay nha, hết giảm trước 2h chiều ngày 22 tháng 10, cha dám!'}
     def test_keo_cau_that_dat(self):
         r=self.keo(self.HK); self.assertTrue(r[1],r)
+    def test_keo_delux_thieu_chu_e_van_dat_nhung_thieu_phien_ban_van_truot(self):      # CI that 11/10: Whisper nghe 'Delux' thay 'Deluxe'
+        r=self.keo(dict(self.HK,mo='Returnal Digital Delux Edition đang giảm 75% trên PS to Mỹ nè.')); self.assertTrue(r[1],r)
+        r=self.keo(dict(self.HK,mo='Returnal Digital Edition đang giảm 75% trên PS to Mỹ nè.')); self.assertFalse(r[1],r); self.assertIn('thieu phien ban deluxe',r[2])
     def test_keo_bo_cau_phan_tram_vung_hoac_dao_chieu_thi_truot(self):
         for k,moi,dau in (('mo','Returno Digital Deluxe Edition đang giảm trên PS Store nè.','VUNG'),('mo','Returno Digital Deluxe Edition đang giảm trên PS to Mỹ nè.','PHAN TRAM'),('hoi','Ủa mà khoan, mua store hay có dạy hơn không ta?','VUNG'),
                           ('dap','Không nha! Quy ra tiền Việt, Mỹ vẫn đắt hơn Hồng Kông 600 rưỡi, dạy hơn sinh tới 706 lận.','CHIEU SO SANH')):

@@ -68,6 +68,7 @@ for kk,got,v in (('tit',ND['tit'],f'Top 5 bán chạy dưới {X}K'),('con',ND['
     if got!=v: sai.append(f"{kk}: hinh '{got}' != du lieu '{v}'")
 ghi('D1 gia/ten/vung/giam tren hinh khop top5.json (DOM that, 5 hang + bang ket + tit + ngay)',not sai,f"{5*6+15+4} gia tri doi chieu; {len(sai)} lech"+(f": {sai[:4]}" if sai else ''),'D1')
 import nghe_so as NS
+import lien_ket_giong as LK   # D3 doi thiet ke 11/10: noi dung nghe tren GIONG SACH + phep 'giong trong video = giong da kiem'
 HOI_QUY=os.environ.get('HOI_QUY')=='1'   # B6: ngoai le DUY NHAT (workflow chi dat khi co fixture)
 ok_ng,so_ng,ND_=NS.kiem_ngay(CFG.get('ngay_iso') or '',os.environ.get('NGAY',''),HOI_QUY)
 ghi('B6 ngay du lieu (cau-hinh.json) = NGAY dang cua luot chay',ok_ng,so_ng,'B6')
@@ -126,12 +127,20 @@ def chuan(t):
 def nghe(x16):
     seg,_=wm.transcribe(x16,language='vi',beam_size=5,temperature=0.0,condition_on_previous_text=False,vad_filter=False)
     return ' '.join(x.text.strip() for x in seg)
+_WT=[]
+def wt():
+    """Mo hinh NGHE KIEM D3 noi dung (large-v3-turbo, ghim revision) — nap lan dau khi can (cache nghe_doan trung thi khong nap)."""
+    if not _WT: _WT.append(mo_hinh.nap_whisper_nghe_kiem())
+    return _WT[0]
+def nghe_kiem(x16):
+    seg,_=wt().transcribe(x16,language='vi',beam_size=5,temperature=0.0,condition_on_previous_text=False,vad_filter=False)
+    return ' '.join(x.text.strip() for x in seg)
 cau=[];cur=[]
 for k,w in enumerate(moc):
     cur.append(w)
     if re.search(r'[.!?…]$',w['w']) and (k+1==len(moc) or moc[k+1]['s']-w['e']>=0.3): cau.append(cur); cur=[]
 if cur: cau.append(cur)
-G16=doc(V/'giong.mp3',16000); X16=doc(VID,16000)
+GS=LK.ten_giong_sach(V); G16=doc(GS,16000); X16=doc(VID,16000)   # GS = tep giong SACH dung de tron video; D3 noi dung nghe tren G16, KHONG nghe tren ban ghep (CI 11/10)
 tong_g=tong_v=0; xau=[]; tong_chu=0
 for c in cau:
     a=max(0,int((c[0]['s']-0.15)*16000)); b=int((c[-1]['e']+0.2)*16000)
@@ -159,7 +168,7 @@ else:
         if ly: xau.append(f'doan {k} (~{tg:.1f}s): {ly}')
     ghi('Nen khong phai anh giu cho PS Store (OCR + mang mau phang, moi doan nen)',not xau,f'{len(SEG)} doan; '+('; '.join(xau) if xau else 'khong thay chu giu cho'),'K18')
 
-# 6) D3 (B2) — nghe AM THANH TRICH TU MP4 CUOI (khong phai giong goc), tung hang, SO GIA TRI: ten (token phan biet khop chinh xac), tien, phan tram, vung.
+# 6) D3 (B2) — nghe GIONG SACH G16 (doi thiet ke 11/10: KHONG nghe ban ghep co nhac + tieng dong), tung hang, SO GIA TRI: ten (token phan biet khop chinh xac), tien, phan tram, vung.
 #    Ky vong tinh lai tu top5.json; phan tram / vung chi doi o hang ma LOI co doc (cung luat kich-ban.py). 3 ban chung luong tieng -> chung 1 lan Whisper (cache theo bam PCM).
 RAW=json.load(open(B/'kich-ban.json')); sai=[]; thu=[]; cs={}
 for r in range(1,6):
@@ -169,27 +178,36 @@ for r in range(1,6):
 for k in ('mo','ket'):
     ws=[w for w in moc if w.get('doan')==k]
     if ws: cs[k]=(max(0,int((ws[0]['s']-0.15)*16000)),int((ws[-1]['e']+0.25)*16000))
-heard,bc=NS.nghe_doan(X16,cs,nghe,B/'kiem',rev=mo_hinh.REV_GHIM if hasattr(mo_hinh,'REV_GHIM') else '')
+heard,bc=NS.nghe_doan(G16,cs,nghe_kiem,B/'kiem',rev=(mo_hinh.REV_GHIM if hasattr(mo_hinh,'REV_GHIM') else '')+'|'+mo_hinh.ten_nghe_kiem())
+heard_s,bc_s=NS.nghe_doan(G16,cs,nghe,B/'kiem',rev=mo_hinh.REV_GHIM if hasattr(mo_hinh,'REV_GHIM') else '')   # small: CHI cho TEN game (Opus 11/10); tien/%/vung chi turbo
+TEN_BO={}
 for r in range(1,6):
     g=TOP[r-1]; k=f'h{r}'
     if k not in heard: continue
     # Sol vong 2b #11: % / vung BAT BUOC theo LUAT khuon (nghe_so.nhiem_vu_top5 = kich-ban.py) + du lieu top5.json — KHONG suy tu chinh `loi` dang kiem (loi bo cau giam gia thi van phai TRUOT)
     ma=g.get('ma') or (NS.doc_vung(g['vung']) or [(None,0)])[0][0]; can_pt,can_vung=NS.nhiem_vu_top5(r)
     ky=dict(ten=[TR.ten_doc_cua(g)],tien=[TR.nghin_so(g['gia'])*1000],phan_tram=[g['giam']] if can_pt else [],vung=[ma] if can_vung else [],hang=True)   # hang=True: cat tien to 'Hang N' (chi Top 5)
-    loi=NS.doi_chieu(heard[k],**ky)
+    loi=NS.doi_chieu(heard[k],kiem_ten=False,**ky)
+    _ok,_bo,_ly=NS.ten_hai_bo(ky['ten'][0],{'turbo':heard[k],'small':heard_s.get(k)},hang=True); TEN_BO[k]=_bo
+    if not _ok: loi.append(f"TEN «{ky['ten'][0]}»: {_ly}")
     if can_vung and not ma: loi.append(f"VUNG: top5.json khong cho biet ma vung cua «{g.get('vung')}» — khong kiem duoc")
     thu.append(f"h{r} «{heard[k][:40]}»"); sai+=[f'hang {r} {x}' for x in loi]
 for k in ('mo','ket'):
     if k in heard:
         loi=NS.doi_chieu(heard[k],tien=[CFG['muc']]); sai+=[f'{k} {x}' for x in loi]
-ghi('D3 am thanh MP4 cuoi: ten (so phan/phien ban) + tien + phan tram + vung tung hang khop du lieu',not sai,f"5 hang; pcm {bc['pcm_sha256'][:12]} (nghe moi {bc['nghe_moi']}, dung lai {bc['dung_lai']}); "+' | '.join(thu)+(f"; SAI: {sai}" if sai else ''),'D3')
+ghi('D3 giong sach: ten (so phan/phien ban) + tien + phan tram + vung tung hang khop du lieu',not sai,f"5 hang; ten dat boi {TEN_BO}; pcm {bc['pcm_sha256'][:12]} (nghe moi {bc['nghe_moi']}, dung lai {bc['dung_lai']}); "+' | '.join(thu)+(f"; SAI: {sai}" if sai else ''),'D3')
 NGHE_BC=bc
+# 6b) D3 (doi thiet ke 11/10, Sol #10) — "giong trong video = giong da kiem": am thanh 16 kHz trich tu MP4 nay phai TUONG QUAN duong bao nang luong (RMS 20 ms, khung co giong, lech +-300 ms) voi
+#     GIONG SACH `dau-vao/giong.mp3` (dung tep da kiem noi dung o D3). Giong khac / lan thu khac => truot. Nguong hieu chinh bang so that: xem cong-cu/lien_ket_giong.py.
+LK_KQ=LK.lien_ket(G16,X16); _ok_lk,_so_lk=LK.dat_lien_ket(LK_KQ)
+ghi('D3 giong trong video = giong sach da kiem noi dung (tuong quan duong bao nang luong, lech +-300 ms)',_ok_lk,_so_lk,'D3/Sol#10')
+
 
 dat=sum(1 for x in KQ if x[1]); tong=len(KQ)
 with open(B/f'kiem/bao-cao-{NT}.md','w',encoding='utf-8') as f:
     f.write(f"# Bao cao kiem — {VID.name} ({NTS[NT]['ten']}) — {datetime.datetime.now():%d/%m/%Y %H:%M}\n\n**{dat}/{tong} DAT**\n\n| Phep kiem | Ket qua | So do | Loi da tung gap |\n|---|---|---|---|\n")
     for t,ok,so,ma in KQ: f.write(f"| {t} | {'DAT' if ok else '**LOI**'} | {so.replace('|','/')} | {ma} |\n")
-json.dump(dict(nt=NT,video=VID.name,dat=(dat==tong),so_dat=dat,tong=tong,nghe_d3=NGHE_BC,luc=datetime.datetime.now().isoformat(timespec='seconds'),phien_ban=mo_hinh.in_phien_ban(),
+json.dump(dict(nt=NT,video=VID.name,dat=(dat==tong),so_dat=dat,tong=tong,nghe_d3=NGHE_BC,ten_dat_boi=TEN_BO,lien_ket_giong=LK_KQ,giong_sach=GS.name,luc=datetime.datetime.now().isoformat(timespec='seconds'),phien_ban=mo_hinh.in_phien_ban(),
      phep=[dict(ten=a,dat=bool(b),so_do=c,loi=d) for a,b,c,d in KQ]),open(B/f'kiem/kiem-{NT}.json','w'),ensure_ascii=False,indent=1)
 print(f"\n{dat}/{tong} DAT -> {B/f'kiem/bao-cao-{NT}.md'}")
 sys.exit(0 if dat==tong else 1)
