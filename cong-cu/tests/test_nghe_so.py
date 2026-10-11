@@ -30,6 +30,16 @@ class DocTien(unittest.TestCase):
     def test_whisper_viet_so_roi_chu(self):     # nghe duoc tren video that (thu-d): '2 triệu 2 giờ còn có', '600 rưỡi', '2h chiều'
         self.assertEqual(gt('Từ hơn 2 triệu 2 giờ còn có 560.000 thôi'),[2200000,560000]); self.assertEqual(gt('Hồng Kông 600 rưỡi, rẻ hơn'),[650000])
         self.assertEqual(ns.doc_han('hết giảm trước 2h chiều ngày 22 tháng 10')[0],dict(gio24=14,buoi='chiều',ngay=(22,10)))
+    def test_trieu_cong_nhom_nghin(self):       # CI that 11/10 (run 38149824120): 'một triệu không trăm bốn mươi tám nghìn' -> Whisper '1 triệu 48.000' (truoc doc thanh 49.000.000)
+        self.assertEqual(gt('Tôi hơn 1 triệu 7, giờ còn có 1 triệu 48.000 thôi.'),[1700000,1048000])
+        for s,v in (('1 triệu 48.000',1048000),('2 triệu 350.000',2350000),('1 triệu 48.000 đồng',1048000),('một triệu không trăm bốn mươi tám nghìn',1048000),
+                    ('1 triệu 7',1700000),('1 triệu 350 nghìn',1350000)):
+            self.assertEqual(gt(s),[v],s)
+    def test_diem_tren_5_sao_khong_can_cham(self):     # CI that 11/10: 'người chơi chấm 4,5' Whisper nghe 'người chơi trên 4,5 trên 5 sao'
+        for s,v in (('Game phiêu lưu, người chơi trên 4,5 trên 5 sao.',4.5),('người chơi chấm 4,5 trên 5 sao',4.5),('bốn phẩy bốn trên năm sao',4.4),('năm trên năm sao',5.0)):
+            self.assertIn(v,ns.doc_diem_cham(s),s)
+        for s in ('chấm 4.5 sao, phiên bản 4.4','4,4 trên 10 sao','phiên bản 4.4','giảm 45 trên 5 sao'):
+            self.assertNotIn(4.4,ns.doc_diem_cham(s),s); self.assertNotIn(45.0,ns.doc_diem_cham(s),s)
     def test_phan_tram_khong_la_tien(self):    # Sol #9: "giảm 84 phần trăm, 94 nghìn" khong duoc xac nhan gia 84k
         s='giảm 84 phần trăm, 94 nghìn'
         self.assertEqual(gt(s),[94000]); self.assertEqual(pt(s),[84])
