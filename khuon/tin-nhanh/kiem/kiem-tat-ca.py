@@ -235,9 +235,10 @@ def dau_hieu(heard,exp_toks,kieu):
     a=''.join(exp_toks); b=''.join(heard); m=difflib.SequenceMatcher(None,a,b).find_longest_match(0,len(a),0,len(b))
     return max(tu,m.size/len(a))
 def _diem_ten(ten,jt,g,ws,cs_,nghe_goc,mdl):
-    """Diem ten game cua MOT bo nghe: `nghe_goc` (cau nghe duoc cua bo do) + nghe lai RIENG doan ten (en/vi, 2 do dem) bang chinh `mdl()`. -> (diem, [cac cau nghe], van_ban_hien_thi)."""
-    nghe_raw=nghe_goc; r_=dau_hieu(chuan_ten(nghe_goc),chuan_ten(ten),'ten'); cands=[nghe_goc]
-    if g['mau'] in ('xanh','do') and jt<len(cs_):   # ten game la tieng Anh: nghe RIENG doan ten (chi so tu trong loi) bang Whisper tieng Anh, khong goi y; lay diem cao hon
+    """Diem ten game cua MOT bo nghe: `nghe_goc` (cau nghe duoc cua bo do) + nghe lai RIENG doan ten (en/vi, 2 do dem) bang chinh `mdl()`.
+    -> (ds, cands, van_ban_hien_thi): ds[k] = diem CUA RIENG cands[k] (Sol soi cuoi: KHONG ghep diem cua ban nay voi token phan biet cua ban kia)."""
+    nghe_raw=nghe_goc; cands=[nghe_goc]; ds=[dau_hieu(chuan_ten(nghe_goc),chuan_ten(ten),'ten')]
+    if g['mau'] in ('xanh','do') and jt<len(cs_):   # ten game la tieng Anh: nghe RIENG doan ten (chi so tu trong loi) bang Whisper tieng Anh, khong goi y; moi ban nghe duoc cham RIENG
         sp=ws[cs_[jt]:cs_[jt]+len(ten.split())]
         if sp:
             en_all=[]
@@ -246,9 +247,14 @@ def _diem_ten(ten,jt,g,ws,cs_,nghe_goc,mdl):
                     a2=max(0,int((sp[0]['s']-pad)*16000)); b2=int((sp[-1]['e']+0.15)*16000)
                     seg_,_=mdl().transcribe(G16[a2:b2],language=lg,beam_size=5,temperature=0.0,condition_on_previous_text=False)
                     h_=' '.join(x.text.strip() for x in seg_); en_all.append(h_); cands.append(h_)
-                    ht=chuan_ten(h_); r_=max(r_,dau_hieu(ht,chuan_ten(ten),'ten'),difflib.SequenceMatcher(None,''.join(chuan_ten(ten)),''.join(ht)).ratio())   # + ti le ca chuoi (Whisper nho nghe ten Anh: 'hustle down' ~ 'Hunt Showdown')
-            if r_<0.6: nghe_raw=nghe_raw+' | doan ten: '+' / '.join(en_all)
-    return r_,cands,nghe_raw
+                    ht=chuan_ten(h_); ds.append(max(dau_hieu(ht,chuan_ten(ten),'ten'),difflib.SequenceMatcher(None,''.join(chuan_ten(ten)),''.join(ht)).ratio()))   # + ti le ca chuoi (Whisper nho nghe ten Anh: 'hustle down' ~ 'Hunt Showdown')
+            if max(ds)<0.6: nghe_raw=nghe_raw+' | doan ten: '+' / '.join(en_all)
+    return ds,cands,nghe_raw
+def _dat_bo(ten,mau,ds,cands):
+    """MOT bo nghe DAT neu co it nhat MOT candidate vua dat diem >= 0,40 VUA co token phan biet khop (so_phan_biet) TRONG CHINH candidate do (the xanh/do; the khac khong can token). -> (diem, ok, ly_do_candidate_dau)."""
+    pb=[NS.so_phan_biet(ten,c) for c in cands]
+    tot=[k for k in range(len(cands)) if ds[k]>=0.40 and (mau not in ('xanh','do') or pb[k][0])]
+    return (max(ds[k] for k in tot) if tot else max(ds or [0.0])),bool(tot),pb[0][1]
 d3=[];d3_xau=[]; cs={}
 TEN_BO={}
 for i,g in enumerate(TJ['tin'],1):
@@ -269,11 +275,10 @@ for i,g in enumerate(TJ['tin'],1):
         kq_bo={}
         for bo,hd,mdl in (('turbo',nghe_goc,wt),('small',heard_s.get(f't{i}'),lambda:wm)):
             if hd is None: continue
-            r_,cands,nraw=_diem_ten(ten,jt,g,ws,cs_,hd,mdl)
-            pb=[NS.so_phan_biet(ten,c) for c in cands]    # token phan biet (so phan 'hai lam' = 25, phien ban) phai KHOP CHINH XAC trong cua so ten
-            ok_pb=g['mau'] not in ('xanh','do') or any(ok for ok,_ in pb)
-            kq_bo[bo]=(r_,ok_pb,pb[0][1],nraw)
-        dat_bo=next((b for b,(r_,ok_pb,_,_) in kq_bo.items() if r_>=0.40 and ok_pb),None); TEN_BO[f'tin{i}.{jt}']=dat_bo
+            ds,cands,nraw=_diem_ten(ten,jt,g,ws,cs_,hd,mdl)
+            r_,ok_bo,ly_pb=_dat_bo(ten,g['mau'],ds,cands)    # diem + token phan biet tinh tren CUNG MOT candidate
+            kq_bo[bo]=(r_,ok_bo,ly_pb,nraw)
+        dat_bo=next((b for b,(r_,ok_bo,_,_) in kq_bo.items() if ok_bo),None); TEN_BO[f'tin{i}.{jt}']=dat_bo
         d3.append(kq_bo[dat_bo][0] if dat_bo else max([v[0] for v in kq_bo.values()] or [0.0]))
         # TEN game: nguong LONG 0,40 (cung luat Top 5, Opus chot 12/10) - Whisper tieng Viet nghe ten Anh sai ('Hunt Showdown' -> 'han sau dao'); SO TIEN/%/ngay giu chat (>= 0,85)
         if dat_bo is None: d3_xau.append(f"tin {i} ten «{ten}» khong bo nao dat: "+' | '.join(f"{b} {v[0]:.2f}{'' if v[1] else ' '+v[2]} nghe: «{v[3][:60]}»" for b,v in kq_bo.items()))
@@ -285,12 +290,22 @@ for i,g in enumerate(TJ['tin'],1):
             try: _dh=datetime.date.fromisoformat(han_); ngay_=[(_dh.day,_dh.month)]
             except Exception: d3_xau.append(f'tin {i}: kiem.han «{han_}» khong phai ngay ISO')
         elif g.get('kieu')=='sap-het': d3_xau.append(f'tin {i}: the sap-het thieu kiem.han - khong kiem duoc ngay het giam')
-        for x in NS.doi_chieu(nghe_goc,tien=[int(''.join(c for c in g['gia'] if c.isdigit()))],phan_tram=[g['giam']],vung=[vg_] if vg_ else [],ngay=ngay_): d3_xau.append(f'tin {i} {x}'); 
+        for x in NS.doi_chieu(nghe_goc,tien=[int(''.join(c for c in g['gia'] if c.isdigit()))],phan_tram=[g['giam']],vung=[vg_] if vg_ else [],ngay=ngay_,ten=list(g['kiem']['ten']),kiem_ten=False): d3_xau.append(f'tin {i} {x}')   # ten=: khu SO TRONG TEN game ('Mortal Kombat mười một') truoc khi doc tien — nhu Top 5 / Keo
         d3.append(1.0)
     for so in (g['kiem']['so'] if g['mau']!='do' else []):
         r_=dau_hieu(heard_so,sc.chuan_so_sanh(so),'so'); d3.append(r_)
         if r_<0.85: d3_xau.append(f"tin {i} so «{so}» {r_:.2f} nghe: «{nghe_raw[:70]}»")
-    for ng in g['kiem'].get('ngay',[]):
+    if g.get('kieu')=='sale':    # tin DOT SALE: hanh "hết ngày X tháng Y" so GIA TRI ngay+thang (kiem.han ISO tu sinh-tin.py) — khong con so chu 'mem' (nghe "hai mươi hai tháng mười một" khi mong 21/10 phai TRUOT)
+        han_s=(g.get('kiem') or {}).get('han'); ngay_s=[]
+        if not han_s: d3_xau.append(f'tin {i}: the sale thieu kiem.han - khong kiem duoc ngay het sale')
+        else:
+            try: _ds=datetime.date.fromisoformat(han_s); ngay_s=[(_ds.day,_ds.month)]
+            except Exception: d3_xau.append(f'tin {i}: kiem.han «{han_s}» khong phai ngay ISO')
+        if ngay_s:
+            for x in NS.doi_chieu(nghe_goc,kiem_ten=False,ngay=ngay_s): d3_xau.append(f'tin {i} {x}')
+            d3.append(1.0)
+    else:
+      for ng in g['kiem'].get('ngay',[]):
         r_=dau_hieu(heard_so,sc.chuan_so_sanh(ng),'mem'); d3.append(r_)
         if r_<0.75: d3_xau.append(f"tin {i} ngay/moc «{ng}» {r_:.2f} nghe: «{nghe_raw[:70]}»")
 ghi('D3 giong sach: TEN (so phan) + TIEN + PHAN TRAM + VUNG tung tin khop du lieu',not d3_xau,f"{len(d3)} muc, thap nhat {min(d3) if d3 else 1:.2f}"+f"; ten dat boi {TEN_BO}"+f"; pcm {NGHE_BC['pcm_sha256'][:12]} (nghe moi {NGHE_BC['nghe_moi']}, dung lai {NGHE_BC['dung_lai']})"+(f"; BO QUA {len(THIEU_KIEM)} tin thieu `kiem` — fixture dinh dang cu (hoi quy)" if THIEU_KIEM and HOI_QUY else '')+(f"; {d3_xau}" if d3_xau else ''),'D3')
@@ -298,8 +313,8 @@ ghi('D3 giong sach: TEN (so phan) + TIEN + PHAN TRAM + VUNG tung tin khop du lie
 
 # 6c2) D3 (doi thiet ke 11/10, Sol #10) — "giong trong video = giong da kiem": am thanh 16 kHz trich tu MP4 nay phai TUONG QUAN duong bao nang luong (RMS 20 ms, khung co giong, lech +-300 ms) voi
 #     GIONG SACH `dau-vao/giong.mp3` (dung tep da kiem noi dung o D3). Giong khac / lan thu khac => truot. Nguong hieu chinh bang so that: xem cong-cu/lien_ket_giong.py.
-LK_KQ=LK.lien_ket(G16,X16); _ok_lk,_so_lk=LK.dat_lien_ket(LK_KQ)
-ghi('D3 giong trong video = giong sach da kiem noi dung (tuong quan duong bao nang luong, lech +-300 ms)',_ok_lk,_so_lk,'D3/Sol#10')
+LK_KQ=LK.lien_ket(G16,X16,cua_so=LK.cua_so_moc_chu(moc)); _ok_lk,_so_lk=LK.dat_lien_ket(LK_KQ)
+ghi('D3 giong trong video = giong sach da kiem noi dung (tuong quan duong bao nang luong + phu + cua so moc-chu, lech +-300 ms)',_ok_lk,_so_lk,'D3/Sol#10')
 
 # 6e) khung GIUA moi canh khong co anh giu cho / chu cam (PLACEHOLDER SCREENSHOTS...) — OCR tesseract + mang mau phang (lỗi thật Top 5 11/10)
 import anh_gia

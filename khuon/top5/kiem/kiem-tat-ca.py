@@ -199,8 +199,8 @@ ghi('D3 giong sach: ten (so phan/phien ban) + tien + phan tram + vung tung hang 
 NGHE_BC=bc
 # 6b) D3 (doi thiet ke 11/10, Sol #10) — "giong trong video = giong da kiem": am thanh 16 kHz trich tu MP4 nay phai TUONG QUAN duong bao nang luong (RMS 20 ms, khung co giong, lech +-300 ms) voi
 #     GIONG SACH `dau-vao/giong.mp3` (dung tep da kiem noi dung o D3). Giong khac / lan thu khac => truot. Nguong hieu chinh bang so that: xem cong-cu/lien_ket_giong.py.
-LK_KQ=LK.lien_ket(G16,X16); _ok_lk,_so_lk=LK.dat_lien_ket(LK_KQ)
-ghi('D3 giong trong video = giong sach da kiem noi dung (tuong quan duong bao nang luong, lech +-300 ms)',_ok_lk,_so_lk,'D3/Sol#10')
+LK_KQ=LK.lien_ket(G16,X16,cua_so=LK.cua_so_moc_chu(moc)); _ok_lk,_so_lk=LK.dat_lien_ket(LK_KQ)
+ghi('D3 giong trong video = giong sach da kiem noi dung (tuong quan duong bao nang luong + phu + cua so moc-chu, lech +-300 ms)',_ok_lk,_so_lk,'D3/Sol#10')
 
 
 dat=sum(1 for x in KQ if x[1]); tong=len(KQ)

@@ -234,7 +234,7 @@ def tin_sale(uu):
     except Exception as ex: return bo('sale',f'loi tai anh: {ex}')
     ten=re.sub(r'\s*\([^)]*\)\s*$','',e['ten']).strip()
     return dict(kieu='sale',mau='vang',uu=uu,khoa=f'sale:{ten}',loai='ĐỢT SALE',nguon=f'PS STORE · {ddmm(dang)}'.upper(),tit=ten[:40],
-                moc=f'HẾT {ddmm(e["ket_thuc"])}',anh_url=[t.url_anh_day_du(top[0]['anh'])],anh_tep=[f'tai-san/{f.name}'],bai=None,tieu_de_bai=e['ten'],
+                moc=f'HẾT {ddmm(e["ket_thuc"])}',han_iso=e["ket_thuc"][:10],anh_url=[t.url_anh_day_du(top[0]['anh'])],anh_tep=[f'tai-san/{f.name}'],bai=None,tieu_de_bai=e['ten'],
                 nhan_dong='ĐANG GIẢM GIÁ',dong='sangame.com.vn · Cho sale',trailer=[],anh_chup=[])
 
 # ---------------------------------------------------------------- chọn

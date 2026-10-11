@@ -88,7 +88,7 @@ class TestGiong(Khung):
         self.assertIn('CANH BAO', out)
 
     def test_quyet_toan_hong_khong_thu_lai_va_khong_raise(self):  # #5
-        cong = Cong(hong={'xong_credit'}); el = El(da_dung=(100.0, 150.0))
+        cong = Cong(hong={'xong_credit'}); el = El(da_dung=(100.0, 150.0, 150.0))
         r, exc, out = self.chay(cong, el)
         self.assertIsNone(exc); self.assertEqual(el.tts_n, 1); self.assertTrue((self.t / 'ra' / 'g.mp3').exists()); self.assertIn('CANH BAO', out)
 
@@ -115,7 +115,7 @@ class TestGiong(Khung):
         cong = Cong(); r, exc, _ = self.chay(cong, El(doc_loi=True)); self.assertIsNone(exc); self.assertIn('khong_ro_credit', cong.ten())
 
     def test_chenh_trong_khoang_xong_credit_dung_so(self):
-        cong = Cong(); r, exc, _ = self.chay(cong, El(da_dung=(100.0, 137.2)))
+        cong = Cong(); r, exc, _ = self.chay(cong, El(da_dung=(100.0, 137.2, 137.2)))
         self.assertEqual(cong.kw('xong_credit')[0]['credit_that'], 37.2); self.assertEqual(r, ('goi', 37.2))
 
     def test_giu_bang_n_nhan_1(self):  # #4
@@ -186,18 +186,30 @@ class TestGoiA2(Khung):
         self.assertIsNone(exc); self.assertNotIn('xong_credit', cong.ten()); self.assertIn('khong_ro_credit', cong.ten())
 
     def test_doc_lai_da_dung_cho_cap_nhat_tre(self):   # vong 2 #1: lan 1-2 chenh=0, lan 3 = 230
-        cong = Cong(); el = El(da_dung=(100.0, 100.0, 100.0, 330.0)); waits = []
+        cong = Cong(); el = El(da_dung=(100.0, 100.0, 100.0, 330.0, 330.0)); waits = []
         o = io.StringIO()
         with contextlib.redirect_stdout(o):
             r = giong.cmd_giong(self.args(loi='xin chao ' * 30), cong=cong, el=el, ngu=waits.append, tai=tai_ok)
         self.assertEqual(r, ('goi', 230.0)); self.assertEqual(cong.kw('xong_credit')[0]['credit_that'], 230.0)
-        self.assertEqual(waits.count(10), 2); self.assertIn('3 lan', o.getvalue())
+        self.assertEqual(waits.count(10), 3); self.assertIn('4 lan', o.getvalue())
 
-    def test_doc_lai_het_6_lan_van_0_la_khong_ro(self):   # vong 2 #1
-        cong = Cong(); el = El(da_dung=(100.0,) * 7); waits = []
+    def test_doc_lai_het_8_lan_van_0_la_khong_ro(self):   # vong 2 #1
+        cong = Cong(); el = El(da_dung=(100.0,) * 9); waits = []
         with contextlib.redirect_stdout(io.StringIO()):
             r = giong.cmd_giong(self.args(loi='xin chao ' * 30), cong=cong, el=el, ngu=waits.append, tai=tai_ok)
-        self.assertIn('khong_ro_credit', cong.ten()); self.assertNotIn('xong_credit', cong.ten()); self.assertEqual(el.goi_n, 7)
+        self.assertIn('khong_ro_credit', cong.ten()); self.assertNotIn('xong_credit', cong.ten()); self.assertEqual(el.goi_n, 9)
+
+    def test_quyet_toan_doi_on_dinh_100_110_160_160_ghi_60(self):   # Sol soi cuoi P1: cu dung o 110 ghi 10
+        cong = Cong(); el = El(da_dung=(100.0, 110.0, 160.0, 160.0)); waits = []
+        with contextlib.redirect_stdout(io.StringIO()):
+            r = giong.cmd_giong(self.args(loi='xin chao ' * 30), cong=cong, el=el, ngu=waits.append, tai=tai_ok)
+        self.assertEqual(r, ('goi', 60.0)); self.assertEqual(cong.kw('xong_credit')[0]['credit_that'], 60.0)
+
+    def test_quyet_toan_khong_on_dinh_het_8_lan_la_khong_ro(self):
+        cong = Cong(); el = El(da_dung=(100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0)); waits = []
+        with contextlib.redirect_stdout(io.StringIO()):
+            giong.cmd_giong(self.args(loi='xin chao ' * 30), cong=cong, el=el, ngu=waits.append, tai=tai_ok)
+        self.assertNotIn('xong_credit', cong.ten()); self.assertIn('khong_ro_credit', cong.ten()); self.assertEqual(el.goi_n, 9)
 
     def keys(self, muoi='lan2', loi='xin chao ' * 10):
         return (giong.khoa_kho(loi, giong.VOICE_MAC_DINH, 'eleven_v3', 0.0, 1.0), giong.khoa_kho(loi, giong.VOICE_MAC_DINH, 'eleven_v3', 0.0, 1.0, muoi))

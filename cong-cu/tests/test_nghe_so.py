@@ -211,7 +211,10 @@ class Vong2b(unittest.TestCase):        # Sol soi ban sua (vong 2b) - moi diem 1
         self.assertTrue(ns.doi_chieu('Sing tới bảy trăm lẻ sáu nghìn',tien=[760000],tien_tat=[760000],cap=cap))          # chu day du 706.000 != 760.000
         self.assertTrue(ns.doi_chieu('Sing tới bảy trăm lẻ sáu nghìn',tien=[760000],tien_tat=[760000]))
         self.assertEqual(ns.doi_chieu('Sing tới 706 lận',tien=[760000],tien_tat=[760000],cap=cap),[])                    # chu so '706' van duoc chap nhan
-        self.assertEqual(ns.doi_chieu('Sing tới 706 nghìn lận',tien=[760000],tien_tat=[760000],cap=cap),[])
+        for ro in ('Sing tới 706 nghìn lận','Sing tới 706.000 đồng','Sing tới 706.000đ','Sing tới 706k','Sing tới 706 đồng'):    # Sol soi cuoi: so co don vi / nhom nghin RO phai so DUNG gia tri (706.000 != 760.000)
+            self.assertTrue(ns.doi_chieu(ro,tien=[760000],tien_tat=[760000],cap=cap),ro); self.assertTrue(ns.doi_chieu(ro,tien=[760000],tien_tat=[760000]),ro)
+        self.assertEqual(ns.doi_chieu('Sing tới 760.000 đồng',tien=[760000],tien_tat=[760000],cap=cap),[]); self.assertEqual(ns.doi_chieu('Sing tới 760 nghìn',tien=[760000],tien_tat=[760000]),[])
+        self.assertEqual(ns.doi_chieu('Sing tới 706, lận',tien=[760000],tien_tat=[760000],cap=cap),[])
         self.assertEqual(ns.doi_chieu('Sing tới bảy trăm sáu lận',tien=[760000],tien_tat=[760000],cap=cap),[])
     def test_06_so_trong_ten_game_khong_la_tien(self):
         ten=['Mortal Kombat mười một']
@@ -258,6 +261,27 @@ class Vong2b(unittest.TestCase):        # Sol soi ban sua (vong 2b) - moi diem 1
                     'Quy ra tiền Việt, Mỹ với Hồng Kông sáu trăm rưỡi, với Sing tới bảy trăm sáu lận.'):
             self.assertTrue([x for x in ns.doi_chieu(sai,**kw) if 'CHIEU' in x],sai)
         self.assertEqual(ns.doi_chieu('Mỹ vẫn đắt hơn Hồng Kông sáu trăm rưỡi, rẻ hơn Sing tới bảy trăm sáu lận.',cap=cap,tien_tat=[760000]),[])      # khong yeu cau chu_the -> khong kiem chieu
+    def test_soi_cuoi_phien_ban_thua_sau_dau_phay_truot(self):         # Sol: 'Resident Evil 4, Deluxe Edition' mong 'Resident Evil 4'
+        for h in ('Resident Evil 4, Deluxe Edition','Resident Evil 4. Deluxe Edition','Resident Evil bốn, Deluxe'):
+            ok,ly=ns.so_phan_biet('Resident Evil 4',h); self.assertFalse(ok,h); self.assertIn('thua phien ban',ly)
+        self.assertTrue(ns.so_phan_biet('Resident Evil 4','Resident Evil 4, giảm sáu mươi')[0]); self.assertTrue(ns.so_phan_biet('Resident Evil 4','Resident Evil 4, 12 game bán chạy')[0])   # so sau dau phay van la ranh gioi
+        self.assertTrue(ns.so_phan_biet('Resident Evil 4 Deluxe Edition','Resident Evil 4, Deluxe Edition')[0])
+    def test_soi_cuoi_phu_dinh_chieu_so_sanh_truot(self):
+        kw=dict(cap=[('HK',650000),('SG',760000)],tien_tat=[760000],chu_the='US')
+        for sai in ('Quy ra tiền Việt, Mỹ không rẻ hơn Hồng Kông sáu trăm rưỡi, rẻ hơn Sing tới bảy trăm sáu lận.','Quy ra tiền Việt, Mỹ chẳng rẻ hơn Hồng Kông sáu trăm rưỡi, rẻ hơn Sing tới bảy trăm sáu lận.',
+                    'Quy ra tiền Việt, Mỹ vẫn rẻ hơn Hồng Kông sáu trăm rưỡi, chưa rẻ hơn Sing tới bảy trăm sáu lận.','Quy ra tiền Việt, Mỹ đắt hơn Hồng Kông sáu trăm rưỡi, rẻ hơn Sing tới bảy trăm sáu lận.'):
+            self.assertTrue([x for x in ns.doi_chieu(sai,**kw) if 'CHIEU' in x],sai)
+    def test_soi_cuoi_cache_nghe_theo_mo_hinh(self):                   # 3 ban cung PCM, chuoi turbo->small: moi mo hinh nghe DUNG 1 lan (truoc: 6 lan)
+        import numpy as np,tempfile,pathlib
+        x=np.arange(32000,dtype=np.float32)/32000; goi={'turbo':0,'small':0}
+        def nghe(ten):
+            def f(a): goi[ten]+=1; return ten+' nghe'
+            return f
+        with tempfile.TemporaryDirectory() as d:
+            for _ in range(3):
+                h1,_b=ns.nghe_doan(x,{'a':(0,16000)},nghe('turbo'),d,rev='r1|turbo'); h2,_b2=ns.nghe_doan(x,{'a':(0,16000)},nghe('small'),d,rev='r1')
+                self.assertEqual((h1['a'],h2['a']),('turbo nghe','small nghe'))
+            self.assertEqual(goi,{'turbo':1,'small':1}); self.assertEqual(len(list(pathlib.Path(d).glob('kiem-nghe-*.json'))),2)
     def test_ngay_thieu_khong_crash(self):
         ok,sd,_=ns.kiem_ngay('','2026-10-12'); self.assertFalse(ok); self.assertIn('THIEU ngay_dang',sd)
         ok,sd,nd=ns.kiem_ngay('','',hoi_quy=True); self.assertTrue(ok); self.assertIn('hoi quy',sd); self.assertIsNone(nd)

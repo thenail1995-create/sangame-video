@@ -38,7 +38,7 @@ class TenGiongSach(unittest.TestCase):
             src=(ROOT/'khuon'/k/'kiem'/'kiem-tat-ca.py').read_text(encoding='utf-8')
             self.assertIn('GS=LK.ten_giong_sach(V)',src,k); self.assertIn('G16=doc(GS,16000)',src,k)
             self.assertEqual(len(re.findall(r'nghe_doan\(G16,cs,nghe_kiem,',src)),1,k); self.assertIn('ten_nghe_kiem()',src,k); self.assertNotIn('nghe_doan(X16',src,k)
-            self.assertIn('LK.lien_ket(G16,X16)',src,k); self.assertIn('LK.dat_lien_ket(LK_KQ)',src,k)
+            self.assertIn('LK.lien_ket(G16,X16,cua_so=LK.cua_so_moc_chu(moc))',src,k); self.assertIn('LK.dat_lien_ket(LK_KQ)',src,k)
             self.assertIn('lien_ket_giong=LK_KQ',src,k)                     # bang chung vao kiem-<nt>.json
             self.assertNotIn("wm.transcribe(X16",src,k)                      # tin-nhanh: nghe lai doan ten tieng Anh cung phai tren giong sach
     def test_keo_thom_ten_game_5b_nghe_tren_giong_sach(self):
@@ -48,27 +48,45 @@ class TenGiongSach(unittest.TestCase):
 class LienKetGiong(unittest.TestCase):
     @classmethod
     def setUpClass(cls): cls.g=giong_gia(1); cls.khac=giong_gia(2)
+    CS=[(i*2.0,i*2.0+2.0) for i in range(12)]   # cua so 2 s phu 24 s giong tong hop (thay cho moc-chu)
+    def lk(self,g,x): return LK.lien_ket(g,x,cua_so=self.CS)
     def test_giong_dung_cong_nhac_dat(self):
-        kq=LK.lien_ket(self.g,ghep(self.g)); ok,_=LK.dat_lien_ket(kq)
+        kq=self.lk(self.g,ghep(self.g)); ok,_=LK.dat_lien_ket(kq)
         self.assertTrue(ok,kq); self.assertGreater(kq['r'],0.95); self.assertEqual(kq['lech_ms'],0)
     def test_giong_dung_nhac_to_hon_van_dat(self):
-        kq=LK.lien_ket(self.g,ghep(self.g,ben=0.8)); self.assertTrue(LK.dat_lien_ket(kq)[0],kq)
+        kq=self.lk(self.g,ghep(self.g,ben=0.8)); self.assertTrue(LK.dat_lien_ket(kq)[0],kq)
     def test_giong_dung_lech_100ms_dat_va_bao_dung_do_lech(self):
-        kq=LK.lien_ket(self.g,ghep(self.g,tre_s=0.1)); self.assertTrue(LK.dat_lien_ket(kq)[0],kq); self.assertEqual(kq['lech_ms'],100)
+        kq=self.lk(self.g,ghep(self.g,tre_s=0.1)); self.assertTrue(LK.dat_lien_ket(kq)[0],kq); self.assertEqual(kq['lech_ms'],100)
     def test_giong_khac_cong_cung_nhac_truot(self):
-        kq=LK.lien_ket(self.g,ghep(self.khac)); ok,_=LK.dat_lien_ket(kq)
+        kq=self.lk(self.g,ghep(self.khac)); ok,_=LK.dat_lien_ket(kq)
         self.assertFalse(ok,kq); self.assertLess(kq['r'],0.6)
     def test_giong_dung_nhung_lech_1_giay_truot(self):            # ngoai +-300 ms
-        kq=LK.lien_ket(self.g,ghep(self.g,tre_s=1.0)); self.assertFalse(LK.dat_lien_ket(kq)[0],kq)
+        kq=self.lk(self.g,ghep(self.g,tre_s=1.0)); self.assertFalse(LK.dat_lien_ket(kq)[0],kq)
     def test_chi_nhac_khong_giong_truot(self):
-        self.assertFalse(LK.dat_lien_ket(LK.lien_ket(self.g,ghep(np.zeros(len(self.g),np.float32))))[0])
+        self.assertFalse(LK.dat_lien_ket(self.lk(self.g,ghep(np.zeros(len(self.g),np.float32))))[0])
     def test_thay_mot_phan_giong_truot_nho_nguong_doan(self):     # 1/3 cuoi bai la giong khac -> doan thap nhat rot, du toan bai con cao
         x=self.g.copy(); c=len(x)*2//3; kh=np.pad(self.khac,(0,max(0,len(x)-len(self.khac))))[:len(x)]; x[c:]=kh[c:]
-        kq=LK.lien_ket(self.g,ghep(x)); self.assertFalse(LK.dat_lien_ket(kq)[0],kq); self.assertLess(kq['r_doan_min'],LK.NGUONG_TQ_DOAN)
+        kq=self.lk(self.g,ghep(x)); self.assertFalse(LK.dat_lien_ket(kq)[0],kq); self.assertLess(kq['r_doan_min'],LK.NGUONG_TQ_DOAN)
     def test_nguong_nam_giua_cap_dung_va_cap_sai_do_that(self):  # so do that 11/10: dung >= 0,96 (doan >= 0,93) ; sai cao nhat 0,87 (doan 0,70)
         self.assertTrue(0.87<LK.NGUONG_TQ<0.96); self.assertTrue(0.70<LK.NGUONG_TQ_DOAN<0.93)
+    # --- Sol soi cuoi 11/10: RMS khong chung minh cung giong; cat / them giong; thay doan ngan
+    def test_cat_con_nua_giong_truot_vi_phu(self):                # TRUOC: r=1 du chi con nua bai
+        x=self.g.copy(); x[len(x)//2:]=0; kq=self.lk(self.g,ghep(x)); ok,_=LK.dat_lien_ket(kq)
+        self.assertFalse(ok,kq); self.assertLess(kq['phu'],LK.NGUONG_PHU)
+    def test_noi_them_giong_khac_sau_bai_truot(self):             # TRUOC: chi xet phan giao nen van dat
+        x=np.concatenate([self.g,self.khac[:int(3*SR)]]); kq=self.lk(self.g,ghep(x,them=0.0)); ok,_=LK.dat_lien_ket(kq)
+        self.assertFalse(ok,kq); self.assertGreater(kq['ngoai_s'],LK.NGUONG_NGOAI_S)
+    def test_thay_200ms_trong_mot_cua_so_truot_theo_cua_so(self):  # TRUOC: r toan bai ~0,99 va 3 phan van dat
+        x=self.g.copy(); a=int(9.2*SR); b=a+int(0.4*SR); x[a:b]=self.khac[a:b]   # thay 0,4 s bang giong khac, cua so 1 s (nhu cum ten/gia/han that)
+        kq=LK.lien_ket(self.g,ghep(x),cua_so=[(i*1.0,i*1.0+1.0) for i in range(24)]); ok,_=LK.dat_lien_ket(kq)
+        self.assertFalse(ok,kq); self.assertLess(kq['r_cua_so_min'],LK.NGUONG_TQ_CUA_SO); self.assertGreater(kq['r'],LK.NGUONG_TQ)
+    def test_thieu_cua_so_khong_dat(self):                        # cua so moc-chu BAT BUOC
+        kq=LK.lien_ket(self.g,ghep(self.g)); self.assertFalse(LK.dat_lien_ket(kq)[0],kq)
+    def test_cua_so_moc_chu_phu_loi_noi_va_khong_vuot_doan(self):
+        moc=[{'w':'a','s':0.0,'e':0.5,'doan':'x'},{'w':'b','s':0.55,'e':1.2,'doan':'x'},{'w':'c','s':1.25,'e':2.0,'doan':'x'},{'w':'d','s':2.1,'e':3.9,'doan':'x'},{'w':'e','s':4.0,'e':4.5,'doan':'y'}]
+        cs=LK.cua_so_moc_chu(moc); self.assertEqual(cs[0][0],0.0); self.assertEqual(cs[-1],(4.0,4.5)); self.assertTrue(all(e-s<=4.0 for s,e in cs))
     def test_tin_hieu_qua_ngan_khong_dat(self):
-        kq=LK.lien_ket(self.g[:SR//4],self.g[:SR//4]); self.assertFalse(LK.dat_lien_ket(kq)[0])
+        kq=self.lk(self.g[:SR//4],self.g[:SR//4]); self.assertFalse(LK.dat_lien_ket(kq)[0])
 
 class TuPhienBanLechChinhTa(unittest.TestCase):
     def test_delux_bang_deluxe(self):

@@ -416,6 +416,7 @@ jobs:
           ARTIFACT_KEY: ${{ secrets.ARTIFACT_KEY }}
         run: |
           set -euo pipefail
+          [ -n "${ARTIFACT_KEY:-}" ] || { echo "thieu secret ARTIFACT_KEY - KHONG dong goi / upload go-loi (khoa rong van ma hoa duoc nhung ai cung giai ma duoc)"; exit 1; }
           mkdir -p go-loi/nen
           for nt in tiktok reels shorts; do
             for t in 3 8 12 18 24; do
