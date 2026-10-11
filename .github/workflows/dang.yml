@@ -121,6 +121,7 @@ jobs:
           SHA8: ${{ steps.dung.outputs.sha8 }}
         run: |
           set -euo pipefail
+          NGAY="${NGAY:-$(TZ=Asia/Ho_Chi_Minh date +%F)}"   # 11/10: lich cron-job.org gui ngay rong (thieu dong nay -> URL /v/-keo-thom-... 404)
           URL="${GOC%/}/v/${NGAY}-${DANG}-${SHA8}.mp4"
           for i in $(seq 1 12); do
             H="$(curl -sI --max-redirs 0 "$URL" || true)"
