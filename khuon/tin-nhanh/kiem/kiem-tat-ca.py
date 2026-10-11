@@ -155,7 +155,8 @@ sai_ten=[]
 for i,g in enumerate(TJ['tin'],1):
     loi=KB[f't{i}']; cho=bag(g,set())|{'tin','re'}
     for tk in re.findall(r"[^\W\d_][\w'’]*",loi):
-        if tk[0].isupper() and re.sub(r"['’]",'',sc.bo_dau(tk)) not in {re.sub(r"['’]",'',x) for x in cho} and sc.bo_dau(tk) not in cho:
+        # tách cả dấu nháy như bag() (Player's -> player + s): mọi mảnh phải có trong tin.json (CI 11/10: «Player's» bị báo nhầm)
+        if tk[0].isupper() and not all(x in cho for x in re.findall(r'[a-z0-9]+',sc.bo_dau(tk))):
             sai_ten.append(f"tin {i}: «{tk}» khong co trong tin.json")
     if f_thieu_kiem(i): continue
     for ten in g['kiem']['ten']:
