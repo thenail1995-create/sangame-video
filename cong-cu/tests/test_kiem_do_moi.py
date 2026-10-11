@@ -15,10 +15,28 @@ def dung_repo(td, feed_cap_nhat='2026-10-11', tong='2026-10-11', bo_truong=()):
     (dl / 'trang-game.json').write_text(json.dumps({'cap_nhat': tong}))
     (dl / 'gia-the.json').write_text(json.dumps({'ngay': tong}))
     for v in VUNG:
-        d = {'vung': 'en-' + v, 'so_mon': 3, 'mon': {}}
+        d = {'vung': 'en-' + v, 'so_mon': 3, 'mon': {'UP1': {'gia': 1}}}
         if v not in bo_truong: d['cap_nhat'] = feed_cap_nhat[v] if isinstance(feed_cap_nhat, dict) else feed_cap_nhat
         (dl / f'giam-gia-en-{v}.json').write_text(json.dumps(d))
     return td
+
+
+class TestMonRong(unittest.TestCase):   # vong 2 #4: so_mon > 0 nhung mon rong / sai kieu => cu/thieu
+    def test_mon_rong_hoac_khong_phai_dict_la_cu(self):
+        for mon in ({}, [], None, 'x'):
+            with tempfile.TemporaryDirectory() as td:
+                dung_repo(td)
+                f = pathlib.Path(td) / 'du-lieu' / 'giam-gia-en-SG.json'
+                d = json.loads(f.read_text()); d['mon'] = mon; f.write_text(json.dumps(d))
+                moi, ly = k.kiem(td, '2026-10-11')
+                self.assertFalse(moi, mon); self.assertTrue(any('SG' in x for x in ly), ly)
+
+    def test_mon_co_noi_dung_van_moi(self):
+        with tempfile.TemporaryDirectory() as td:
+            dung_repo(td)
+            for v in VUNG:
+                f = pathlib.Path(td) / 'du-lieu' / f'giam-gia-en-{v}.json'; d = json.loads(f.read_text()); d['mon'] = {'UP1': {'gia': 1}}; f.write_text(json.dumps(d))
+            self.assertEqual(k.kiem(td, '2026-10-11'), (True, []))
 
 
 class TestMoc(unittest.TestCase):
