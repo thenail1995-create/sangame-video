@@ -7,6 +7,7 @@ Cau truc trang (da xem tren trang that en-us/en-hk/en-sg/en-id, 11/10/2026): nhi
     `endTime` nam NGAY TRONG khoi price cua chinh GameCTA do (khong phai doi tuong khac tren trang).
   - Trang con chua GameCTA cua san pham KHAC (ban tieu chuan/ban PS4/game goi y) -> chi nhan khoa chua dung PID, SKU khong chua them dau '-'.
   - Media: `Product:<PID>` -> `media` va `personalizedMeta.media` (VIDEO/PREVIEW, IMAGE/SCREENSHOT/MASTER/EDITION_KEY_ART).
+  - Gioi thieu game (11/10): `Product:<PID>` xuat hien o NHIEU the script, moi the mot manh (starRating o the nay, localizedGenres o the kia, descriptions + edition.features o the khac) -> hop nhat theo khoa (thong_tin_game).
 Khong regex toan trang, khong "gia dau tien tren trang".
 """
 import json
@@ -151,3 +152,41 @@ def ps_plus_catalog(html, pid):
             if khoa.startswith("GameCTA:") and len(p) >= 4 and p[1] == "UPSELL_PS_PLUS_GAME_CATALOG" and p[3].startswith(pid + "-") and "-" not in p[3][len(pid) + 1:]:
                 return True
     return False
+
+
+def thong_tin_game(html, pid):
+    """Thong tin GIOI THIEU cua DUNG san pham (khong lay cua game goi y): hop nhat moi manh `Product:<pid>` tren trang (ghi de khong; manh nao co truoc thi dung).
+    -> dict(the_loai[str], diem{tb, so_luot}|None, edition{ten, loai, tinh_nang[str]}|None, mo_ta_dai str ('<br/>' giu nguyen), mo_ta_ngan str). Truong khong co = rong/None (KHONG doan).
+    Chi doc du lieu co san tren trang (PS Store: starRating, localizedGenres, edition, descriptions); noi dung tieng Anh goc, viec dich sang loi doc o khuon/keo-thom/loi_chu.py (bang co dinh)."""
+    hop = {}
+    if pid and isinstance(html, str):
+        for c in _cache_cac_the(html):
+            p = c.get(f"Product:{pid}")
+            if not isinstance(p, dict):
+                continue
+            for k in ("starRating", "localizedGenres", "edition", "descriptions"):
+                if not p.get(k):
+                    continue
+                if k == "edition" and isinstance(p[k], dict):   # edition cung bi chia manh ({name} o the nay, {name, features, type} o the kia): hop nhat tung truong
+                    cu = hop.get(k) or {}
+                    hop[k] = {**{a: b for a, b in p[k].items() if b}, **{a: b for a, b in cu.items() if b}}
+                elif not hop.get(k):
+                    hop[k] = p[k]
+    sr = hop.get("starRating") if isinstance(hop.get("starRating"), dict) else {}
+    tb, n = sr.get("averageRating"), sr.get("totalRatingsCount")
+    diem = dict(tb=float(tb), so_luot=int(n)) if isinstance(tb, (int, float)) and not isinstance(tb, bool) and isinstance(n, int) and not isinstance(n, bool) and n >= 0 else None
+    gen = [x.get("value") for x in (hop.get("localizedGenres") or []) if isinstance(x, dict) and isinstance(x.get("value"), str)]
+    ed = hop.get("edition") if isinstance(hop.get("edition"), dict) else None
+    edition = dict(ten=ed.get("name") or "", loai=ed.get("type") or "", tinh_nang=[x for x in (ed.get("features") or []) if isinstance(x, str)]) if ed and ed.get("name") else None
+    mo = {x.get("type"): x.get("value") for x in (hop.get("descriptions") or []) if isinstance(x, dict) and isinstance(x.get("value"), str)}
+    return dict(the_loai=gen, diem=diem, edition=edition, mo_ta_dai=mo.get("LONG", ""), mo_ta_ngan=mo.get("SHORT", ""))
+
+
+def hop_nhat_thong_tin(ds):
+    """Nhieu trang (vung re nhat truoc) -> mot dict: moi truong lay tu trang DAU TIEN co truong do."""
+    ra = dict(the_loai=[], diem=None, edition=None, mo_ta_dai="", mo_ta_ngan="")
+    for d in ds:
+        for k, v in d.items():
+            if v and not ra.get(k):
+                ra[k] = v
+    return ra

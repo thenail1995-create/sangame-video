@@ -3,6 +3,9 @@
 # roi so voi video v8.3 dung tu CUNG fixture (anh 6 moc: SSIM 135x240 >= 0,97, ghi ca 270x480; cue tieng tung cu; kiem-tat-ca 3 ban DAT het).
 #   bash chay-hoi-quy.sh <thu-muc-chay> <kenh-game-du-lieu> <thu-muc-nang: co video/fixture/keo-thom-v83/dau-vao/trailer/*.mp4> [thu-muc-khuon-v83-da-dung-de-so]
 # Khong dong vao cay git. WORKERS (mac dinh 4) = so luong capture.
+# !!! 11/10 (GD GIOI THIEU): khuon da DOI (bo canh hoi-dap `hoi`, them `gioi` + ho so game; `dap` khong con "Khong nha!") nen mau Spider-Man 2 v8.3 KHONG con tai tao duoc
+# loi.txt/moc/tieng/hinh cu (lenh `cmp` loi.txt o duoi se THAT BAI; keo-hoi-quy.json khong co `gioi_thieu` nen kich-ban.py dung). Muc chuan moi (video Returnal 11/10 + giong moi) se
+# dat sau khi Hao duyet (ke-hoach-keo-gioi-thieu.md muc 4.7). Chua duyet -> KHONG chay script nay de lam can; dung bo kiem 3 ban + pytest.
 # set -e: BUOC SO NAO THAT BAI (so-anh.py / so-hai-ban.py thoat khac 0) -> script DUNG ngay voi ma do (Sol bcd #20).
 set -euo pipefail
 RUN="${1:?thu muc chay}"; DATA="${2:?kenh-game-du-lieu}"; NANG="${3:?thu muc nang (trailer)}"; V83="${4:-}"

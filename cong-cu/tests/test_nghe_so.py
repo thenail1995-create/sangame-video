@@ -248,7 +248,7 @@ class Vong2b(unittest.TestCase):        # Sol soi ban sua (vong 2b) - moi diem 1
         self.assertTrue(ns.doi_chieu('Resident Evil năm đang giảm',ten=['Resident Evil bốn'],hang=True))          # khong cat -> thay 'năm' that -> TRUOT
     def test_11_nhiem_vu_theo_luat_khuon(self):
         self.assertEqual([ns.nhiem_vu_top5(r) for r in range(1,6)],[(False,True),(True,False),(False,False),(True,True),(True,False)])
-        self.assertEqual(ns.KEO_VUNG,{'mo':('A',),'hoi':('B','C'),'dap':('A','B','C')}); self.assertEqual(ns.KEO_PHAN_TRAM,{'mo'})
+        self.assertEqual(ns.KEO_VUNG,{'mo':('A',),'dap':('A','B','C')}); self.assertEqual(ns.KEO_PHAN_TRAM,{'mo'})
     def test_12_chieu_so_sanh_keo(self):
         cap=[('HK',650000),('SG',760000)]; kw=dict(cap=cap,tien_tat=[760000],chu_the='US')
         self.assertEqual(ns.doi_chieu('Quy ra tiền Việt, Mỹ vẫn rẻ hơn Hồng Kông sáu trăm rưỡi, rẻ hơn Sing tới bảy trăm sáu lận.',**kw),[])

@@ -1,7 +1,7 @@
 # Nen trailer Keo thom v9: TU CHON doan trailer (khong chon tay, khong duong dan tuyet doi) theo moc canh trong neo.json — giong nen-top5.py.
 # Giu nguyen luat da duyet: cat bo 10% duoi khung (dong chu phap ly "Not Actual Gameplay" cua Sony — H2), cat dai den dien anh (H20),
 # chon trailer phan giai cao nhat roi dai nhat (H21), do sang TUNG KHUNG cua doan se dung tren dung dai 9:16 (H23), doan nam tron trong 1 canh
-# (scdet), tranh 10% dau + 25% cuoi trailer, loai khung TINH (logo/man tieu de: YDIF~0 — Spider-Man 2: INSOMNIAC, MARVEL o giua trailer 29 s), dung hinh den trang o chu "khoan..." (H17, A6).
+# (scdet), tranh 10% dau + 25% cuoi trailer, loai khung TINH (logo/man tieu de: YDIF~0 — Spider-Man 2: INSOMNIAC, MARVEL o giua trailer 29 s), (bo dung hinh o "khoan..." tu 11/10: khong con canh hoi-dap).
 # THEO NEN TANG (v8.3, LOI-SAI N12): moi nen tang 1 mang trailer net 1080 x cao(nt) (nen_tang.py), cat RONG hon 9:16 de hien tron chieu cao khung trailer.
 #   python3 nen08.py [tiktok|reels|shorts|tat-ca]   (can neo.json: node do-khung.cjs truoc)
 # Nguon doan: dau-vao/nen-doan.json = [[ten_file, bat_dau_s, do_dai_s, dung_hinh(0/1), tam_cat_ngang(0-1)(, [cw,ch,cx,cy])], ...] neu CO SAN
@@ -79,11 +79,12 @@ def lay(D,pool,tieu=0.6):
     return out
 def ke_hoach(H):
     """Tu dong: cac khe (theo moc canh trong neo.json) -> doan trailer. H = chieu cao mang net rong nhat (de do sang tren dung dai se dung)."""
-    k=C; khoan_e=M['hoi']['khoan_e']; store=M['hoi']['store']; c3=C[3]; c4=C[4]+.25; c5=C[5]+.18
-    cuts=[0,k[1]*.5436,k[1]*.79,k[1],k[2],khoan_e,store,store+.33,c3,c3+(c4-c3)*.207,c3+(c4-c3)*.69,c4,c5,c5+(DAI-c5)*.733,DAI]
+    k=C; c3=C[3]; c4=C[4]+.25; c5=C[5]+.18
+    # canh GIOI THIEU (k[2]..c3, ~10 s) cat them o chu "Nguoi choi cham..." (diem) va "Ban ... co them" (phan them) de nen doi canh theo y (11/10: bo canh "khoan..." dung hinh)
+    G=M['gioi']; gioi=[x for x in (G.get('ng'),G.get('ban')) if x and k[2]+1.0<x-.1<c3-1.0]
+    cuts=[0,k[1]*.5436,k[1]*.79,k[1],k[2]]+[x-.1 for x in gioi]+[c3,c3+(c4-c3)*.207,c3+(c4-c3)*.69,c4,c5,c5+(DAI-c5)*.733,DAI]
     cuts=[round(x,2) for x in cuts]
     khe=[(a,b-a) for a,b in zip(cuts,cuts[1:])]
-    FZ=5   # khe thu 6 (chi so 5) = dung hinh den trang o "khoan..."
     trs=tai_trailer(); pool=[]; cac=[]
     for chat in (True,False):
         pool=[]
@@ -104,9 +105,7 @@ def ke_hoach(H):
     ds={}
     for i in sorted(range(len(khe)),key=lambda i:-khe[i][1]):
         a,D=khe[i]
-        if i==FZ:
-            p=max(pool,key=lambda p:p['y']); ds[i]=[(p['src'],round(p['s0']+min(.2,p['len']/2),3),round(D,3),1,0.5,p['cr'])]
-        else: ds[i]=lay(D,pool)
+        ds[i]=lay(D,pool)
     S=[x for i in range(len(khe)) for x in ds[i]]
     json.dump(dict(cuts=cuts,seg=[list(map(lambda v:v if not isinstance(v,pathlib.Path) else str(v),s)) for s in S]),open(KH,'w'),indent=1)
     return S

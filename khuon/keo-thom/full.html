@@ -98,25 +98,23 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:transparent;font
 #tk{left:452px;top:958px;padding:10px 22px 12px;background:rgba(241,232,212,.9);border:6px double var(--do);color:var(--do);text-align:center;transform-origin:50% 50%}
 #tk span{display:block;font-weight:800;font-size:26px;letter-spacing:4px}
 #tk b{display:block;font-family:PF;font-weight:900;font-size:66px;line-height:1}
-/* CANH 3: hoi - thu ban doc + tem */
-#khoan{left:136px;top:960px;z-index:13;background:var(--vang);padding:14px 30px 14px 24px;display:flex;align-items:center;gap:20px;font-weight:800;font-size:58px;box-shadow:0 10px 18px rgba(0,0,0,.45)}
-#khoan i{display:block;width:14px;height:52px;background:var(--muc);box-shadow:24px 0 0 var(--muc);margin-right:24px}
-#g3{left:0;top:0;width:1080px;height:1920px;z-index:12}
-#thu{left:120px;top:470px;width:768px;height:420px;
-  background:linear-gradient(90deg,transparent 104px,rgba(200,55,45,.7) 104px 107px,transparent 107px),repeating-linear-gradient(180deg,transparent 0 68px,rgba(35,148,141,.38) 68px 70px),var(--giay)}
-#thu .lo{position:absolute;left:34px;width:30px;height:30px;border-radius:50%;background:#3b302a;box-shadow:inset 0 3px 4px rgba(0,0,0,.7)}
-#hoiN{left:250px;top:512px;font-size:104px;color:var(--do);line-height:1}
-#hoiS{right:226px;top:540px;font-size:24px}
-.cau{left:250px;font-family:NR;font-style:italic;font-weight:600;font-size:56px;white-space:nowrap;line-height:1}
-#q1{top:631px}#q2{top:701px}#q3{top:771px}
-.tem{top:906px;width:220px;height:198px;padding:11px;background:var(--giay);
-  -webkit-mask:linear-gradient(#000 0 0) content-box,radial-gradient(circle 7px,transparent 95%,#000 100%) -11px -11px/22px 22px;-webkit-mask-composite:source-over}
-.tem .in{position:absolute;inset:11px;border:3px solid var(--muc);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#F7EFDD}
-.tem img{width:130px;height:98px;object-fit:cover;border:3px solid var(--muc)}
-.tem span{font-weight:800;font-size:25px;letter-spacing:1px}
-.tem em{position:absolute;right:10px;top:4px;font-family:PF;font-weight:900;font-style:normal;font-size:30px;color:var(--do)}
-#buuW{left:150px;top:880px;width:760px;height:260px}
-#khong{left:168px;top:592px;z-index:14;padding:4px 30px 12px;border:10px double var(--do);color:var(--do);font-family:PF;font-weight:900;font-size:150px;line-height:1;transform-origin:50% 50%;background:rgba(241,232,212,.4)}
+/* CANH 3: GIOI THIEU game (11/10) — ho so game: the loai · dac diem · diem sao + luot · phan them cua ban dac biet. Vi tri tung hang do JS (layoutGT) theo du lieu co/khong. */
+#gtW{left:0;top:0;width:1080px;height:1920px;z-index:12}
+#gt{left:120px;top:470px;width:768px;height:600px}
+#gt .vien{position:absolute;inset:14px;border:3px solid var(--muc);pointer-events:none}
+#gtH{position:absolute;left:14px;top:14px;right:14px;height:58px;background:var(--xanh);color:var(--giay);display:flex;justify-content:space-between;align-items:center;padding:0 22px;font-weight:800;font-size:26px;letter-spacing:4px}
+#gt .h{position:absolute;white-space:nowrap}
+#gtG{left:36px;color:var(--do);font-family:PF;font-weight:900;line-height:1;border:8px double var(--do);padding:2px 22px 8px;background:rgba(241,232,212,.4);transform-origin:0 50%}
+.gtC{height:54px;line-height:54px;padding:0 20px;font-weight:800;font-size:30px;letter-spacing:1px;box-shadow:4px 4px 0 var(--muc);white-space:nowrap;transform-origin:0 50%}
+#gtC1{background:var(--vang);color:var(--muc)}#gtC2{background:var(--xanh);color:var(--giay)}
+#gtR{left:36px;width:696px;height:112px}
+#gtStar{position:absolute;left:0;top:0;width:300px;height:56px}
+#gtLuot{position:absolute;left:0;top:68px;font-weight:700;font-size:30px;letter-spacing:.5px;white-space:nowrap}
+#gtScore{position:absolute;left:340px;top:-14px;font-family:PF;font-weight:900;font-size:128px;line-height:1;color:var(--muc);letter-spacing:-3px;white-space:nowrap;transform-origin:0 70%}
+#gtScore small{font-size:52px;letter-spacing:0;color:var(--do);margin-left:6px}
+#gtB{left:36px;height:50px;line-height:50px;padding:0 22px;background:var(--do);color:var(--giay);font-weight:800;font-size:30px;letter-spacing:3px;transform-origin:0 50%;box-shadow:4px 4px 0 var(--muc)}
+.gtI{font-weight:700;font-size:36px;line-height:50px;height:50px;transform-origin:0 50%}
+.gtI::before{content:"✓ ";color:var(--do);font-weight:800}
 /* CANH 4: bang so 3 vung */
 #bangW{left:0;top:0;width:1080px;height:1920px;z-index:12}
 #bang{left:120px;top:460px;width:768px;overflow:hidden}
@@ -232,7 +230,7 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:transparent;font
     <div id="mini" class="a">SỐ 001 · 10/2026</div>
     <div id="ke2" class="a ke"></div>
     <div id="toc" class="a">
-      <div id="m1"><b>01</b><span>GIÁ SỐC</span></div><div id="m2"><b>02</b><span>SO VÙNG</span></div><div id="m3"><b>03</b><span>HẠN CHÓT</span></div><div id="m4"><b>04</b><span>TRA GIÁ</span></div>
+      <div id="m1"><b>01</b><span>GIÁ SỐC</span></div><div id="m2"><b>02</b><span>GAME</span></div><div id="m3"><b>03</b><span>SO VÙNG</span></div><div id="m4"><b>04</b><span>HẠN CHÓT</span></div>
     </div>
     <div id="tocbar" class="a"></div>
     <!-- bia sau -->
@@ -285,33 +283,18 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:transparent;font
   <div id="tk" class="a muc2"><span>ĐÃ TIẾT KIỆM</span><b>1.176.000đ</b></div>
 </div>
 
-<!-- ===== CANH 3: hoi ===== -->
-<div id="khoan" class="a">KHOAN ĐÃ!</div>
-<div id="g3" class="a">
-  <div class="a bong" style="inset:0"><div id="thu" class="a"><div class="lo" style="top:70px"></div><div class="lo" style="top:195px"></div><div class="lo" style="top:320px"></div></div></div>
-  <div id="hoiN" class="a pf">Hỏi:</div>
-  <div id="hoiS" class="a nho" style="color:var(--xanh)">Thư bạn đọc</div>
-  <div id="q1" class="a cau">Mua store Hồng Kông</div>
-  <div id="q2" class="a cau">hay Singapore</div>
-  <div id="q3" class="a cau">có rẻ hơn không?</div>
-  <div class="a bong tw" id="tw1" style="left:128px;top:906px;width:220px;height:198px"><div class="tem a" style="left:0;top:0"><div class="in"><img src="us.svg"><span>MỸ</span></div><em>?</em></div></div>
-  <div class="a bong tw" id="tw2" style="left:394px;top:906px;width:220px;height:198px"><div class="tem a" style="left:0;top:0"><div class="in"><img src="hk.svg"><span>HỒNG KÔNG</span></div><em>?</em></div></div>
-  <div class="a bong tw" id="tw3" style="left:668px;top:906px;width:220px;height:198px"><div class="tem a" style="left:0;top:0"><div class="in"><img src="sg.svg"><span>SINGAPORE</span></div><em>?</em></div></div>
-  <svg id="buuW" class="a muc" viewBox="0 0 760 260">
-    <g fill="none" stroke="#1C1512" stroke-width="4" stroke-opacity=".75" id="buuL">
-      <path d="M0,96 q30,-14 60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0"/>
-      <path d="M0,118 q30,-14 60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0"/>
-      <path d="M0,140 q30,-14 60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0 t60,0"/>
-    </g>
-    <g id="buuC" transform="rotate(-12 600 116)">
-      <circle cx="600" cy="116" r="84" fill="none" stroke="#1C1512" stroke-opacity=".8" stroke-width="5"/>
-      <circle cx="600" cy="116" r="66" fill="none" stroke="#1C1512" stroke-opacity=".8" stroke-width="2"/>
-      <text x="600" y="98" text-anchor="middle" font-family="BVP" font-weight="800" font-size="20" letter-spacing="2" fill="#1C1512" fill-opacity=".85">SĂN GAME</text>
-      <text x="600" y="132" text-anchor="middle" font-family="PF" font-weight="900" font-size="30" fill="#1C1512" fill-opacity=".85">07.10.26</text>
-      <text x="600" y="158" text-anchor="middle" font-family="BVP" font-weight="800" font-size="15" letter-spacing="2" fill="#1C1512" fill-opacity=".85">HỎI–ĐÁP</text>
-    </g>
-  </svg>
-  <div id="khong" class="a muc2">KHÔNG!</div>
+<!-- ===== CANH 3: gioi thieu game ===== -->
+<div id="gtW" class="a">
+  <div class="a bong" style="inset:0"><div id="gt" class="a giay"><div class="vien"></div>
+    <div id="gtH"><span>HỒ SƠ GAME</span><span id="gtSo">SỐ 001</span></div>
+    <div id="gtG" class="h"></div><div id="gtC1" class="h gtC"></div><div id="gtC2" class="h gtC"></div>
+    <div id="gtR" class="h"><svg id="gtStar" viewBox="0 0 300 56"><defs><path id="st5" d="M28,3 L35.6,19.5 53.6,21.4 40.2,33.6 43.9,51.3 28,42.3 12.1,51.3 15.8,33.6 2.4,21.4 20.4,19.5 Z"/><clipPath id="stClip"><rect id="stRect" x="0" y="0" width="0" height="56"/></clipPath></defs>
+      <g fill="rgba(28,21,18,.14)" stroke="#1C1512" stroke-width="3" stroke-linejoin="round"><use href="#st5" x="0"/><use href="#st5" x="60"/><use href="#st5" x="120"/><use href="#st5" x="180"/><use href="#st5" x="240"/></g>
+      <g clip-path="url(#stClip)" fill="#E3A82B" stroke="#1C1512" stroke-width="3" stroke-linejoin="round"><use href="#st5" x="0"/><use href="#st5" x="60"/><use href="#st5" x="120"/><use href="#st5" x="180"/><use href="#st5" x="240"/></g></svg>
+      <div id="gtLuot"></div><div id="gtScore"></div></div>
+    <div id="gtB" class="h"></div>
+    <div id="gtI1" class="h gtI"></div><div id="gtI2" class="h gtI"></div><div id="gtI3" class="h gtI"></div><div id="gtI4" class="h gtI"></div>
+  </div></div>
 </div>
 
 <!-- ===== CANH 4: so 3 vung ===== -->
@@ -319,7 +302,7 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:transparent;font
   <div class="a bong" style="inset:0">
     <div id="bang" class="a giay">
       <div class="tit nho" style="color:var(--xanh);font-size:24px">Giá ngày 07/10 · đổi ra đồng</div>
-      <div class="tit2"><b>02</b>Quy ra tiền Việt…</div>
+      <div class="tit2"><b>03</b>Quy ra tiền Việt…</div>
       <div class="ke1"></div>
       <div class="dong" id="r1" style="top:170px"><div class="n"><img src="us.svg">MỸ</div><div class="g">784.000đ</div><div class="th mot" id="b1"><i class="nen4"></i></div><span class="pill re" id="d1">✓ RẺ NHẤT</span></div>
       <div class="dong" id="r2" style="top:305px"><div class="n"><img src="hk.svg">HỒNG KÔNG</div><span class="pill" id="d2">+51.000đ</span><div class="g">835.000đ</div><div class="th" id="b2"><i class="nen4"></i><i class="them4" style="width:28px"></i></div></div>
@@ -358,17 +341,18 @@ var HB={bia:752+DYC, gon:442+DYG, sau:Math.min(1262+DYC,DD+14)};
 function tu(k){return MOC.filter(function(w){return w.doan===k})}
 var KBM={};KB.doan.forEach(function(d){KBM[d.k]=d});
 function moc(k){var ws=tu(k),n=KBM[k].neo,o={s:ws[0].s,e:ws[ws.length-1].e};for(var a in n){o[a]=ws[n[a]].s;o[a+'_e']=ws[n[a]].e}return o}
-var M={};['mo','gia','hoi','dap','han','ket'].forEach(function(k){M[k]=moc(k)});
+var M={};['mo','gia','gioi','dap','han','ket'].forEach(function(k){M[k]=moc(k)});
 // moc chuyen canh nam TRONG khoang nghi tho giua 2 cau (LOI-SAI A6): ngay sau cau truoc (pref giay), khong qua s-0,08
 function giua(e,s,pref){return Math.min(Math.max(e+pref,e+.03),s-.08)}
-var C=[0, giua(M.mo.e,M.gia.s,.04), Math.min(Math.max(M.hoi.s-.18,M.gia.e+.03),M.hoi.s-.08), giua(M.hoi.e,M.dap.s,.31), giua(M.dap.e,M.han.s,.04), giua(M.han.e,M.ket.s,.32)];
+// C[2] = the gia roi (cau GIOI THIEU bat dau ngay sau): ngay sau chu cuoi cua `gia`, khong som hon gioi.s-0,45, khong qua gioi.s-0,08. C[3] = het gioi thieu, truoc bang so vung.
+var C=[0, giua(M.mo.e,M.gia.s,.04), Math.min(Math.max(M.gia.e+.03,M.gioi.s-.45),M.gioi.s-.08), giua(M.gioi.e,M.dap.s,.31), giua(M.dap.e,M.han.s,.04), giua(M.han.e,M.ket.s,.32)];
 // TA = moc dung chung hinh + tieng (do-khung.cjs ghi neo.json; am08.py/nen08.py/kiem doc lai — mot nguon duy nhat)
 var TA={C:C,DAI:DAI};
 TA.dut=C[2]+.1;                      // day dut, the gia roi
 TA.tagEnd=TA.dut+.8;
-TA.g3=M.hoi.mua+.12;                 // la thu ban doc vao
-TA.v4=Math.max(M.dap.quy-.34,M.dap.khong+.52);   // bang so vung vao (khong som hon dau KHONG! + 0,52 s: la thu phai bay di xong truoc)
-TA.ra3=TA.v4-.2;                     // la thu bay di
+TA.g3=TA.dut+.42;                    // ho so game truot vao (the gia da roi khoi vung nhin)
+TA.v4=M.dap.s;                       // bang so vung vao cung luc cau so vung bat dau
+TA.ra3=Math.max(TA.v4-.22,M.gioi.e+.08);   // ho so game bay di xong TRUOC khi bang so vao (H18) va sau chu cuoi cua cau gioi thieu
 TA.g3end=TA.ra3+.37;
 TA.r4=C[4]-.02;                      // bang so rut
 TA.c4end=TA.r4+.37;
@@ -379,8 +363,8 @@ TA.so=KEO.han.hhmm.replace(':','');
 TA.goc=fmtK(GOC);                   // chu so dem luc bat dau (am08.py tim khung so bat dau doi)
 TA.chot=[0,1,2,3].map(function(i){return M.han.truoc+.05+.08*i});
 TA.url=M.ket.tra+.27; TA.chips=M.ket.tra+.47; TA.b6b=M.ket.tra+.57; TA.logo=M.ket.san+.24; TA.b6c=M.ket.san+.39;
-TA.moc=[C[1]-.16,C[2]-.30,M.hoi.e+.06,C[4]-.2,M.han.e,DAI-.32].map(function(x){return Math.round(x*100)/100});   // 6 moc soi anh / so SSIM
-TA.mocDom=[TA.moc[0],Math.round(Math.min(Math.max(TA.moc[1],M.gia.gia+1.05),TA.dut-.05)*100)/100,TA.g3-.2,TA.moc[2],TA.ra3+.02,TA.moc[3],TA.moc[4],TA.moc[5]].map(function(x){return Math.round(x*100)/100});
+TA.moc=[C[1]-.16,TA.dut-.05,M.gioi.e+.02,C[4]-.2,M.han.e,DAI-.32].map(function(x){return Math.round(x*100)/100});   // 6 moc soi anh / so SSIM
+TA.mocDom=[TA.moc[0],Math.round(Math.min(Math.max(TA.moc[1],M.gia.gia+1.05),TA.dut-.05)*100)/100,TA.moc[2]-1.0,TA.moc[2],TA.ra3+.02,TA.moc[3],TA.moc[4],TA.moc[5]].map(function(x){return Math.round(x*100)/100});
 window.__NEO={M:M,TA:TA};
 function cl(x){return x<0?0:x>1?1:x}
 function p(t,a,d){return cl((t-a)/d)}
@@ -439,9 +423,7 @@ function datNoiDung(){
   $('t2l2').textContent='CÒN LẠI · STORE '+V[0].hien;
   $('moiso').textContent=fmtK(GOC);
   $('tk').querySelector('b').textContent=fmtD(TK);
-  [1,2,3].forEach(function(i){var tw=$('tw'+i);tw.querySelector('img').setAttribute('src',V[i-1].co);tw.querySelector('span').textContent=V[i-1].hien});
-  $('q1').textContent='Mua store '+V[1].dd; $('q2').textContent='hay '+V[2].dd;
-  $('buuC').querySelectorAll('text')[1].textContent=KEO.ngay_dmy;
+  datGT();
   $('bang').querySelector('.tit').textContent='Giá ngày '+KEO.ngay_dm+' · đổi ra đồng';
   var dm=Math.max(V[1].vnd-V[0].vnd,V[2].vnd-V[0].vnd)/1000;   // thanh nhiet ke: phan do dai them tuong ung chenh lech (toi da 66 px)
   BW=[440,0,0];
@@ -453,12 +435,31 @@ function datNoiDung(){
   $('p5b').textContent='ngày '+KEO.han.dm+' · giờ Việt Nam';
 }
 var BW=[440,468,506];
+/* ===== HO SO GAME (canh 3, 11/10): hang nao thieu du lieu thi BO (khong doan). Vi tri tung hang tinh o day; thoi diem hien trong ve(). ===== */
+// GT.b = day (y, trong the) cua tung hang: the DAI DAN theo hang dang hien (H3). Chu thich de DONG RIENG (H25/H28/H30).
+var GI=KEO.gioi_thieu||{}, GT={G:0,C1:0,C2:0,R:0,B:0,I:[0,0,0,0],b:{}};
+function datGT(){
+  $('gtSo').textContent='SỐ '+KEO.so_ky_s;
+  var y=96, tl=GI.the_loai||[], dd=GI.dac_diem||[], dm=GI.diem, ban=GI.ban;
+  if(tl.length){var e=$('gtG');e.textContent=tl.map(function(x){return x.vi.toUpperCase()}).join(' · ');vuaW(e,696,84);e.style.top=y+'px';GT.b.G=y+Math.round(e.getBoundingClientRect().height);y=GT.b.G+20;GT.G=1}
+  if(dd.length){var w0=36,yc=y;
+    for(var i=0;i<Math.min(2,dd.length);i++){var c=$('gtC'+(i+1));c.textContent=dd[i].hien;var w=Math.ceil(c.getBoundingClientRect().width);if(w0+w>732){w0=36;yc+=54+14}
+      c.style.left=w0+'px';c.style.top=yc+'px';w0+=w+22;GT['C'+(i+1)]=1;GT.b['C'+(i+1)]=yc+54}
+    y=yc+54+24}
+  if(dm){var r=$('gtR');r.style.top=y+'px';$('gtLuot').textContent=dm.luot+' lượt chấm';$('gtScore').innerHTML=esc(dm.hien)+'<small>/5</small>';GT.b.R=y+112;y+=112+22;GT.R=1}
+  if(ban){var b=$('gtB');b.textContent=('BẢN '+ban.ten_noi+' CÓ THÊM').toUpperCase();b.style.top=y+'px';GT.b.B=y+50;y+=50+16;GT.B=1;
+    var n=Math.min(4,ban.them.length),col2=n>1;
+    for(var i=0;i<n;i++){var it=$('gtI'+(i+1));it.textContent=ban.them[i].hien;it.style.left=(36+(i%2)*360)+'px';it.style.top=(y+Math.floor(i/2)*54)+'px';vuaW(it,col2?324:696,36);GT.I[i]=1;GT.b['I'+i]=y+Math.floor(i/2)*54+50}
+    y+=Math.ceil(n/2)*54}
+  $('gt').style.height=(y+22)+'px';   // chieu cao DAY DU (dung de do bo cuc); ve() thu lai theo hang dang hien
+}
+function gtPop(t,id,on,t0,from,rot){var e=$(id);show(e,!!on);if(!on)return;var d=dau(t,t0,from);op(e,d?1:0);if(d)tf(e,'translateX('+d[1]*.5+'px) rotate('+rot+'deg) scale('+d[0]+')')}
 function datNenTang(){
   doi(['hdr1','ke0','mast','ke1','issue','focus','title','hdr6'],DYC);
   $('goc1').style.top=$('goc2').style.top=(TT+16)+'px';
   doi(['mini','ke2','toc','tocbar'],DYG);
   doi(['ke6','b6a','b6b','chips','url','logoW','b6c'],DYB);
-  doi(['khoan','toi5'],DYS);
+  doi(['toi5'],DYS);
   tf($('c1'),'translateY('+DYC+'px)'); tf($('c5'),'translateY('+DYS+'px)');
 }
 function doMast(){var m=$('mast');m.style.fontSize='100px';var w=m.getBoundingClientRect().width;MAST.F=100*750/w;m.style.fontSize=MAST.F+'px';MAST.sm=64/MAST.F;
@@ -497,8 +498,8 @@ function ve(t){
   if(gon){var vg=p(t,C[1]+.25,.3)*(1-p(t,C[5],.25)); op($('mini'),vg); op($('ke2'),vg); op($('tocbar'),vg);
     $('ke2').style.width=(768*eo(p(t,C[1]+.2,.45)))+'px';
     for(var i=1;i<=4;i++){var e=$('m'+i);op(e,vg*p(t,C[1]+.3+i*.06,.25));tf(e,'translateY('+((1-eo(p(t,C[1]+.3+i*.06,.3)))*16)+'px)')}
-    var muc=t<C[2]?0:t<C[4]?1:t<C[5]?2:3; // muc dang doc
-    var dich=[0,192,384,576], tt=[C[1],C[2],C[4],C[5]];
+    var muc=t<C[2]?0:t<C[3]?1:t<C[4]?2:3; // muc dang doc: 01 GIA SOC · 02 GAME NAY · 03 SO VUNG · 04 HAN CHOT
+    var dich=[0,192,384,576], tt=[C[1],C[2],C[3],C[4]];
     var xk=0; for(var i=1;i<4;i++){xk=L(xk,dich[i],eio(p(t,tt[i]-.1,.35)))} tf($('tocbar'),'translateX('+xk+'px)');
     for(var i=1;i<=4;i++){var e=$('m'+i),ac=i-1===muc;e.querySelector('b').style.color=ac?'var(--do)':'';if(!ac)op(e,Math.min(e.style.opacity===''?1:+e.style.opacity,.42))}
   }
@@ -563,23 +564,28 @@ function ve(t){
     var d=dau(t,M.gia.thoi-.06,2.3); op($('tk'),d?1:0); if(d)tf($('tk'),'translateX('+d[1]+'px) rotate(-8deg) scale('+d[0]+')');
   }
 
-  // ----- CANH 3: KHOAN + thu ban doc -----
-  var kh=$('khoan'), khOn=t>=M.hoi.khoan&&t<TA.g3+.17; show(kh,khOn);
-  if(khOn){var d=dau(t,M.hoi.khoan,1.8);tf(kh,'translateX('+d[1]+'px) rotate(-5deg) scale('+d[0]+')');op(kh,1-p(t,TA.g3+.07,.1))}
-  var g3=$('g3'), c3=t>=TA.g3&&t<TA.g3end; show(g3,c3);
+  // ----- CANH 3: GIOI THIEU game (ho so game) -----
+  var gW=$('gtW'), c3=t>=TA.g3&&t<TA.g3end; show(gW,c3);
   if(c3){
-    var vao=p(t,TA.g3+.02,.4), ra3=p(t,TA.ra3,.3);
-    var sk=dau(t,M.dap.khong-.04,2.4), rung=sk?sk[1]*.6:0;
-    tf(g3,'translate('+((1-eo5(vao))*-1100+L(0,-1300,ei(ra3))+rung)+'px,'+DYS+'px) rotate('+((1-eo5(vao))*-5-ei(ra3)*9)+'deg)');
-    g3.style.transformOrigin='504px 900px';
-    $('q1').style.clipPath='inset(-20px '+(100-eo(p(t,TA.g3+.10,.7))*100)+'% -20px 0)';
-    $('q2').style.clipPath='inset(-20px '+(100-eo(p(t,M.hoi.hay-.04,.5))*100)+'% -20px 0)';
-    $('q3').style.clipPath='inset(-20px '+(100-eo(p(t,M.hoi.co-.04,.8))*100)+'% -20px 0)';
-    var tems=[['tw1',TA.g3+.20,-5],['tw2',M.hoi.b-.06,3],['tw3',M.hoi.c-.06,-3]];
-    for(var i=0;i<3;i++){var e=$(tems[i][0]),d=dau(t,tems[i][1],1.7);op(e,d?1:0);if(d)tf(e,'translateX('+d[1]*.5+'px) rotate('+tems[i][2]+'deg) scale('+d[0]+')')}
-    var bu=p(t,M.hoi.khongq-.08,.3); op($('buuW'),bu>0?.999:0); $('buuL').style.clipPath='inset(0 '+(100-eo(bu)*100)+'% 0 0)';
-    var bc=dau(t,M.hoi.khongq+.1,1.8); show($('buuC'),!!bc); if(bc)$('buuC').setAttribute('transform','rotate(-12 600 116) translate('+(600*(1-bc[0]))+' '+(116*(1-bc[0]))+') scale('+bc[0]+')');
-    var kg=dau(t,M.dap.khong-.04,2.6); op($('khong'),kg?1:0); if(kg)tf($('khong'),'rotate(-12deg) scale('+kg[0]+')');
+    var vao=p(t,TA.g3,.4), ra3=p(t,TA.ra3,.3), t_ = TA.g3+.2, G_=M.gioi;   // t_ = som nhat noi dung duoc hien (sau khi ho so da truot vao)
+    tf(gW,'translate('+((1-eo5(vao))*-1100+L(0,-1300,ei(ra3)))+'px,'+DYS+'px) rotate('+((1-eo5(vao))*-5-ei(ra3)*9)+'deg)');
+    gW.style.transformOrigin='504px 900px';
+    var TG=Math.max((G_.tl!==undefined?G_.tl:G_.game)-.04,t_), TC1=Math.max(G_.f1-.05,t_+.1), TC2=Math.max(G_.f2-.05,t_+.1), TR=Math.max(G_.ng-.05,t_), TB=Math.max(G_.ban-.1,t_);
+    var TI=[1,2,3,4].map(function(i){return Math.max(G_['i'+i]-.12,t_)});
+    gtPop(t,'gtG',GT.G,TG,1.9,-3); gtPop(t,'gtC1',GT.C1,TC1,1.6,0); gtPop(t,'gtC2',GT.C2,TC2,1.6,0);
+    if(GT.R){   // diem sao: khung sao hien ra o "Nguoi", sao to dan tu "cham" toi het diem, so diem dong dau o chu so
+      var R_=$('gtR'),q=p(t,TR,.22); show(R_,true); op(R_,q); tf(R_,'translateY('+((1-eo5(q))*24)+'px)');
+      var rr=GI.diem.lam_tron, fw=Math.floor(rr)*60+(rr%1)*56, sw=(G_.sc_e-G_.cham)+.3;
+      $('stRect').setAttribute('width',(fw*eo(p(t,G_.cham-.02,sw))).toFixed(1));
+      var ds=dau(t,Math.max(G_.sc-.02,t_),1.6),SC=$('gtScore'); op(SC,ds?1:0); if(ds)tf(SC,'translateX('+ds[1]*.4+'px) scale('+ds[0]+')');
+      op($('gtLuot'),p(t,G_.sc_e-.05,.25));
+    } else show($('gtR'),false);
+    gtPop(t,'gtB',GT.B,TB,1.5,0);
+    for(var gi=0;gi<4;gi++)gtPop(t,'gtI'+(gi+1),GT.I[gi],TI[gi],1.5,0);
+    // the dai dan theo hang da hien (khong co khoang giay trong cho chu): day the = day hang cuoi da toi + 22
+    var hh=96, ms=[[GT.G,TG,GT.b.G],[GT.C1,TC1,GT.b.C1],[GT.C2,TC2,GT.b.C2],[GT.R,TR,GT.b.R],[GT.B,TB,GT.b.B]]; for(var gi=0;gi<4;gi++)ms.push([GT.I[gi],TI[gi],GT.b['I'+gi]]);
+    ms.forEach(function(m){if(m[0])hh=Math.max(hh,L(96,m[2],eo(p(t,m[1]-.12,.3))))});
+    $('gt').style.height=(hh+22)+'px';
   }
 
   // ----- CANH 4: bang so -----

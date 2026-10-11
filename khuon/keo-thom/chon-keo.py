@@ -9,12 +9,13 @@
 #  - Kiem LAI tren trang san pham DUNG vung (3 vung): gia tren trang ±2% so voi so; endTime >= 20:00 ngay dang + 1 ngay (vung noi tren bia);
 #    CA 3 vung deu phai co endTime >= moc nay (may dang kiem lai ca 3 qua `kiem_lai`, thieu endTime = bo khung); gia/endTime ghi vao keo.json la GIA TRI DAU TIEN
 #    tren trang = khoi gia mua dut cua DUNG pid (cong-cu/gia_trang.py, cung ham voi dang/gia.py kiem lai; khoi mo ho/khong co endTime -> loai); trailer + anh lay tu trang vung noi tren bia (khong gia dinh en-us).
+#  - GIOI THIEU game (11/10): keo.json.gioi_thieu (the loai, dac diem, diem sao + so luot, phan them cua ban dac biet) tu trang PS Store; khong co gi de noi -> loai ung vien.
 #  - Xuat keo.json (+ kiem_lai + loi_dang cho manifest), loi-dang.json, ket-qua-chon.json (cung quy uoc voi Top 5: thoat 3 = BO KHUNG, workflow ntfy).
 #  - LOAI game co nut UPSELL_PS_PLUS_GAME_CATALOG cua dung pid tren bat ky trang vung nao (dang trong PS Plus Game Catalog); ly do loai ghi vao ket-qua-chon.json[loai].
 #    Ma thoat: 0 chon duoc · 3 bo khung (du lieu cu / khong ung vien dat) · 4 da co Release hom nay · 5 khong doc duoc lich su Release.
 import argparse,datetime,hashlib,json,os,pathlib,re,subprocess,sys,urllib.request,zoneinfo
 T=pathlib.Path(__file__).resolve().parent; sys.path.insert(0,str(T))
-from loi_chu import VUNG,TEN_DAY_DU,gon_ten,ten_hien
+from loi_chu import VUNG,TEN_DAY_DU,gon_ten,ten_hien,gioi_thieu_tu_trang
 ap=argparse.ArgumentParser()
 ap.add_argument('--repo',default=os.environ.get('DATA_DIR') or str(T.parent.parent.parent/'kenh-game-du-lieu'))
 ap.add_argument('--ngay'); ap.add_argument('--ra',default=str(T/'keo.json'))
@@ -101,7 +102,7 @@ def doc_trang(html,pid):
     Luu y: dang/gia.py kiem lai cung bang gia_trang.khoi_gia nen gia/endTime ghi vao keo.json = gia/endTime may dang se doc."""
     k=GT.khoi_gia(html,pid); m=GT.media(html,pid)
     return dict(ps_plus=GT.ps_plus_catalog(html,pid),gia_cuc_bo=k['gia_cuc_bo'] if k else None,tien_te=k['tien_te'] if k else None,endTime=k['endTime'] if k else None,khoi=k,
-                video=m['video'],anh_chup=m['anh_chup'],anh=m['anh'])
+                video=m['video'],anh_chup=m['anh_chup'],anh=m['anh'],thong_tin=GT.thong_tin_game(html,pid))
 def kiem_ung_vien(u):
     """-> (keo|None, ly do loai)"""
     v3=u['v3']; tr=[]
@@ -133,6 +134,12 @@ def kiem_ung_vien(u):
             except Exception: continue
             ly=media_xau.kiem_anh(g)
             if ly: return None,f'anh {u.rsplit("/",1)[-1][:20]} {ly}'
+    # GIOI THIEU game (Hao 11/10): the loai / diem sao / dac diem / phan them cua ban dac biet — CHI tu du lieu trang PS Store (cong-cu/gia_trang.thong_tin_game), moi truong lay tu trang dau tien (vung re nhat truoc) co truong do.
+    # Khong co GI de noi (khong the loai, diem, dac diem, phan them) -> loai ung vien (khong dung cau doan mo).
+    gioi=gioi_thieu_tu_trang(GT.hop_nhat_thong_tin([p['thong_tin'] for p in tr]))
+    if not gioi: return None,'trang PS Store khong co du lieu gioi thieu (the loai / diem / dac diem / phan them)'
+    gioi['nguon']=dict(pid=v3[0]['id'],loc=LOC[v3[0]['ma']],hop_nhat_tu=[LOC[v['ma']] for v in v3])
+    tr[0]['gioi']=gioi
     return tr,None
 chon=None
 for i,u in enumerate(UV[:A.toi_da],1):
@@ -156,7 +163,7 @@ mo_ta=(f"{chinh} đang giảm {a['giam']}% ở PS Store {a['dd']}: còn {con_goc
        f"Hết giảm {het:%H:%M ngày %d/%m} giờ Việt Nam. Giá quy đổi chỉ để tham khảo.\n\nXem giá ở 6 vùng PS Store: https://sangame.com.vn/{trang_game.ten_file_trang(h['slug'])}")
 keo=dict(phien_ban=1,che_do_hoi_quy=False,ngay_dang=NGAY.isoformat(),gio_dang=GIO_DANG.isoformat(),ngay_du_lieu=str(d['cap_nhat'])[:10],gia_the_ngay=d.get('gia_the_ngay'),so_ky=LS['so_ky'],
     game=dict(ten=h['ten'],giam=a['giam'],may=may,hang_ban_chay=u['hang'],slug=h['slug'],khoa=h['khoa'],anh=tr[0]['anh'] or h.get('anh'),anh_chup=tr[0]['anh_chup'][:8],trailer=tr[0]['video']),
-    goc_vnd=a['goc_vnd'],con_vnd=a['vnd'],vung=vung,han=dict(ma=a['ma'],endTime=a['endTime'],iso=het.isoformat()),
+    goc_vnd=a['goc_vnd'],con_vnd=a['vnd'],vung=vung,gioi_thieu=tr[0]['gioi'],han=dict(ma=a['ma'],endTime=a['endTime'],iso=het.isoformat()),
     ghi_chu_bang='Quy theo giá thẻ PSN từng vùng · giá tham khảo',
     kiem_lai=[dict(ten=h['ten'],pid=v['pid'],loc=v['loc'],gia_vnd=v['vnd'],gia_cuc_bo=v['gia_cuc_bo'],tien_te=v['tien_te'],endTime=v['endTime']) for v in vung],
     loi_dang=dict(tieu_de=f"{chinh} giảm {a['giam']}% ở PS Store {a['dd']}: còn {con_goc(a['vnd'])}"[:100],mo_ta=mo_ta[:2000],hashtag=['#SănGame','#PlayStation','#PS5','#GiảmGiá'],link='https://sangame.com.vn/'))

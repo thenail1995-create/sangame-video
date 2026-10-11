@@ -67,6 +67,25 @@ class DocGia(unittest.TestCase):
     def test_doc_gia_theo_locale(self):
         for s,v in [('HK$47.70',47.7),('1.234.000₫',1234000),('Rp 1.299.000',1299000),('₹1,299',1299),('1,299.00',1299),('47,70',47.7),('$ 1.299,50',1299.5),('Rp\xa063,270',63270)]: self.assertEqual(GT.doc_gia(s),v,s)
         self.assertIsNone(GT.doc_gia('Included'))
+
+class ThongTinGame(unittest.TestCase):       # 11/10: gioi thieu game — Product:<pid> bi chia manh o nhieu the script (that: starRating o the A, genres o the B, edition.features + descriptions o the C)
+    def test_hop_nhat_cac_manh_product_cua_dung_pid(self):
+        a={f'Product:{PID}':{'starRating':{'averageRating':4.37,'totalRatingsCount':27172}}}
+        b={f'Product:{PID}':{'localizedGenres':[{'value':'Shooter'},{'value':'Shooter'}],'edition':{'name':'Digital Deluxe Edition','type':'PREMIUM','features':['Game','A weapon.\u00b9']}}}
+        c={f'Product:{PID}':{'edition':{'name':'Digital Deluxe Edition'},'descriptions':[{'type':'SHORT','value':'ngan'},{'type':'LONG','value':'dai <br/>- x'}]},f'Product:{GOIY}':{'starRating':{'averageRating':1.0,'totalRatingsCount':999}}}
+        t=GT.thong_tin_game(trang(a,b,c),PID)
+        self.assertEqual(t['diem'],{'tb':4.37,'so_luot':27172}); self.assertEqual(t['the_loai'],['Shooter','Shooter'])
+        self.assertEqual((t['edition']['ten'],t['edition']['loai'],t['edition']['tinh_nang']),('Digital Deluxe Edition','PREMIUM',['Game','A weapon.\u00b9']))
+        self.assertEqual((t['mo_ta_ngan'],t['mo_ta_dai']),('ngan','dai <br/>- x'))
+    def test_thieu_truong_thi_rong_khong_doan(self):
+        t=GT.thong_tin_game(trang({f'Product:{PID}':{'name':'X'}}),PID); self.assertEqual((t['the_loai'],t['diem'],t['edition'],t['mo_ta_dai']),([],None,None,''))
+        self.assertEqual(GT.thong_tin_game('<html></html>',PID)['diem'],None); self.assertEqual(GT.thong_tin_game(None,PID)['the_loai'],[])
+    def test_khong_nhan_diem_cua_san_pham_khac(self):
+        self.assertIsNone(GT.thong_tin_game(trang({f'Product:{GOIY}':{'starRating':{'averageRating':1.0,'totalRatingsCount':999}}}),PID)['diem'])
+    def test_hop_nhat_nhieu_trang_lay_truong_dau_tien(self):
+        h=GT.hop_nhat_thong_tin([dict(the_loai=[],diem=None,edition=None,mo_ta_dai='',mo_ta_ngan=''),dict(the_loai=['Action'],diem={'tb':4.0,'so_luot':300},edition=None,mo_ta_dai='B',mo_ta_ngan=''),dict(the_loai=['Puzzle'],diem=None,edition=None,mo_ta_dai='C',mo_ta_ngan='D')])
+        self.assertEqual((h['the_loai'],h['diem']['so_luot'],h['mo_ta_dai'],h['mo_ta_ngan']),(['Action'],300,'B','D'))
+
 if __name__=='__main__': unittest.main()
 
 class PsPlusCatalog(unittest.TestCase):   # Opus 11/10: Keo thom loai game co trong PS Plus Game Catalog

@@ -43,6 +43,14 @@ class KhoiDong(unittest.TestCase):
         src=KIEM('keo-thom').read_text(encoding='utf-8'); i=src.index("sys.path.insert(0,str(B))")
         self.assertLess(i,src.index('from loi_chu import ten_noi')); self.assertLess(i,src.index('import media_xau'))
 
+# thong tin trang PS Store cua Returnal Digital Deluxe (11/10, cong-cu/gia_trang.thong_tin_game) -> keo.json.gioi_thieu cho test kich-ban / D3 (khong mang)
+TT_RETURNAL=dict(the_loai=['Shooter'],diem=dict(tb=4.37,so_luot=27172),edition=dict(ten='Digital Deluxe Edition',loai='PREMIUM',tinh_nang=[]),mo_ta_ngan='Fight to break the cycle of chaos on a hostile, alien planet.',
+    mo_ta_dai='Digital Deluxe Edition includes early access to in-game items which are otherwise obtainable via story progression:¹ <br/>- Electropylon Driver weapon.¹<br/>- Hollowseeker weapon.¹<br/>- One Reflex Stimulant.¹<br/>- One Adrenaline Booster.¹<br/>- One Pulsating Mass artefact.¹<br/>- PSN avatars for PS5™.<br/>- Digital soundtrack.<br/><br/>BREAK THE CYCLE<br/><br/>In this roguelike shooter, both the planet and your equipment change with every cycle. <br/><br/>Choose to go solo, or share your entire journey with another player in online Co-op Mode.²')
+def gioi_mau(tt=None):
+    sys.path.insert(0,str(ROOT/'khuon'/'keo-thom'))
+    try:
+        import loi_chu as lc; return lc.gioi_thieu_tu_trang(tt or TT_RETURNAL)
+    finally: sys.path.remove(str(ROOT/'khuon'/'keo-thom'))
 def chay_kich_ban(thu_muc_khuon,tep,du_lieu):
     with tempfile.TemporaryDirectory() as d:
         d=pathlib.Path(d)
@@ -60,7 +68,7 @@ class LuatKhuonKhopKichBan(unittest.TestCase):       # nghe_so.nhiem_vu_top5 / K
             pt,vg=ns.nhiem_vu_top5(r); self.assertEqual(bool(ns.doc_phan_tram(loi[f'h{r}'])),pt,(r,loi[f'h{r}'])); self.assertEqual(bool(ns.doc_vung(loi[f'h{r}'])),vg,(r,loi[f'h{r}']))
     def test_keo_thom(self):
         het=int(datetime.datetime(2026,10,22,13,59,tzinfo=datetime.timezone(datetime.timedelta(hours=7))).timestamp()*1000)
-        keo=dict(ngay_dang='2026-10-11',game=dict(ten='Returnal Digital Deluxe Edition',giam=75),goc_vnd=2240000,con_vnd=560000,han=dict(endTime=het,ma='US'),
+        keo=dict(ngay_dang='2026-10-11',game=dict(ten='Returnal Digital Deluxe Edition',giam=75),goc_vnd=2240000,con_vnd=560000,han=dict(endTime=het,ma='US'),gioi_thieu=gioi_mau(),
                  vung=[dict(ma='US',vnd=560000),dict(ma='HK',vnd=1210000),dict(ma='SG',vnd=1320000)])
         kb=chay_kich_ban('keo-thom',['kich-ban.py','loi_chu.py'],{'keo.json':keo}); loi={x['k']:x['loi'] for x in kb['doan']}
         ma=lambda s:[m for m,_ in ns.doc_vung(s)]
@@ -69,6 +77,15 @@ class LuatKhuonKhopKichBan(unittest.TestCase):       # nghe_so.nhiem_vu_top5 / K
             mong=[keo['vung']['ABC'.index(x)]['ma'] for x in ns.KEO_VUNG.get(k,())]
             self.assertEqual(sorted(set(ma(t))),sorted(set(mong)),(k,t))
         self.assertEqual(ma(loi['dap']),['US','HK','SG']); self.assertIn('rẻ hơn',loi['dap'])      # chieu so sanh 'A rẻ hơn B' (phep chu_the trong doi_chieu)
+        self.assertNotIn('hoi',loi); self.assertNotIn('Không nha',' '.join(loi.values())); self.assertNotIn('rẻ hơn không',' '.join(loi.values()))   # 11/10: bo doan hoi-dap
+        self.assertIn('bốn phẩy bốn trên năm sao',loi['gioi']); self.assertEqual(list(loi),['mo','gia','gioi','dap','han','ket'])
+    def test_keo_thom_thieu_gioi_thieu_thi_dung(self):
+        with tempfile.TemporaryDirectory() as d:
+            d=pathlib.Path(d)
+            for t in ('kich-ban.py','loi_chu.py'): shutil.copy(ROOT/'khuon'/'keo-thom'/t,d/t)
+            het=int(datetime.datetime(2026,10,22,13,59,tzinfo=datetime.timezone(datetime.timedelta(hours=7))).timestamp()*1000)
+            (d/'keo.json').write_text(json.dumps(dict(ngay_dang='2026-10-11',game=dict(ten='X',giam=75),goc_vnd=2240000,con_vnd=560000,han=dict(endTime=het,ma='US'),vung=[dict(ma='US',vnd=560000),dict(ma='HK',vnd=1210000),dict(ma='SG',vnd=1320000)])),encoding='utf-8')
+            r=subprocess.run([sys.executable,'-I',str(d/'kich-ban.py')],cwd=d,capture_output=True,text=True,timeout=60); self.assertNotEqual(r.returncode,0); self.assertIn('gioi_thieu',r.stderr+r.stdout)
 
 class TinNhanhB6(unittest.TestCase):         # khoi B6 THAT trong kiem-tat-ca.py (tin-nhanh) chay voi tin.json thieu ngay_dang (fixture tin-nhanh-01): khong KeyError
     def chay(self,TJ,env):
@@ -132,20 +149,28 @@ class D3TheoLuatKhuon(unittest.TestCase):      # Sol vong 2b #11/#12 o CAP SCRIP
     def keo(self,heard):
         VN=datetime.timezone(datetime.timedelta(hours=7)); het=datetime.datetime(2026,10,22,13,59,tzinfo=VN)
         V=[dict(ma='US',vnd=560000),dict(ma='HK',vnd=1209000),dict(ma='SG',vnd=1319000)]
-        KEO=dict(game=dict(ten='Returnal™ Digital Deluxe Edition',giam=75),goc_vnd=2240000,con_vnd=560000,vung=V)
+        KEO=dict(game=dict(ten='Returnal™ Digital Deluxe Edition',giam=75),goc_vnd=2240000,con_vnd=560000,vung=V,gioi_thieu=gioi_mau())
         sys.path.insert(0,str(ROOT/'khuon'/'keo-thom'))
-        try: return chay_d3('keo-thom','# 5d) D3 (B2)','# 5c) NEN',dict(KEO=KEO,_G=KEO['game'],_V=V,_h=het,_nd=datetime.date(2026,10,11),_kb=dict(doan=[dict(k=k,loi=v) for k,v in heard.items()])),heard,['mo','gia','hoi','dap','han'])[0]
+        try: return chay_d3('keo-thom','# 5d) D3 (B2)','# 5c) NEN',dict(KEO=KEO,_G=KEO['game'],_V=V,_h=het,_nd=datetime.date(2026,10,11),_kb=dict(doan=[dict(k=k,loi=v) for k,v in heard.items()])),heard,['mo','gia','gioi','dap','han'])[0]
         finally: sys.path.remove(str(ROOT/'khuon'/'keo-thom'))
-    HK={'mo':'Returno Digital Deluxe Edition đang giảm 75% trên PS to Mỹ nè.','gia':'Từ hơn 2 triệu 2 giờ còn có 560.000 thôi','hoi':'Ủa mà khoan, mua store hồng kông hay sinh có dạy hơn không ta? Ha ha, không...',
-        'dap':'Không nha! Quy ra tiền Việt, Mỹ vẫn dạy hơn Hồng Kông 600 rưỡi, dạy hơn sinh tới 706 lận.','han':'Nhưng mà nhanh tay nha, hết giảm trước 2h chiều ngày 22 tháng 10, cha dám!'}
+    HK={'mo':'Returno Digital Deluxe Edition đang giảm 75% trên PS to Mỹ nè.','gia':'Từ hơn 2 triệu 2 giờ còn có 560.000 thôi','gioi':'Game bắn súng roguelike, chết là chơi lại từ đầu, chơi chung online được, người chơi chấm 4.4 trên 5 sao. Bản Deluxe có thêm 2 vũ khí với vật phẩm dùng sớm, ảnh đại diện và nhạc phim.',
+        'dap':'Store Mỹ đáng rẻ nhất, rẻ hơn Hồng Kông 650, rẻ hơn Sinh 706.','han':'Nhưng mà nhanh tay nha, hết giảm trước 2h chiều ngày 22 tháng 10, cha dám!'}
     def test_keo_cau_that_dat(self):
         r=self.keo(self.HK); self.assertTrue(r[1],r)
     def test_keo_delux_thieu_chu_e_van_dat_nhung_thieu_phien_ban_van_truot(self):      # CI that 11/10: Whisper nghe 'Delux' thay 'Deluxe'
         r=self.keo(dict(self.HK,mo='Returnal Digital Delux Edition đang giảm 75% trên PS to Mỹ nè.')); self.assertTrue(r[1],r)
         r=self.keo(dict(self.HK,mo='Returnal Digital Edition đang giảm 75% trên PS to Mỹ nè.')); self.assertFalse(r[1],r); self.assertIn('thieu phien ban deluxe',r[2])
     def test_keo_bo_cau_phan_tram_vung_hoac_dao_chieu_thi_truot(self):
-        for k,moi,dau in (('mo','Returno Digital Deluxe Edition đang giảm trên PS Store nè.','VUNG'),('mo','Returno Digital Deluxe Edition đang giảm trên PS to Mỹ nè.','PHAN TRAM'),('hoi','Ủa mà khoan, mua store hay có dạy hơn không ta?','VUNG'),
-                          ('dap','Không nha! Quy ra tiền Việt, Mỹ vẫn đắt hơn Hồng Kông 600 rưỡi, dạy hơn sinh tới 706 lận.','CHIEU SO SANH')):
+        for k,moi,dau in (('mo','Returno Digital Deluxe Edition đang giảm trên PS Store nè.','VUNG'),('mo','Returno Digital Deluxe Edition đang giảm trên PS to Mỹ nè.','PHAN TRAM'),
+                          ('dap','Store Mỹ đang đắt hơn Hồng Kông 650, rẻ hơn Sinh 706.','CHIEU SO SANH')):
+            r=self.keo(dict(self.HK,**{k:moi})); self.assertFalse(r[1],(k,r)); self.assertIn(dau,r[2],(k,r[2]))
+    def test_keo_gioi_diem_sai_hoac_thieu_phan_them_thi_truot(self):      # doan `gioi` (11/10): diem sao phai nghe DUNG 4,4 ('4.4' / '4,4' / 'bốn phẩy bốn' deu duoc); thieu phan them bat buoc -> truot
+        for ok in ('Game bắn súng roguelike, chơi chung online được, người chơi chấm 4,4 trên 5 sao. Bản Deluxe có thêm hai vũ khí, vật phẩm, ảnh đại diện và nhạc phim.',
+                   'Game bắn súng roguelike, chơi chung online được, người chơi chấm bốn phẩy bốn trên năm sao. Bản Delux có thêm 2 vũ khí với vật phẩm dùng sớm, ảnh đại diện và nhạc phim.'):
+            r=self.keo(dict(self.HK,gioi=ok)); self.assertTrue(r[1],r)
+        for k,moi,dau in (('gioi','Game bắn súng roguelike, chơi chung online được, người chơi chấm 4.5 trên 5 sao. Bản Deluxe có thêm 2 vũ khí, vật phẩm, ảnh đại diện và nhạc phim.','DIEM SAO'),
+                          ('gioi','Game bắn súng roguelike, chơi chung online được, người chơi chấm 4.4 trên 5 sao.','TU KHOA phan them'),
+                          ('gioi','Game bắn súng, người chơi chấm 4.4 trên 5 sao. Bản Deluxe có thêm 2 vũ khí, vật phẩm, ảnh đại diện và nhạc phim.','TU KHOA the loai')):
             r=self.keo(dict(self.HK,**{k:moi})); self.assertFalse(r[1],(k,r)); self.assertIn(dau,r[2],(k,r[2]))
 
 if __name__=='__main__': unittest.main()
