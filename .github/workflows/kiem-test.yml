@@ -1,0 +1,36 @@
+name: Kiem test (moi PR + main)
+# Chay TOAN BO test (dang/, khuon/, cong-cu/) tren moi PR va moi lan day main — 11/10/2026 Opus gop 2 goi sua ma test cu
+# cua khuon/top5 do khong ai chay (lenh pytest | tail nuot ma thoat). Khong dung secret.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: kiem-test-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: uv (ban ghim, cai bang pip trong venv, khong curl | sh)
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/uvenv"
+          "$RUNNER_TEMP/uvenv/bin/pip" install --quiet uv==0.11.17
+          echo "$RUNNER_TEMP/uvenv/bin" >> "$GITHUB_PATH"
+      - name: ffmpeg + tesseract (test hoi quy / OCR)
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg tesseract-ocr
+      - name: pytest (moi truong khoa uv.lock)
+        env:
+          UV_PYTHON_PREFERENCE: managed
+        run: uv run --frozen python -m pytest dang/tests khuon cong-cu -q
