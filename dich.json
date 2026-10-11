@@ -1,8 +1,18 @@
 {
-  "_ghi_chu": "Id tai khoan DICH MONG MUON cua Sang Game. DIEN SAU KHI CO TOKEN (xem bang `nap-token.py xem`). null = may dang DUNG kenh do va ntfy.",
-  "fb": {"page_id": null},
-  "ig": {"ig_user_id": null},
-  "threads": {"threads_user_id": null},
-  "youtube": {"channel_id": null},
-  "tiktok": {"open_id": null}
+  "_ghi_chu": "Id tai khoan DICH cua San Game (dien 11/10/2026 tu sg_token, nap-token.py xem). null = may dang DUNG kenh do va ntfy.",
+  "fb": {
+    "page_id": "1311028212103362"
+  },
+  "ig": {
+    "ig_user_id": "17841416933185147"
+  },
+  "threads": {
+    "threads_user_id": "28307891028883375"
+  },
+  "youtube": {
+    "channel_id": "UChL0TgplC7dTe-atl2yegGQ"
+  },
+  "tiktok": {
+    "open_id": "-000TJ8txdPLnxVH6xjz_Koo1Vf0TNaubd8y"
+  }
 }
