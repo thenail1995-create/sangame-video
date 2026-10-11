@@ -4,6 +4,7 @@
 import json,re,subprocess,sys,pathlib,wave,difflib,datetime
 import numpy as np
 B=pathlib.Path(__file__).resolve().parent.parent; V=B/'dau-vao'
+sys.path.insert(0,str(B))   # PHAI truoc moi import noi bo (loi_chu, media_xau...): CI that 11/10 sap ModuleNotFoundError vi import truoc khi them B
 VID=pathlib.Path(sys.argv[1]) if len(sys.argv)>1 else B/'video-tiktok.mp4'
 NTS=json.load(open(B/'nen-tang.json'))
 NT=sys.argv[2] if len(sys.argv)>2 else next((k for k in NTS if VID.stem.endswith(k)),'tiktok'); TREN,DUOI=NTS[NT]['tren'],NTS[NT]['duoi']
@@ -186,13 +187,14 @@ _ma=[x['ma'] for x in _V[:3]]; _round=lambda v,q:max(1,int(v/q+0.5))*q
 _ky={'mo':dict(ten=[ten_noi(_G['ten'])],phan_tram=[_G['giam']],vung=[_ma[0]]),
      'gia':dict(tien=[_round(KEO['goc_vnd'],100000),_round(KEO['con_vnd'],1000)],tien_thu_tu=[_round(KEO['goc_vnd'],100000),_round(KEO['con_vnd'],1000)]),
      'hoi':dict(vung=[_ma[1],_ma[2]]),
-     'dap':dict(tien_tat=[_round(_V[1]['vnd']-_V[0]['vnd'],10000),_round(_V[2]['vnd']-_V[0]['vnd'],10000)],vung=_ma,cap=[(_ma[1],_round(_V[1]['vnd']-_V[0]['vnd'],10000)),(_ma[2],_round(_V[2]['vnd']-_V[0]['vnd'],10000))],tien=[_round(_V[1]['vnd']-_V[0]['vnd'],10000),_round(_V[2]['vnd']-_V[0]['vnd'],10000)]),
+     'dap':dict(tien_tat=[_round(_V[1]['vnd']-_V[0]['vnd'],10000),_round(_V[2]['vnd']-_V[0]['vnd'],10000)],vung=_ma,cap=[(_ma[1],_round(_V[1]['vnd']-_V[0]['vnd'],10000)),(_ma[2],_round(_V[2]['vnd']-_V[0]['vnd'],10000))],chu_the=_ma[0],tien=[_round(_V[1]['vnd']-_V[0]['vnd'],10000),_round(_V[2]['vnd']-_V[0]['vnd'],10000)]),
      'han':dict(han=NS.han_ky_vong(_h,_nd))}
 _sai=[]
 for k,ky in _ky.items():
     if k not in heard: _sai.append(f'doan {k}: khong co chu trong moc-chu'); continue
-    if not NS.doc_vung(KBD.get(k,'')) : ky.pop('vung',None); ky.pop('cap',None)     # chi doi vung o doan ma LOI doc ten vung
-    if not NS.doc_phan_tram(KBD.get(k,'')): ky.pop('phan_tram',None)
+    # Sol vong 2b #11: % / vung BAT BUOC theo LUAT khuon (nghe_so.KEO_*, = kich-ban.py) — KHONG con bo phep khi `loi` thieu cau; test_kiem_tat_ca.py doi chieu luat voi kich-ban.py that
+    if k not in NS.KEO_PHAN_TRAM: ky.pop('phan_tram',None)
+    if k not in NS.KEO_VUNG: ky.pop('vung',None); ky.pop('cap',None)
     _sai+=[f'{k} {x}' for x in NS.doi_chieu(heard[k],**ky)]
 ghi('D3 am thanh MP4 cuoi: ten + % + vung + goc roi con + cap vung-chenh + han khop keo.json (theo vai tro)',not _sai,f"{len(cs)} doan; pcm {NGHE_BC['pcm_sha256'][:12]} (nghe moi {NGHE_BC['nghe_moi']}, dung lai {NGHE_BC['dung_lai']})"+(f"; SAI: {_sai}" if _sai else ''),'D3')
 
