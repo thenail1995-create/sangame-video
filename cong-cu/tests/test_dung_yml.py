@@ -60,3 +60,14 @@ class TestDungYml(unittest.TestCase):
 
 
 if __name__ == '__main__': unittest.main()
+
+
+class PhatHanhKhiChonBiBoQua(unittest.TestCase):
+    """CI that 11/10 (38113783849): Tin nhanh 1 pha bo qua job chon -> phat-hanh khong co ham trang thai nen bi GitHub bo qua theo chuoi needs."""
+    def test_phat_hanh_co_ham_trang_thai(self):
+        import pathlib, re
+        y = (pathlib.Path(__file__).resolve().parents[2] / '.github' / 'workflows' / 'dung.yml').read_text(encoding='utf-8')
+        khoi = y.split('\n  phat-hanh:\n', 1)[1].split('\n  bao-loi:', 1)[0]
+        dong_if = next(l for l in khoi.splitlines() if l.strip().startswith('if:'))
+        self.assertRegex(dong_if, r"!cancelled\(\)|always\(\)")
+        self.assertIn("needs.dung.result == 'success'", dong_if)

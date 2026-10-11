@@ -458,7 +458,8 @@ jobs:
           if-no-files-found: error
   phat-hanh:
     needs: [kiem-moi, dung]
-    if: github.ref == 'refs/heads/main' && needs.dung.result == 'success' && needs.dung.outputs.xong == '1' && (((github.event.inputs.che_do || github.event.client_payload.che_do) == 'that' && needs.kiem-moi.outputs.live == '1') || ((github.event.inputs.che_do || github.event.client_payload.che_do || 'thu') != 'that' && github.event.inputs.release_thu == 'true'))
+    # !cancelled(): Tin nhanh (1 pha) bo qua job chon -> khong co ham trang thai thi GitHub bo qua luon phat-hanh (CI 11/10 38113783849: 21/21 DAT ma khong co Release)
+    if: "!cancelled() && github.ref == 'refs/heads/main' && needs.dung.result == 'success' && needs.dung.outputs.xong == '1' && (((github.event.inputs.che_do || github.event.client_payload.che_do) == 'that' && needs.kiem-moi.outputs.live == '1') || ((github.event.inputs.che_do || github.event.client_payload.che_do || 'thu') != 'that' && github.event.inputs.release_thu == 'true'))"
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
