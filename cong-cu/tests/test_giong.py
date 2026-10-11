@@ -11,12 +11,14 @@ PATH = 'giong/1760000000000-12345.mp3'
 
 
 class Cong:
-    def __init__(self, kho=None, hong=()):
-        self.goi_ds = []; self.kho = kho or {}; self.hong = set(hong)
+    def __init__(self, kho=None, hong=(), theo=None):
+        self.goi_ds = []; self.kho = kho or {}; self.hong = set(hong); self.theo = theo or {}
     def goi(self, viec, lap_lai=True, **kw):
         self.goi_ds.append((viec, kw))
         if viec in self.hong: raise RuntimeError(f'cong hong {viec} {KHOA_GIA}')
-        if viec == 'tim_credit_khoa': return {'ok': True, **self.kho} if self.kho else {'ok': True, 'dong': None}
+        if viec == 'tim_credit_khoa':
+            if kw['khoa_kho'] in self.theo: return {'ok': True, 'chua_ro': [], **self.theo[kw['khoa_kho']]}
+            return {'ok': True, 'chua_ro': [], **self.kho} if self.kho else {'ok': True, 'dong': None, 'chua_ro': []}
         if viec == 'giu_credit': return {'ok': True, 'id': 7} if not self.kho.get('vuot') else {'ok': True, 'vuot_tran': True, 'id': None}
         return {'ok': True}
     def ten(self): return [v for v, _ in self.goi_ds]
@@ -118,7 +120,7 @@ class TestGiong(Khung):
     def test_giu_bang_n_nhan_1(self):  # #4
         cong = Cong(); self.chay(cong, El(), loi='a' * 250)
         self.assertEqual(cong.kw('giu_credit')[0]['credit_uoc'], 250.0)
-        self.assertEqual(giong.GIA_TOI_DA, 1.0)
+        self.assertEqual(giong.GIA_TOI_DA[(giong.VOICE_MAC_DINH, 'eleven_v3')], 1.0)
 
     def test_vuot_tran_tu_choi_truoc_tts(self):  # #4
         cong = Cong(kho={'vuot': True}); el = El(); r, exc, _ = self.chay(cong, el)
@@ -132,7 +134,7 @@ class TestGiong(Khung):
         self.assertIsNotNone(exc); self.assertEqual(el.tts_n, 0); self.assertIn('huy_credit', cong.ten())
 
     def test_khong_in_khoa(self):
-        cong = Cong(hong={'ghi_tep_credit', 'xong_credit', 'tim_credit_khoa'}); r, exc, out = self.chay(cong, El(da_dung=(1.0, 2.0)))
+        cong = Cong(hong={'ghi_tep_credit', 'xong_credit'}); r, exc, out = self.chay(cong, El(da_dung=(1.0, 2.0)))
         for b in (KHOA_GIA, ANON_GIA, 'LINKBIMAT999999'): self.assertNotIn(b, out)
         r, exc, out = self.chay(Cong(), El(), tai=tai_hong, loi='khac hoan toan ' * 5)
         for b in (KHOA_GIA, ANON_GIA, 'LINKBIMAT999999'): self.assertNotIn(b, out + str(exc))
@@ -140,6 +142,67 @@ class TestGiong(Khung):
     def test_kho_cuc_bo_co_thi_khong_goi_cong(self):
         cong = Cong(); f = giong.kho_dir() / (giong.khoa_kho('xin chao ' * 10, giong.VOICE_MAC_DINH, 'eleven_v3', 0.0, 1.0) + '.mp3'); f.write_bytes(b'x' * 6000)
         r, exc, _ = self.chay(cong, El()); self.assertEqual(r, ('kho', 0)); self.assertEqual(cong.goi_ds, [])
+
+
+class TestGoiA2(Khung):
+    """Dot 2 (Sol soi ke hoach): tran theo cap giong, dong/chua_ro, muoi lan2, HOI_QUY, pytest."""
+    def test_cap_giong_khong_co_trong_bang_bi_tu_choi_truoc_khi_giu(self):  # 1
+        cong = Cong(); el = El()
+        for kw in ({'voice': 'KHAC_VOICE_ID'}, {'model': 'eleven_v4'}):
+            r, exc, _ = self.chay(cong, el, loi='d' * 50 + str(kw), **kw)
+            self.assertIsNotNone(exc); self.assertIn('TU CHOI', str(exc))
+        self.assertNotIn('giu_credit', cong.ten()); self.assertEqual(el.tts_n, 0)
+
+    def test_dong_ma_link_null_thi_dung_khong_tts(self):  # 2
+        cong = Cong(kho={'dong': {'id': 5, 'trang_thai': 'giu', 'tep': PATH}, 'link': None}); el = El()
+        r, exc, _ = self.chay(cong, el); self.assertIn('DUNG', str(exc)); self.assertEqual(el.tts_n, 0); self.assertNotIn('giu_credit', cong.ten())
+
+    def test_dong_ma_tai_hong_thi_dung_khong_tts(self):  # 2
+        cong = Cong(kho={'dong': {'id': 5, 'trang_thai': 'giu', 'tep': PATH}, 'link': LINK_GIA}); el = El()
+        r, exc, out = self.chay(cong, el, tai=tai_hong); self.assertIn('KHONG thu moi', str(exc)); self.assertEqual(el.tts_n, 0)
+        self.assertNotIn('giu_credit', cong.ten()); self.assertNotIn('LINKBIMAT999999', str(exc) + out)
+
+    def test_chua_ro_ma_khong_dong_thi_dung(self):  # 2
+        cong = Cong(kho={'dong': None, 'chua_ro': [{'id': 41, 'trang_thai': 'khong_ro'}, {'id': 42, 'trang_thai': 'giu'}]}); el = El()
+        r, exc, _ = self.chay(cong, el); self.assertIn('41', str(exc)); self.assertIn('42', str(exc)); self.assertIn('doi soat', str(exc))
+        self.assertEqual(el.tts_n, 0); self.assertNotIn('giu_credit', cong.ten())
+
+    def test_cong_hong_khi_tra_kho_thi_dung(self):  # 2
+        cong = Cong(hong={'tim_credit_khoa'}); el = El(); r, exc, _ = self.chay(cong, el)
+        self.assertIn('DUNG', str(exc)); self.assertNotIn(KHOA_GIA, str(exc)); self.assertEqual(el.tts_n, 0); self.assertNotIn('giu_credit', cong.ten())
+
+    def test_ghi_tep_hong_3_lan_va_tai_hong_bao_bi_chan(self):  # 3
+        cong = Cong(hong={'ghi_tep_credit'}); el = El(); r, exc, _ = self.chay(cong, el, tai=tai_hong)
+        self.assertEqual(cong.ten().count('ghi_tep_credit'), 3); self.assertIn('BI CHAN', str(exc)); self.assertNotIn('tu phuc hoi', str(exc))
+
+    def test_ghi_tep_hong_nhung_tai_duoc_thi_di_tiep(self):  # 3
+        cong = Cong(hong={'ghi_tep_credit'}); r, exc, _ = self.chay(cong, El(da_dung=(10.0, 20.0)))
+        self.assertIsNone(exc); self.assertEqual(r, ('goi', 10.0)); self.assertIn('xong_credit', cong.ten())
+
+    def keys(self, muoi='lan2', loi='xin chao ' * 10):
+        return (giong.khoa_kho(loi, giong.VOICE_MAC_DINH, 'eleven_v3', 0.0, 1.0), giong.khoa_kho(loi, giong.VOICE_MAC_DINH, 'eleven_v3', 0.0, 1.0, muoi))
+
+    def test_muoi_khoa_goc_co_dong_thi_dung_khoa_muoi(self):  # 4
+        goc, muoi = self.keys(); cong = Cong(theo={goc: {'dong': {'id': 1, 'trang_thai': 'xong', 'tep': PATH}, 'link': LINK_GIA}}); el = El()
+        r, exc, out = self.chay(cong, el, muoi='lan2'); self.assertIsNone(exc); self.assertEqual(el.tts_n, 1)
+        self.assertEqual(cong.kw('giu_credit')[0]['khoa_kho'], muoi); self.assertIn('muoi', out)
+
+    def test_muoi_khoa_goc_chua_ro_thi_dung(self):  # 4
+        goc, muoi = self.keys(); cong = Cong(theo={goc: {'dong': None, 'chua_ro': [{'id': 9}]}}); el = El()
+        r, exc, _ = self.chay(cong, el, muoi='lan2'); self.assertIn('9', str(exc)); self.assertEqual(el.tts_n, 0); self.assertNotIn('giu_credit', cong.ten())
+
+    def test_muoi_khoa_goc_khong_co_gi_thi_dung_khoa_goc(self):  # 4
+        goc, muoi = self.keys(); cong = Cong(); el = El()
+        r, exc, out = self.chay(cong, el, muoi='lan2'); self.assertIsNone(exc)
+        self.assertEqual(cong.kw('giu_credit')[0]['khoa_kho'], goc); self.assertIn('KHOA GOC', out)
+
+    def test_muoi_khoa_muoi_co_dong_thi_chi_phuc_hoi(self):  # 4 + 2
+        goc, muoi = self.keys(); cong = Cong(theo={goc: {'dong': {'id': 1, 'trang_thai': 'xong', 'tep': PATH}, 'link': LINK_GIA},
+                                                    muoi: {'dong': {'id': 2, 'trang_thai': 'giu', 'tep': PATH}, 'link': LINK_GIA}}); el = El()
+        r, exc, _ = self.chay(cong, el, muoi='lan2'); self.assertEqual(r, ('kho-rieng', 0)); self.assertEqual(el.tts_n, 0)
+
+    def test_docstring_ghi_gioi_han_khong_nguyen_tu(self):  # 7
+        self.assertIn('KHONG nguyen tu', giong.__doc__); self.assertIn('khong chong gio', giong.__doc__)
 
 
 if __name__ == '__main__': unittest.main()

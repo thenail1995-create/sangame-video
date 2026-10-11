@@ -48,5 +48,15 @@ class TestDungYml(unittest.TestCase):
     def test_a8_truyen_lan_cuoi(self):
         self.assertIn('--lan-cuoi', Y); self.assertNotIn('--lan "$LAN"', Y)
 
+    def test_hoi_quy_chi_khi_co_fixture(self):  # dot 2 / 5
+        v = buoc('- name: Dung + kiem')
+        self.assertIn("HOI_QUY: ${{ env.FIXTURE != '' && '1' || '' }}", v)
+        self.assertEqual(Y.count('HOI_QUY'), 1)   # khong dat o cho nao khac (vd job-level)
+
+    def test_pytest_ghim_trong_moi_truong_khoa(self):  # dot 2 / 6
+        root = pathlib.Path(__file__).resolve().parents[2]
+        self.assertRegex((root / 'pyproject.toml').read_text(), r'pytest==\d')
+        self.assertRegex((root / 'uv.lock').read_text(), r'name = "pytest"')
+
 
 if __name__ == '__main__': unittest.main()

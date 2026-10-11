@@ -5,6 +5,9 @@
   2. SO CAI qua cong sg-cong (bang sg_credit, RLS): tim_credit_khoa (kho rieng) -> giu_credit (n x 1.0, tran thang gio VN) -> tts -> ghi_tep_credit -> xong_credit / huy_credit / khong_ro_credit.
   3. Tran thang cua du an (mac dinh san-game 20000) + chua DU PHONG chung cua tai khoan (10000): vuot => tu choi.
   4. Loi dai > 400 ky tu ma chua tung thu bo cai dat nay bang cau ngan => tu choi (DA_THU_NGAN: Minh Dang / eleven_v3 / on dinh 0.0 da thu 08-10/10/2026).
+  5. GIOI HAN: kiem du phong tai khoan (con - giu >= du phong) KHONG nguyen tu voi luot dung ElevenLabs ngoai cong (The Nail) va giua cac dang; chi giam
+     rui ro nho lich 3 dang khong chong gio (Tin nhanh 21:00, Top 5 ~10:30-12:00, Keo thom truoc 20:00). Tran thang cua du an thi nguyen tu trong DB.
+  6. Kho rieng tra ve 'dong' (da co tep) => CHI phuc hoi, loi => DUNG (khong thu moi). 'chua_ro' (giu/khong_ro chua co tep) => DUNG cho den khi doi soat. Cong hong => DUNG.
 Khoa: SUPABASE_ANON_THENAIL (anon The Nail, goi edge function doc-giong) + SG_CONG_KHOA (cong so). Mac: doc tu ~/.claude/tools/ neu env trong. KHONG in khoa.
   python3 cong-cu/giong.py giong --loi-file loi.txt --ra dau-vao/giong.mp3 [--du-an san-game] [--dang top5] [--voice ID] [--model M] [--on-dinh 0.0] [--toc-do 1.0]
   python3 cong-cu/giong.py khoa --loi-file loi.txt     # in khoa kho (de workflow dat key cache), khong goi mang
@@ -12,7 +15,9 @@ Khoa: SUPABASE_ANON_THENAIL (anon The Nail, goi edge function doc-giong) + SG_CO
 import argparse,datetime,hashlib,json,os,pathlib,re,shutil,sys,time,urllib.error,urllib.request
 ROOT=pathlib.Path(__file__).resolve().parent.parent; sys.path.insert(0,str(ROOT))
 URL='https://qkpbokksubmqvinetdtv.supabase.co/functions/v1/doc-giong'
-GIA_TOI_DA=1.0   # ElevenLabs tinh toi da 1 credit/ky tu => giu n*1.0 la muc tran bao dam (A1/Sol #4)
+# tran credit/ky tu THEO CAP (voice, model): Minh Dang + eleven_v3 do that 244 credit/554 ky tu ~ 0,44 => 1,0 la tran an toan. Cap KHONG co trong bang => TU CHOI
+# truoc khi giu credit (ElevenLabs co he so nhan credit cho mot so giong thu vien).
+GIA_TOI_DA={('e71pPu7iHH7VarkDhDNk','eleven_v3'):1.0}
 VOICE_MAC_DINH='e71pPu7iHH7VarkDhDNk'       # Minh Dang
 DA_THU_NGAN={('e71pPu7iHH7VarkDhDNk','eleven_v3',0.0)}   # (voice, model, on dinh) da thu bang cau ngan, Hao nghe va chot 08-10/10/2026
 TRAN_MAC_DINH={'san-game':20000}; DU_PHONG_MAC_DINH=10000
@@ -55,36 +60,57 @@ def _canh_bao(s): print('CANH BAO: '+s,file=sys.stderr)
 def cmd_giong(a,cong=None,el=None,ngu=time.sleep,tai=None):
     tai=tai or (lambda u,d: lay_mp3(u,d,ngu=ngu))
     loi=pathlib.Path(a.loi_file).read_text(encoding='utf-8').strip() if a.loi_file else a.loi
-    khoa=khoa_kho(loi,a.voice,a.model,a.on_dinh,a.toc_do,a.muoi); f=kho_dir()/f'{khoa}.mp3'; n=len(loi)
+    khoa=khoa_kho(loi,a.voice,a.model,a.on_dinh,a.toc_do,a.muoi); n=len(loi)
     ra=pathlib.Path(a.ra); ra.parent.mkdir(parents=True,exist_ok=True)
+    def kho_cuc_bo(k):
+        f=kho_dir()/f'{k}.mp3'
+        if f.exists() and f.stat().st_size>=5000:
+            shutil.copy(f,ra); print(f'KHO: dung lai {k}.mp3, 0 credit'); return True
     # 0) kho cuc bo (Mac)
-    if f.exists() and f.stat().st_size>=5000:
-        shutil.copy(f,ra); print(f'KHO: dung lai {khoa}.mp3, 0 credit'); return 'kho',0
+    if kho_cuc_bo(khoa): return 'kho',0
     anon=_doc_khoa('SUPABASE_ANON_THENAIL','thenail-supabase-anon'); khoa_cong=_doc_khoa('SG_CONG_KHOA','sangame-sg-cong-khoa')
     if not anon or not khoa_cong: raise Loi('LOI: thieu SUPABASE_ANON_THENAIL hoac SG_CONG_KHOA')
     bi_mat=[anon,khoa_cong]
     if cong is None:
         from dang.so import Cong; cong=Cong(khoa_cong)
     el=el or Eleven(anon)
-    # 1) kho RIENG TU qua cong (thay cache Actions cong khai): da co mp3 cho khoa nay (TTS truoc do xong ma job hong) => 0 credit
-    try: kr=cong.goi('tim_credit_khoa',khoa_kho=khoa)
-    except Exception as e: kr={}; _canh_bao('khong tra duoc kho rieng: '+che(str(e),bi_mat)[:200])
-    link=kr.get('link'); dong=kr.get('dong') or {}
-    if link:
+    def tra(k):   # cong hong => DUNG (khong thu khi khong tra duoc kho)
+        try: return cong.goi('tim_credit_khoa',khoa_kho=k)
+        except Exception as e: raise Loi(f'DUNG: khong tra duoc kho rieng khoa {k} (cong loi) - khong thu khi chua ro kho: '+che(str(e),bi_mat)[:200])
+    def chua_ro_dung(kr,k):
+        cr=kr.get('chua_ro') or []
+        if cr: raise Loi(f'DUNG: luot thu truoc chua ro ket qua (khoa {k}) id '+', '.join(str(x.get('id')) for x in cr)+' - doi soat (huy dong) roi moi thu lai.')
+    kr=None
+    if a.muoi:   # lan thu lai: tra khoa GOC truoc
+        khoa_goc=khoa_kho(loi,a.voice,a.model,a.on_dinh,a.toc_do,'')
+        kg=tra(khoa_goc); chua_ro_dung(kg,khoa_goc)
+        if kg.get('dong'): print(f'KHOA: dung khoa co muoi {a.muoi} ({khoa}) vi khoa goc {khoa_goc} da co ban thu -> chu dich thu ban moi')
+        else:
+            print(f'KHOA: khoa goc {khoa_goc} chua co ban thu (lan 1 chua thu) -> dung KHOA GOC, bo muoi {a.muoi}')
+            khoa=khoa_goc; kr=kg
+            if kho_cuc_bo(khoa): return 'kho',0
+    f=kho_dir()/f'{khoa}.mp3'
+    # 1) kho RIENG TU qua cong (thay cache Actions cong khai): co 'dong' (da co tep) => CHI phuc hoi, 0 credit; loi => DUNG
+    if kr is None: kr=tra(khoa)
+    dong=kr.get('dong') or {}; link=kr.get('link')
+    if dong:
+        if not link: raise Loi('DUNG: kho rieng co tep nhung khong co link tai - chay lai sau, KHONG thu moi.')
         bi_mat.append(link)
-        try:
-            tai(link,f)
-            shutil.copy(f,ra)
-            if dong.get('trang_thai')=='giu' and dong.get('id'):
-                try: cong.goi('khong_ro_credit',id=dong['id'],ghi_chu='phuc hoi tu tep')
-                except Exception as e: _canh_bao('khong_ro_credit (phuc hoi) loi: '+che(str(e),bi_mat)[:200])
-            print(f'KHO RIENG: phuc hoi {khoa}.mp3 tu cong, 0 credit'); return 'kho-rieng',0
-        except Exception as e: _canh_bao('tai kho rieng loi, di tiep: '+che(str(e),bi_mat)[:200])
+        try: tai(link,f)
+        except Exception as e: raise Loi('DUNG: kho rieng co tep nhung tai loi - chay lai sau, KHONG thu moi: '+che(str(e),bi_mat)[:200])
+        shutil.copy(f,ra)
+        if dong.get('trang_thai')=='giu' and dong.get('id'):
+            try: cong.goi('khong_ro_credit',id=dong['id'],ghi_chu='phuc hoi tu tep')
+            except Exception as e: _canh_bao('khong_ro_credit (phuc hoi) loi: '+che(str(e),bi_mat)[:200])
+        print(f'KHO RIENG: phuc hoi {khoa}.mp3 tu cong, 0 credit'); return 'kho-rieng',0
+    chua_ro_dung(kr,khoa)
     # 2) luat > 400 ky tu
     if n>400 and (a.voice,a.model,a.on_dinh) not in DA_THU_NGAN and not a.cho_vuot:
         raise Loi('TU CHOI: chua thu giong/model/cai dat nay bang cau ngan (<=400 ky tu). Thu 1 cau truoc, nghe ung roi moi thu ca bai.')
     # 3) giu MUC TRAN bao dam (moi ky tu <= GIA_TOI_DA credit) - tong thang + giu cho <= tran, nguyen tu trong DB
-    giu=round(n*GIA_TOI_DA,1)
+    gia=GIA_TOI_DA.get((a.voice,a.model))
+    if gia is None: raise Loi(f'TU CHOI: cap giong/model ({a.voice}, {a.model}) chua co tran credit/ky tu trong GIA_TOI_DA - them vao bang sau khi do that.')
+    giu=round(n*gia,1)
     tran=a.tran if a.tran is not None else TRAN_MAC_DINH.get(a.du_an)
     if tran is None: raise Loi(f'TU CHOI: du an {a.du_an} chua co tran thang (--tran)')
     g=cong.goi('giu_credit',lap_lai=False,thang=thang_vn(),credit_uoc=giu,tran=tran,dang=a.dang,ky_tu=n,khoa_kho=khoa)
@@ -118,10 +144,12 @@ def cmd_giong(a,cong=None,el=None,ngu=time.sleep,tai=None):
         except Exception as e:
             _canh_bao(f'ghi_tep_credit lan {i+1} loi: '+che(str(e),bi_mat)[:200])
             if i<2: ngu(2*(i+1))
-    if not ghi_ok: _canh_bao('khong ghi duoc tep vao so - neu tai mp3 hong, luot sau se phai thu lai')
-    # 6) tai mp3 ve. Hong => GIU trang thai giu (tran van tinh giu), luot sau tu phuc hoi tu kho rieng
+    if not ghi_ok: _canh_bao('khong ghi duoc tep vao so (3 lan) - van tai mp3; neu tai hong luot sau se BI CHAN cho toi khi doi soat')
+    # 6) tai mp3 ve. Hong => GIU trang thai giu (tran van tinh giu)
     try: tai(d['nghe_thu'],f)
-    except Exception as e: raise Loi('LOI tai mp3 (credit DA TRU, so van giu muc giu; luot sau tu phuc hoi tu kho rieng, khong thu lai): '+che(str(e),bi_mat)[:200])
+    except Exception as e:
+        hau='luot sau tu phuc hoi tu kho rieng, khong thu lai' if ghi_ok else 'tep CHUA ghi vao so: luot sau se BI CHAN (dong chua ro) cho toi khi doi soat'
+        raise Loi(f'LOI tai mp3 (credit DA TRU, so van giu muc giu; {hau}): '+che(str(e),bi_mat)[:200])
     shutil.copy(f,ra)
     # 7) quyet toan: chenh lech tai khoan truoc/sau
     that=giu
