@@ -344,7 +344,7 @@ class TestGiaVaSite(unittest.TestCase):
         for end, gia_, mong in [(con, "101.00", 0), (het, "100.00", 1), (con, "130.00", 1), (con, "1,001.00", 1)]:
             m = Mang().them("GET", "store.playstation.com/en-hk/product/UP1001-X_00", P(raw=html(end, gia_)))
             with mock.patch("dang.http.gui", m):
-                van_de, _ = gia.kiem_lai(muc, gio)
+                van_de, _ = gia.kiem_lai([{**muc[0], "endTime": end}], gio)   # han video = han trang (chi thu het han/gia)
             self.assertEqual(len(van_de), mong, (end, gia_, van_de))
 
     def test_loc_pid_la_bi_chan_khong_cao(self):
