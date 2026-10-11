@@ -350,7 +350,8 @@ var C=[0, giua(M.mo.e,M.gia.s,.04), Math.min(Math.max(M.gia.e+.03,M.gioi.s-.45),
 var TA={C:C,DAI:DAI};
 TA.dut=C[2]+.1;                      // day dut, the gia roi
 TA.tagEnd=TA.dut+.8;
-TA.g3=TA.dut+.42;                    // ho so game truot vao (the gia da roi khoi vung nhin)
+// ho so game truot vao SOM: the gia roi xong (khong dung nhau) nhung khong tre qua 0,3 s sau dut; noi dung dau tien hien tu g3+0,12 (Sol P2: chu thể loại phải hien khi giong doc toi)
+TA.g3=TA.dut+.30;
 TA.v4=M.dap.s;                       // bang so vung vao cung luc cau so vung bat dau
 TA.ra3=Math.max(TA.v4-.22,M.gioi.e+.08);   // ho so game bay di xong TRUOC khi bang so vao (H18) va sau chu cuoi cua cau gioi thieu
 TA.g3end=TA.ra3+.37;
@@ -363,7 +364,9 @@ TA.so=KEO.han.hhmm.replace(':','');
 TA.goc=fmtK(GOC);                   // chu so dem luc bat dau (am08.py tim khung so bat dau doi)
 TA.chot=[0,1,2,3].map(function(i){return M.han.truoc+.05+.08*i});
 TA.url=M.ket.tra+.27; TA.chips=M.ket.tra+.47; TA.b6b=M.ket.tra+.57; TA.logo=M.ket.san+.24; TA.b6c=M.ket.san+.39;
-TA.moc=[C[1]-.16,TA.dut-.05,M.gioi.e+.02,C[4]-.2,M.han.e,DAI-.32].map(function(x){return Math.round(x*100)/100});   // 6 moc soi anh / so SSIM
+// moc kiem canh gioi thieu: SAU khi moi chu da hien xong (chu cuoi + 0,5 s) va truoc khi the bay di
+var gl=0; for(var an in KBM.gioi.neo)gl=Math.max(gl,M.gioi[an]);
+TA.moc=[C[1]-.16,TA.dut-.05,Math.min(Math.max(M.gioi.e+.02,gl+.5),TA.ra3-.05),C[4]-.2,M.han.e,DAI-.32].map(function(x){return Math.round(x*100)/100});   // 6 moc soi anh / so SSIM
 TA.mocDom=[TA.moc[0],Math.round(Math.min(Math.max(TA.moc[1],M.gia.gia+1.05),TA.dut-.05)*100)/100,TA.moc[2]-1.0,TA.moc[2],TA.ra3+.02,TA.moc[3],TA.moc[4],TA.moc[5]].map(function(x){return Math.round(x*100)/100});
 window.__NEO={M:M,TA:TA};
 function cl(x){return x<0?0:x>1?1:x}
@@ -567,7 +570,7 @@ function ve(t){
   // ----- CANH 3: GIOI THIEU game (ho so game) -----
   var gW=$('gtW'), c3=t>=TA.g3&&t<TA.g3end; show(gW,c3);
   if(c3){
-    var vao=p(t,TA.g3,.4), ra3=p(t,TA.ra3,.3), t_ = TA.g3+.2, G_=M.gioi;   // t_ = som nhat noi dung duoc hien (sau khi ho so da truot vao)
+    var vao=p(t,TA.g3,.4), ra3=p(t,TA.ra3,.3), t_ = TA.g3+.12, G_=M.gioi;   // t_ = som nhat noi dung duoc hien (sau khi ho so da truot vao)
     tf(gW,'translate('+((1-eo5(vao))*-1100+L(0,-1300,ei(ra3)))+'px,'+DYS+'px) rotate('+((1-eo5(vao))*-5-ei(ra3)*9)+'deg)');
     gW.style.transformOrigin='504px 900px';
     var TG=Math.max((G_.tl!==undefined?G_.tl:G_.game)-.04,t_), TC1=Math.max(G_.f1-.05,t_+.1), TC2=Math.max(G_.f2-.05,t_+.1), TR=Math.max(G_.ng-.05,t_), TB=Math.max(G_.ban-.1,t_);

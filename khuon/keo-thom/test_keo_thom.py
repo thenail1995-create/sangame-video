@@ -108,7 +108,7 @@ class GioiThieuGame(unittest.TestCase):       # 11/10: cau giới thieu tu bang 
         g=lc.gioi_thieu_tu_trang(self.tt(mo_ta_dai='Deluxe includes:<br/>- Something odd<br/>- Other odd<br/><br/>x'))
         self.assertIsNone(g['ban'])
     def test_toi_da_4_muc_va_dem_vu_khi(self):
-        d='Deluxe:<br/>- Two weapons<br/>- Cool outfit<br/>- Season pass<br/>- 500 credits<br/>- Booster<br/>- Soundtrack<br/><br/>x'
+        d='Deluxe Edition includes:<br/>- Two weapons<br/>- Cool outfit<br/>- Season pass<br/>- 500 credits<br/>- Booster<br/>- Soundtrack<br/><br/>x'
         g=lc.gioi_thieu_tu_trang(self.tt(mo_ta_dai=d)); self.assertEqual([m['noi'] for m in g['ban']['them']],['hai vũ khí','trang phục','gói mở rộng','tiền trong game'])
     def test_dac_diem_toi_da_2_theo_thu_tu_va_co_op_local(self):
         mo='A roguelike with open world and online co-op and souls-like combat'; g=lc.gioi_thieu_tu_trang(self.tt(mo_ta_dai=mo,edition=None))
@@ -126,4 +126,41 @@ class GioiThieuGame(unittest.TestCase):       # 11/10: cau giới thieu tu bang 
     def test_du_phong_edition_features_khi_khong_co_dong_gach(self):
         g=lc.gioi_thieu_tu_trang(self.tt(mo_ta_dai='No bullets here.',edition=dict(ten='Gold Edition',loai='PREMIUM',tinh_nang=['Game™','Season Pass.¹','Digital artbook'])))
         self.assertEqual((g['ban']['ten_noi'],[m['noi'] for m in g['ban']['them']]),('Gold',['gói mở rộng','sách tranh']))
+
+    # ---- Sol 11/10 (P1/P2): KHONG CHAC THI BO ----
+    def test_p1_co_op_local_khong_thanh_online_va_co_op_mo_ho_bi_bo(self):
+        k=lambda mo:[x['k'] for x in lc.gioi_thieu_tu_trang(self.tt(mo_ta_dai=mo,edition=None))['dac_diem']]
+        self.assertEqual(k('Enjoy local co-op mode with friends'),['co_op_local']); self.assertEqual(k('couch co-op or split-screen co-op'),['co_op_local'])
+        self.assertEqual(k('Play in co-op mode'),[]); self.assertEqual(k('A cooperative adventure'),[]); self.assertEqual(k('local co-op and online co-op'),['co_op_online'])
+        self.assertEqual(k('Play local co-op or compete online'),['co_op_local'])
+    def test_p1_weapon_skins_la_skin_khong_phai_vu_khi(self):
+        g=lc.gioi_thieu_tu_trang(self.tt(mo_ta_dai='Gold Edition includes:<br/>- 2 exclusive Weapon Skins<br/>- Hero Skin<br/><br/>x',edition=dict(ten='Gold Edition',loai='PREMIUM',tinh_nang=[])))
+        self.assertEqual([m['noi'] for m in g['ban']['them']],['skin vũ khí','trang phục'])
+    def test_p1_bullet_gameplay_khong_phai_phan_them(self):
+        for d in ('Game features:<br/>- Collect weapons and coins<br/><br/>x','Gold Edition<br/>- Collect weapons<br/><br/>x','Explore a world.<br/>- Collect weapons and coins<br/><br/>x'):
+            self.assertIsNone(lc.gioi_thieu_tu_trang(self.tt(mo_ta_dai=d,edition=dict(ten='Gold Edition',loai='PREMIUM',tinh_nang=[])))['ban'],d)
+    def test_p1_dung_som_chi_cho_vat_pham_vu_khi_khi_cau_dan_noi_in_game_items(self):
+        ed=dict(ten='Deluxe Edition',loai='PREMIUM',tinh_nang=[])
+        g=lc.gioi_thieu_tu_trang(self.tt(edition=ed,mo_ta_dai='Deluxe Edition includes early access to the game, obtainable via story progression unlock:<br/>- Digital soundtrack<br/>- Avatar<br/><br/>x'))
+        self.assertEqual([m['noi'] for m in g['ban']['them']],['ảnh đại diện','nhạc phim']); self.assertFalse(g['ban']['dung_som'])    # early access vao GAME, khong co so ngay -> bo
+        g=lc.gioi_thieu_tu_trang(self.tt(edition=ed,mo_ta_dai='Deluxe Edition includes 3 days early access to the game:<br/>- Digital soundtrack<br/><br/>x'))
+        self.assertEqual([m['noi'] for m in g['ban']['them']],['nhạc phim','chơi sớm ba ngày']); self.assertFalse(any(m.get('dung_som') for m in g['ban']['them']))
+        g=lc.gioi_thieu_tu_trang(self.tt(edition=ed,mo_ta_dai='Deluxe Edition includes early access to in-game items obtainable via progression:<br/>- One Booster<br/>- Digital soundtrack<br/><br/>x'))
+        self.assertEqual([m['noi'] for m in g['ban']['them']],['vật phẩm dùng sớm','nhạc phim'])
+    def test_p2_theme_chi_theo_loai_ghi_ro(self):
+        ed=dict(ten='Deluxe Edition',loai='PREMIUM',tinh_nang=[])
+        n=lambda b:[m['noi'] for m in (lc.gioi_thieu_tu_trang(self.tt(edition=ed,mo_ta_dai='Deluxe Edition includes:<br/>- '+b+'<br/><br/>x'))['ban'] or {'them':[]})['them']]
+        self.assertEqual(n('Main Menu Theme'),['chủ đề menu game']); self.assertEqual(n('PS5 Dynamic Theme'),['hình nền PS5']); self.assertEqual(n('Cool Theme'),[])
+    def test_p2_so_luong_vu_khi_chi_khi_ghi_ro(self):
+        ed=dict(ten='Deluxe Edition',loai='PREMIUM',tinh_nang=[])
+        n=lambda *b:[m['noi'] for m in lc.gioi_thieu_tu_trang(self.tt(edition=ed,mo_ta_dai='Deluxe Edition includes:<br/>'+'<br/>'.join('- '+x for x in b)+'<br/><br/>x'))['ban']['them']]
+        self.assertEqual(n('Weapon Pack (5 weapons)'),['năm vũ khí']); self.assertEqual(n('Weapon Pack'),['gói vũ khí']); self.assertEqual(n('Sword and Axe weapons'),['vũ khí'])
+        self.assertEqual(n('Big Sword weapon','Small Axe weapon'),['hai vũ khí'])
+    def test_p2_edition_theo_ranh_gioi_tu(self):
+        self.assertFalse(lc.la_ban_dac_biet(dict(ten='Golden Light',loai='STANDARD',tinh_nang=[]))); self.assertFalse(lc.la_ban_dac_biet(dict(ten='Golden Light',loai='',tinh_nang=[])))
+        self.assertTrue(lc.la_ban_dac_biet(dict(ten='Gold Edition',loai='',tinh_nang=[]))); self.assertEqual(lc.ten_ban_noi(dict(ten='Golden Light Edition')),'này')
+    def test_p2_full_html_ho_so_vao_theo_neo_cau_dau_va_moc_kiem_sau_khi_on_dinh(self):
+        h=(T/'full.html').read_text(encoding='utf-8')
+        self.assertIn('TA.g3=TA.dut+.30;',h); self.assertIn('t_ = TA.g3+.12',h)          # thể loại vào tại max(neo 'tl' - 0,04, g3+0,12): không tới sau lời đọc hơn ~0,4 s
+        self.assertIn('Math.max(M.gioi.e+.02,gl+.5),TA.ra3-.05',h)                         # D1 lấy mẫu sau chữ cuối + 0,5 s, trước khi thẻ bay đi
 if __name__=='__main__': unittest.main()

@@ -67,7 +67,7 @@ HOI_QUY=os.environ.get('HOI_QUY')=='1'   # B6: ngoai le DUY NHAT
 _ok_ng,_so_ng,_nd=NS.kiem_ngay(KEO.get('ngay_dang') or '',os.environ.get('NGAY',''),HOI_QUY)
 _nd=_nd or datetime.date.fromisoformat(KEO['ngay_dang'])
 _h=datetime.datetime.fromtimestamp(int(KEO['han']['endTime'])/1000,VN); _dl=datetime.date.fromisoformat(KEO.get('ngay_du_lieu') or KEO['ngay_dang'])
-_V=KEO['vung']; _G=KEO['game']; _cs=lambda s:re.sub(r'\s+',' ',s).strip()
+_V=KEO['vung']; _G=KEO['game']; _cs=lambda s:re.sub(r'\s+',' ',str(s or '')).strip()   # None (diem / ban / the loai thieu hop le) -> '' (Sol P1: D1 sap TypeError)
 _VH={'US':'MỸ','HK':'HỒNG KÔNG','SG':'SINGAPORE','TH':'THÁI LAN','ID':'INDONESIA'}
 _so=f"{int(KEO.get('so_ky',1)):03d}"
 _ten=_G['ten'].replace('®','').replace('™','').replace("'",'’')
