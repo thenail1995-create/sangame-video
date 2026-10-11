@@ -33,6 +33,7 @@ if cu.get('canh')==canh and cu.get('top')==[g['slug'] for g in top]:
     SEG=cu['seg']; print('dung lai nen-doan.json')
     for s in SEG: s['src']=str(TS/pathlib.Path(s['src']).name)   # nen-doan.json fixture ghi duong dan may khac -> doi ve tai-san/ cua may nay
 else:
+    if __import__('os').environ.get('NEN_DUNG_LAI')=='1': raise SystemExit('nen-doan.json khong khop canh/nguon - job ban KHONG duoc chon lai doan nen (3 ban phai cung doan)')
     def tai_trailer(i,g):
         if not g.get('trailer'): return None
         tt=sorted(((*thong(u),u) for u in g['trailer']),key=lambda x:(-x[1],-x[2]))   # cao nhat roi dai nhat (H21)
@@ -121,7 +122,8 @@ def dung(nt):
     a+=['-filter_complex',fc,'-map','[o]','-an','-c:v','libx264','-crf','16','-pix_fmt','yuv420p',str(ra)]
     r=subprocess.run(a); assert r.returncode==0
     print(f'{ra.name}: 1080x{H}, mang net tu y={1920-H}')
-ds=list(NT) if len(sys.argv)<2 or sys.argv[1]=='tat-ca' else [sys.argv[1]]
+# 'chon' = CHI chon doan + tai trailer/anh (canh.json, nen-doan.json, tai-san/): job chung cua CI; job tung ban sau do `python3 nen-... <nt>` dung lai nen-doan.json va chi ma hoa nen cua ban do
+ds=[] if len(sys.argv)>1 and sys.argv[1]=='chon' else list(NT) if len(sys.argv)<2 or sys.argv[1]=='tat-ca' else [sys.argv[1]]
 for nt in ds: dung(nt)
 print(len(SEG),'doan;',[(c['k'],c['a'],c['b']) for c in canh])
 for s in SEG: print(f"  {s['kieu']} {pathlib.Path(s['src']).name:18s} tu {s['ss']:6.2f}s dai {s['dl']:.2f}s")

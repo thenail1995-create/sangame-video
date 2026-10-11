@@ -159,12 +159,8 @@ js=json.loads(o[o.rindex('{'):o.rindex('}')+1])
 af=f"loudnorm=I=-14:TP=-1.5:LRA=11:measured_I={js['input_i']}:measured_TP={js['input_tp']}:measured_LRA={js['input_lra']}:measured_thresh={js['input_thresh']}:offset={js['target_offset']}:linear=true,aresample=48000"
 subprocess.run(['ffmpeg','-v','error','-y','-i',str(raw),'-af',af,'-c:a','pcm_s24le',str(B/'am08.wav')],check=True)
 # ghep: moi nen tang 1 ban hinh (hinh-<nt>.mp4 tu ghep08.py), CHUNG 1 tieng (moc thoi gian giong nhau o 3 ban — v8.3)
-RA=[]
-for nt in json.load(open(B/'nen-tang.json')):
-    HINH=B/f'hinh-{nt}.mp4'
-    if not HINH.exists(): continue
-    ra=str(B/f'video-{nt}.mp4'); RA.append(ra)
-    subprocess.run(['ffmpeg','-v','error','-y','-i',str(HINH),'-i',str(B/'am08.wav'),'-map','0:v','-map','1:a','-c:v','copy','-c:a','aac','-b:a','192k','-ar','48000','-t',str(DAI),'-movflags','+faststart',ra],check=True)
+sys.path.insert(0,str(B.parent.parent/'cong-cu')); import ghep_am   # dung chung 3 khuon; env BAN = chi ghep ban do (CI chay 3 ban song song)
+RA=ghep_am.ghep(B,B/'am08.wav',DAI)
 with open(B/'cue-am08.md','w') as f:
     f.write('# Bang tieng dong ban 08 (thoi diem = khung cham tren hinh)\n\n| giay | tieng | dB | viec tren hinh |\n|---|---|---|---|\n')
     for t,k,db,x,gh in sorted(E): f.write(f'| {t:.2f} | {k} | {db:+d} | {gh} |\n')

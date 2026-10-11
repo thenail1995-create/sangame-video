@@ -1,5 +1,8 @@
 name: Dung video
 # A5: dung 1 dang video (3 ban TikTok/Reels/Shorts), kiem, va CHI KHI che_do=that + DAT HET moi tao Release cong khai.
+# SO DO JOB (11/10 dung nhanh): kiem-moi -> chon (3 pha) -> chung (giong, can chu, chon doan nen, khung cham, tieng, KIEM SOM - khong can hinh; truot = dung ngay)
+#   -> ban x3 SONG SONG (matrix tiktok/reels/shorts: ma hoa nen, chup lop chu, ghep, bia, kiem DAY DU cua ban do)
+#   -> gom (manifest tu 3 ban, hop dong 7 tai san) -> phat-hanh -> bao-loi. Artifact giua cac job chua giong/loi/anh => MA HOA bang GOI_KHOA (repo cong khai).
 # B5': che do TU DONG (fixture de trong; hien chi khuon co chuan-bi.sh = top5): kiem-moi (du lieu gia 6 vung co ngay hom nay chua? + lay data_sha)
 #      -> chon (5 game + loi) -> dung (giong qua cong-cu/giong.py, dung, kiem D1-D3) -> phat-hanh. cron-job.org goi 10:15 (lan=1) va 10:45 (lan=2).
 # Chi nhan workflow_dispatch / repository_dispatch; job dau kiem ref = main. Khong pull_request. Job dung KHONG co quyen ghi; chi job phat-hanh co contents:write.
@@ -184,17 +187,40 @@ jobs:
           sparse-checkout: |
             du-lieu
           persist-credentials: false
+      - name: Khoa cache apt (doi moi tuan)
+        id: apt
+        run: echo "tuan=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+      - name: Cache .deb tesseract + ffmpeg
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/apt-debs
+          key: apt-deb-tesseract-ffmpeg-ubuntu-24.04-${{ steps.apt.outputs.tuan }}
+      - name: tesseract va ffmpeg (chon-keo.py - OCR anh giu cho, ffprobe doc trailer) tu cache .deb, thieu thi apt
+        run: |
+          set -euo pipefail
+          D="$HOME/apt-debs"; mkdir -p "$D"
+          if compgen -G "$D/*.deb" >/dev/null && sudo apt-get install -y -qq "$D"/*.deb >/dev/null 2>&1; then
+            echo "tesseract + ffmpeg tu cache .deb"
+          else
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq --download-only -o Dir::Cache::archives="$D" tesseract-ocr ffmpeg
+            sudo chmod -R a+rX "$D"; sudo find "$D" -mindepth 1 ! -name '*.deb' -delete 2>/dev/null || true
+            sudo apt-get install -y -qq tesseract-ocr ffmpeg
+          fi
+          tesseract --version | head -1
       - name: uv (ban ghim; chon-keo.py can numpy + pillow theo uv.lock)
         run: |
           set -euo pipefail
           python3 -m venv "$RUNNER_TEMP/uvenv"
           "$RUNNER_TEMP/uvenv/bin/pip" install --quiet uv==0.11.17
           echo "$RUNNER_TEMP/uvenv/bin" >> "$GITHUB_PATH"
-      - name: tesseract va ffmpeg (chon-keo.py - OCR anh giu cho, ffprobe doc trailer)
-        run: |
-          set -euo pipefail
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq tesseract-ocr ffmpeg
+      - name: Cache uv (goi Python khoa theo uv.lock)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/uv
+            ~/.local/share/uv/python
+          key: uv-${{ runner.os }}-0.11.17-${{ hashFiles('uv.lock') }}
       - name: Chon game + loi doc (B1/B2)
         id: chon
         env:
@@ -237,15 +263,16 @@ jobs:
           path: chon-ra.enc
           retention-days: 1
           if-no-files-found: error
-  dung:
+  chung:
     needs: [kiem-moi, chon]
     if: always() && github.ref == 'refs/heads/main' && needs.kiem-moi.result == 'success' && needs.kiem-moi.outputs.moi == '1' && (needs.kiem-moi.outputs.live != '1' || needs.kiem-moi.outputs.ba_pha != '1' || (needs.chon.result == 'success' && needs.chon.outputs.du == '1'))
     runs-on: ubuntu-24.04
-    timeout-minutes: 150
+    timeout-minutes: 60
     permissions:
       contents: read
     outputs:
-      xong: ${{ steps.ket.outputs.xong }}
+      bo_khung: ${{ steps.dung.outputs.bo_khung }}
+      data_sha: ${{ steps.dsha.outputs.sha }}
     env:
       DANG: ${{ github.event.inputs.dang || github.event.client_payload.dang }}
       NGAY: ${{ needs.kiem-moi.outputs.ngay }}
@@ -298,26 +325,55 @@ jobs:
           chmod +x cong-cu/bin/*
           echo "$PWD/cong-cu/bin" >> "$GITHUB_PATH"
           cong-cu/bin/ffmpeg -version | head -1
+      - name: Khoa cache apt (doi moi tuan)
+        id: apt
+        run: echo "tuan=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+      - name: Cache .deb tesseract
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/apt-debs
+          key: apt-deb-tesseract-ubuntu-24.04-${{ steps.apt.outputs.tuan }}
+      - name: tesseract (OCR bat anh giu cho PS Store - K18) tu cache .deb, thieu thi apt
+        run: |
+          set -euo pipefail
+          D="$HOME/apt-debs"; mkdir -p "$D"
+          if compgen -G "$D/*.deb" >/dev/null && sudo apt-get install -y -qq "$D"/*.deb >/dev/null 2>&1; then
+            echo "tesseract tu cache .deb"
+          else
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq --download-only -o Dir::Cache::archives="$D" tesseract-ocr
+            sudo chmod -R a+rX "$D"; sudo find "$D" -mindepth 1 ! -name '*.deb' -delete 2>/dev/null || true
+            sudo apt-get install -y -qq tesseract-ocr
+          fi
+          tesseract --version | head -1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
+          cache: npm
+          cache-dependency-path: cong-cu/package-lock.json
+      - name: Cache trinh duyet Playwright (khoa theo package-lock = ban Playwright ghim)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('cong-cu/package-lock.json') }}
       - name: Playwright (ban ghim trong package-lock) + Chromium
         run: |
           set -euo pipefail
           cd cong-cu && npm ci --ignore-scripts
           npx playwright install --with-deps chromium
-      - name: tesseract (OCR bat anh giu cho PS Store - K18)
-        run: |
-          set -euo pipefail
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq tesseract-ocr
-          tesseract --version | head -1
       - name: uv (ban ghim, cai bang pip trong venv, khong curl | sh)
         run: |
           set -euo pipefail
           python3 -m venv "$RUNNER_TEMP/uvenv"
           "$RUNNER_TEMP/uvenv/bin/pip" install --quiet uv==0.11.17
           echo "$RUNNER_TEMP/uvenv/bin" >> "$GITHUB_PATH"
+      - name: Cache uv (goi Python khoa theo uv.lock)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/uv
+            ~/.local/share/uv/python
+          key: uv-${{ runner.os }}-0.11.17-${{ hashFiles('uv.lock') }}
       - name: Cache mo hinh Whisper
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -364,11 +420,12 @@ jobs:
         if: env.EP_TRUOT == 'true'
         run: |
           # shellcheck disable=SC2016
-          # them 1 dong 'var ...; // tf($(...' vao cuoi full.html: phep 0 (chu thich nuot lenh) phai bat
+          # them 1 dong 'var ...; // tf($(...' vao cuoi full.html: phep 0 (chu thich nuot lenh) phai bat — bat o KIEM SOM cua job chung nay, job ban khong bao gio chay
           printf '\nvar zz=1; // tf($("x"),1)\n' >> "khuon/$DANG/full.html"
-      - name: Dung + kiem
+      - name: Dung chung + KIEM SOM (GD=chung - can chu, chon doan nen, khung cham, tieng; truot = dung ngay, khong chup lop chu)
         id: dung
         env:
+          GD: chung
           WORKERS: '4'
           WHISPER_DIR: /home/runner/whisper-cache
           # chi khi chay fixture (hoi quy): bo kiem ngay du lieu theo NGAY (khuon/*/kiem). Khong fixture (LIVE) = khong dat. fixture + che_do=that da bi cam o kiem-moi.
@@ -401,15 +458,198 @@ jobs:
       - name: Thoi gian + tai nguyen
         if: always()
         run: |
-          cat "khuon/$DANG/do-thoi-gian.txt" 2>/dev/null || true
+          cat khuon/"$DANG"/do-thoi-gian-chung.txt 2>/dev/null || true
           df -h / | tail -1
-      - name: So anh voi ban Mac (SSIM)
-        if: success() && steps.dung.outputs.bo_khung != '1' && env.CHE_DO == 'thu' && env.LIVE != '1'
+      - name: Commit that cua repo rieng tu (manifest.sha_du_lieu)
+        id: dsha
+        run: echo "sha=$(git -C du-lieu rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Dong goi + MA HOA ket qua chung (giong tho, loi, anh Sony, nen) - repo cong khai, artifact tai duoc
+        if: steps.dung.outputs.bo_khung != '1'
+        env:
+          GOI_KHOA: ${{ secrets.GOI_KHOA }}
         run: |
           set -euo pipefail
-          for nt in tiktok reels shorts; do
-            SSIM_GIU=$PWD/go-loi/khung uv run -q --frozen python cong-cu/so-anh.py "khuon/$DANG/video-$nt.mp4" "du-lieu/video/fixture/$FIXTURE/ref" "$nt" 0.97
+          [ -n "${GOI_KHOA:-}" ] || { echo "thieu secret GOI_KHOA - KHONG upload ban ro"; exit 1; }
+          K="khuon/$DANG"
+          [ -f "$K/dau-vao/moc-chu.json" ] && [ -f "$K/dau-vao/giong.mp3" ] || { echo "thieu moc-chu.json / giong.mp3 sau job chung"; exit 1; }
+          # moi tep KHONG nam trong git cua khuon (du lieu chon, giong, moc chu, trailer, nen-doan, am.wav, sfx-bus...) tru ban dung lai duoc / qua lon / chi de nhin
+          git ls-files --others -z -- "$K" | { grep -zvE '(^|/)(soi|am-thanh|__pycache__)/|/lop-[^/]*\.mov$|\.build\.html$|/am-tho\.wav$|/do-thoi-gian[^/]*\.txt$|/tai-nguyen[^/]*\.txt$' || true; } > "$RUNNER_TEMP/chung.lst"
+          [ -s "$RUNNER_TEMP/chung.lst" ] || { echo "danh sach tep chung rong"; exit 1; }
+          tr '\0' '\n' < "$RUNNER_TEMP/chung.lst" | grep -E "^$K/[^/]+\.(json|txt)$" | tr '\n' '\0' > "$RUNNER_TEMP/meta.lst"
+          [ -s "$RUNNER_TEMP/meta.lst" ] || { echo "danh sach tep meta rong"; exit 1; }
+          tar --null -T "$RUNNER_TEMP/chung.lst" -cf "$RUNNER_TEMP/chung-ra.tar"
+          tar --null -T "$RUNNER_TEMP/meta.lst" -cf "$RUNNER_TEMP/chung-meta.tar"
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:GOI_KHOA -in "$RUNNER_TEMP/chung-ra.tar" -out "$GITHUB_WORKSPACE/chung-ra.enc"
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:GOI_KHOA -in "$RUNNER_TEMP/chung-meta.tar" -out "$GITHUB_WORKSPACE/chung-meta.enc"
+          ls -la chung-ra.enc chung-meta.enc
+      - name: Chuyen ket qua chung sang 3 job ban (da ma hoa)
+        if: steps.dung.outputs.bo_khung != '1'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: chung-ra
+          path: chung-ra.enc
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
+      - name: Chuyen thong tin manifest sang job gom (da ma hoa)
+        if: steps.dung.outputs.bo_khung != '1'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: chung-meta
+          path: chung-meta.enc
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
+  ban:
+    needs: [kiem-moi, chung]
+    # !cancelled(): chung chay sau job chon (co the bi bo qua o Tin nhanh 1 pha) - xem bai hoc #35. Bo khung (chung xanh, khong co artifact) -> bo qua
+    if: "!cancelled() && github.ref == 'refs/heads/main' && needs.chung.result == 'success' && needs.chung.outputs.bo_khung != '1'"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: true
+      matrix:
+        ban: [tiktok, reels, shorts]
+    env:
+      DANG: ${{ github.event.inputs.dang || github.event.client_payload.dang }}
+      NGAY: ${{ needs.kiem-moi.outputs.ngay }}
+      CHE_DO: ${{ github.event.inputs.che_do || github.event.client_payload.che_do || 'thu' }}
+      FIXTURE: ${{ github.event.inputs.fixture || github.event.client_payload.fixture }}
+      FX_DIR: ${{ github.event.inputs.fixture || github.event.client_payload.fixture || 'khong-co' }}
+      LIVE: ${{ needs.kiem-moi.outputs.live }}
+      BA_PHA: ${{ needs.kiem-moi.outputs.ba_pha }}
+      DATA_SHA: ${{ needs.chung.outputs.data_sha }}
+      BAN: ${{ matrix.ban }}
+      GIO_DANG: ${{ (github.event.inputs.dang || github.event.client_payload.dang) == 'top5' && '12:00' || (github.event.inputs.dang || github.event.client_payload.dang) == 'tin-nhanh' && '07:30' || '20:00' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Du lieu rieng tu - anh tham chieu SSIM (chi fixture)
+        if: env.FIXTURE != ''
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: thenail1995-create/kenh-game-du-lieu
+          ref: ${{ env.DATA_SHA }}
+          ssh-key: ${{ secrets.DATA_DEPLOY_KEY }}
+          path: du-lieu
+          sparse-checkout: |
+            video/fixture/${{ env.FX_DIR }}
+          persist-credentials: false
+      - name: Du lieu rieng tu - ffmpeg tinh
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: thenail1995-create/kenh-game-du-lieu
+          ref: video-tai-san
+          ssh-key: ${{ secrets.DATA_DEPLOY_KEY }}
+          path: nang
+          sparse-checkout: |
+            video/tai-san/ffmpeg
+          persist-credentials: false
+      - name: ffmpeg tinh (ghim sha256)
+        run: |
+          set -euo pipefail
+          mkdir -p cong-cu/bin
+          for b in ffmpeg ffprobe; do
+            xz -dc "nang/video/tai-san/ffmpeg/$b.xz" > "cong-cu/bin/$b"
           done
+          (cd cong-cu/bin && sha256sum -c ../ffmpeg.sha256)
+          chmod +x cong-cu/bin/*
+          echo "$PWD/cong-cu/bin" >> "$GITHUB_PATH"
+          cong-cu/bin/ffmpeg -version | head -1
+      - name: Khoa cache apt (doi moi tuan)
+        id: apt
+        run: echo "tuan=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+      - name: Cache .deb tesseract
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/apt-debs
+          key: apt-deb-tesseract-ubuntu-24.04-${{ steps.apt.outputs.tuan }}
+      - name: tesseract (OCR bat anh giu cho PS Store - K18) tu cache .deb, thieu thi apt
+        run: |
+          set -euo pipefail
+          D="$HOME/apt-debs"; mkdir -p "$D"
+          if compgen -G "$D/*.deb" >/dev/null && sudo apt-get install -y -qq "$D"/*.deb >/dev/null 2>&1; then
+            echo "tesseract tu cache .deb"
+          else
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq --download-only -o Dir::Cache::archives="$D" tesseract-ocr
+            sudo chmod -R a+rX "$D"; sudo find "$D" -mindepth 1 ! -name '*.deb' -delete 2>/dev/null || true
+            sudo apt-get install -y -qq tesseract-ocr
+          fi
+          tesseract --version | head -1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: cong-cu/package-lock.json
+      - name: Cache trinh duyet Playwright (khoa theo package-lock = ban Playwright ghim)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('cong-cu/package-lock.json') }}
+      - name: Playwright (ban ghim trong package-lock) + Chromium
+        run: |
+          set -euo pipefail
+          cd cong-cu && npm ci --ignore-scripts
+          npx playwright install --with-deps chromium
+      - name: uv (ban ghim, cai bang pip trong venv, khong curl | sh)
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/uvenv"
+          "$RUNNER_TEMP/uvenv/bin/pip" install --quiet uv==0.11.17
+          echo "$RUNNER_TEMP/uvenv/bin" >> "$GITHUB_PATH"
+      - name: Cache uv (goi Python khoa theo uv.lock)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/uv
+            ~/.local/share/uv/python
+          key: uv-${{ runner.os }}-0.11.17-${{ hashFiles('uv.lock') }}
+      - name: Cache mo hinh Whisper
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/whisper-cache
+          key: whisper-small-536b0662742c02347bc0e980a01041f333bce120-turbo-0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf   # small (can chu, A2) + large-v3-turbo (D3 noi dung); doi revision nao thi doi khoa
+      - name: Ket qua chung (tu job chung)
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: chung-ra
+          path: chung-ra
+      - name: Giai ma + giai nen ket qua chung vao khuon
+        env:
+          GOI_KHOA: ${{ secrets.GOI_KHOA }}
+        run: |
+          set -euo pipefail
+          [ -n "${GOI_KHOA:-}" ] || { echo "thieu secret GOI_KHOA"; exit 1; }
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass env:GOI_KHOA -in chung-ra/chung-ra.enc | tar -xf - --no-same-owner -C "$GITHUB_WORKSPACE"
+          ls "khuon/$DANG"
+      - name: "Dung + kiem DAY DU cua ban ${{ matrix.ban }} (GD=ban: nen, lop chu, ghep, bia, kiem)"
+        id: dung
+        env:
+          GD: ban
+          WORKERS: '4'
+          WHISPER_DIR: /home/runner/whisper-cache
+          # chi khi chay fixture (hoi quy): bo kiem ngay du lieu theo NGAY (khuon/*/kiem). Khong fixture (LIVE) = khong dat. fixture + che_do=that da bi cam o kiem-moi.
+          HOI_QUY: ${{ env.FIXTURE != '' && '1' || '' }}
+          UV_PYTHON_PREFERENCE: managed
+          NEN_DUNG_LAI: '1'
+        run: |
+          set -euo pipefail
+          nproc; free -g | head -2; df -h / | tail -1
+          bash "khuon/$DANG/chay.sh"
+      - name: Thoi gian + tai nguyen
+        if: always()
+        run: |
+          cat khuon/"$DANG"/do-thoi-gian-ban-"$BAN".txt 2>/dev/null || true
+          df -h / | tail -1
+      - name: So anh voi ban Mac (SSIM)
+        if: success() && env.CHE_DO == 'thu' && env.LIVE != '1'
+        run: |
+          set -euo pipefail
+          SSIM_GIU=$PWD/go-loi/khung uv run -q --frozen python cong-cu/so-anh.py "khuon/$DANG/video-$BAN.mp4" "du-lieu/video/fixture/$FIXTURE/ref" "$BAN" 0.97
       - name: Go loi - dong goi + ma hoa khung (chi khi go_loi)
         if: always() && github.event.inputs.go_loi == 'true'
         env:
@@ -418,10 +658,8 @@ jobs:
           set -euo pipefail
           [ -n "${ARTIFACT_KEY:-}" ] || { echo "thieu secret ARTIFACT_KEY - KHONG dong goi / upload go-loi (khoa rong van ma hoa duoc nhung ai cung giai ma duoc)"; exit 1; }
           mkdir -p go-loi/nen
-          for nt in tiktok reels shorts; do
-            for t in 3 8 12 18 24; do
-              ffmpeg -v error -y -ss "$t" -i "khuon/$DANG/nen-$nt.mp4" -frames:v 1 -vf scale=540:-2 "go-loi/nen/nen_${nt}_${t}.png" || true
-            done
+          for t in 3 8 12 18 24; do
+            ffmpeg -v error -y -ss "$t" -i "khuon/$DANG/nen-$BAN.mp4" -frames:v 1 -vf scale=540:-2 "go-loi/nen/nen_${BAN}_${t}.png" || true
           done
           tar -cf - go-loi | openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:ARTIFACT_KEY -out go-loi.enc
           ls -la go-loi.enc
@@ -429,28 +667,103 @@ jobs:
         if: always() && github.event.inputs.go_loi == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: go-loi
+          name: go-loi-${{ matrix.ban }}
           path: go-loi.enc
           retention-days: 1
           if-no-files-found: ignore
-      - name: Manifest (that bai neu thieu bao cao / phep truot)
-        id: ket
-        if: steps.dung.outputs.bo_khung != '1'
+      - name: Dong goi + MA HOA ket qua ban (video, bia, bao cao kiem)
+        env:
+          GOI_KHOA: ${{ secrets.GOI_KHOA }}
         run: |
           set -euo pipefail
-          DATA_SHA="$(git -C du-lieu rev-parse HEAD)"   # commit that cua repo rieng tu (khong phai ten nhanh)
-          export DATA_SHA
-          export CODE_SHA="$GITHUB_SHA"
-          uv run -q --frozen python cong-cu/manifest.py --khuon "khuon/$DANG" --ra out --dang "$DANG" --ngay "$NGAY" --che-do "$CHE_DO"
+          [ -n "${GOI_KHOA:-}" ] || { echo "thieu secret GOI_KHOA - KHONG upload ban ro"; exit 1; }
+          tar -C "khuon/$DANG" -cf "$RUNNER_TEMP/kq-ban.tar" "video-$BAN.mp4" "bia-$BAN.jpg" "kiem/kiem-$BAN.json"
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:GOI_KHOA -in "$RUNNER_TEMP/kq-ban.tar" -out "$GITHUB_WORKSPACE/kq-ban.enc"
+          ls -la kq-ban.enc
+      - name: Chuyen ket qua ban sang job gom (da ma hoa)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kq-ban-${{ matrix.ban }}
+          path: kq-ban.enc
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
+  gom:
+    needs: [kiem-moi, chung, ban]
+    if: "!cancelled() && github.ref == 'refs/heads/main' && needs.chung.result == 'success' && needs.chung.outputs.bo_khung != '1' && needs.ban.result == 'success'"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      xong: ${{ steps.ket.outputs.xong }}
+    env:
+      DANG: ${{ github.event.inputs.dang || github.event.client_payload.dang }}
+      NGAY: ${{ needs.kiem-moi.outputs.ngay }}
+      CHE_DO: ${{ github.event.inputs.che_do || github.event.client_payload.che_do || 'thu' }}
+      LIVE: ${{ needs.kiem-moi.outputs.live }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Du lieu rieng tu - ffprobe tinh
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: thenail1995-create/kenh-game-du-lieu
+          ref: video-tai-san
+          ssh-key: ${{ secrets.DATA_DEPLOY_KEY }}
+          path: nang
+          sparse-checkout: |
+            video/tai-san/ffmpeg
+          persist-credentials: false
+      - name: ffprobe tinh (ghim sha256)
+        run: |
+          set -euo pipefail
+          mkdir -p cong-cu/bin
+          xz -dc nang/video/tai-san/ffmpeg/ffprobe.xz > cong-cu/bin/ffprobe
+          (cd cong-cu/bin && grep ' ffprobe$' ../ffmpeg.sha256 | sha256sum -c)
+          chmod +x cong-cu/bin/ffprobe
+          echo "$PWD/cong-cu/bin" >> "$GITHUB_PATH"
+      - name: Thong tin chung (da ma hoa)
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: chung-meta
+          path: ket-qua/chung-meta
+      - name: Ket qua 3 ban (da ma hoa)
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          pattern: kq-ban-*
+          path: ket-qua
+      - name: Giai ma vao khuon (thieu ban nao = loi)
+        env:
+          GOI_KHOA: ${{ secrets.GOI_KHOA }}
+        run: |
+          set -euo pipefail
+          [ -n "${GOI_KHOA:-}" ] || { echo "thieu secret GOI_KHOA"; exit 1; }
+          giai() { openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass env:GOI_KHOA -in "$1" | tar -xf - --no-same-owner -C "$2"; }
+          giai ket-qua/chung-meta/chung-meta.enc "$GITHUB_WORKSPACE"
+          for nt in tiktok reels shorts; do
+            [ -f "ket-qua/kq-ban-$nt/kq-ban.enc" ] || { echo "THIEU ket qua ban $nt"; exit 1; }
+            giai "ket-qua/kq-ban-$nt/kq-ban.enc" "khuon/$DANG"
+          done
+          ls -la "khuon/$DANG" "khuon/$DANG/kiem"
+      - name: Manifest (that bai neu thieu bao cao / phep truot)
+        id: ket
+        env:
+          DATA_SHA: ${{ needs.chung.outputs.data_sha }}
+          CODE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          python3 cong-cu/manifest.py --khuon "khuon/$DANG" --ra out --dang "$DANG" --ngay "$NGAY" --che-do "$CHE_DO"
           if [ "$LIVE" = "1" ]; then
             # moi dang co the co hook rieng (top5 / keo-thom); khong co (Tin nhanh) -> cong cu chung doc loi-dang.json + kiem-lai.json
-            if [ -f "khuon/$DANG/sau-manifest.py" ]; then uv run -q --frozen python "khuon/$DANG/sau-manifest.py" out/manifest.json
-            else uv run -q --frozen python cong-cu/sau_manifest_chung.py "khuon/$DANG" out/manifest.json; fi
+            if [ -f "khuon/$DANG/sau-manifest.py" ]; then python3 "khuon/$DANG/sau-manifest.py" out/manifest.json
+            else python3 cong-cu/sau_manifest_chung.py "khuon/$DANG" out/manifest.json; fi
           fi
           ls -la out
           echo "xong=1" >> "$GITHUB_OUTPUT"
       - name: Chuyen ban dung sang job phat hanh (che do that, hoac thu + release_thu)
-        if: success() && steps.dung.outputs.bo_khung != '1' && (env.CHE_DO == 'that' || github.event.inputs.release_thu == 'true')
+        if: success() && (env.CHE_DO == 'that' || github.event.inputs.release_thu == 'true')
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ban-dung
@@ -458,9 +771,9 @@ jobs:
           retention-days: 1
           if-no-files-found: error
   phat-hanh:
-    needs: [kiem-moi, dung]
+    needs: [kiem-moi, gom]
     # !cancelled(): Tin nhanh (1 pha) bo qua job chon -> khong co ham trang thai thi GitHub bo qua luon phat-hanh (CI 11/10 38113783849: 21/21 DAT ma khong co Release)
-    if: "!cancelled() && github.ref == 'refs/heads/main' && needs.dung.result == 'success' && needs.dung.outputs.xong == '1' && (((github.event.inputs.che_do || github.event.client_payload.che_do) == 'that' && needs.kiem-moi.outputs.live == '1') || ((github.event.inputs.che_do || github.event.client_payload.che_do || 'thu') != 'that' && github.event.inputs.release_thu == 'true'))"
+    if: "!cancelled() && github.ref == 'refs/heads/main' && needs.gom.result == 'success' && needs.gom.outputs.xong == '1' && (((github.event.inputs.che_do || github.event.client_payload.che_do) == 'that' && needs.kiem-moi.outputs.live == '1') || ((github.event.inputs.che_do || github.event.client_payload.che_do || 'thu') != 'that' && github.event.inputs.release_thu == 'true'))"
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -515,8 +828,8 @@ jobs:
           fi
           echo "tag $TAG -> $GITHUB_SHA OK"
   bao-loi:
-    needs: [kiem-moi, chon, dung, phat-hanh]
-    if: always() && github.ref == 'refs/heads/main' && needs.kiem-moi.outputs.live == '1' && (github.event.inputs.che_do || github.event.client_payload.che_do) == 'that' && (needs.kiem-moi.result == 'failure' || needs.chon.result == 'failure' || needs.dung.result == 'failure' || needs.phat-hanh.result == 'failure')
+    needs: [kiem-moi, chon, chung, ban, gom, phat-hanh]
+    if: always() && github.ref == 'refs/heads/main' && needs.kiem-moi.outputs.live == '1' && (github.event.inputs.che_do || github.event.client_payload.che_do) == 'that' && (needs.kiem-moi.result == 'failure' || needs.chon.result == 'failure' || needs.chung.result == 'failure' || needs.ban.result == 'failure' || needs.gom.result == 'failure' || needs.phat-hanh.result == 'failure')
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -531,6 +844,6 @@ jobs:
           DANG: ${{ github.event.inputs.dang || github.event.client_payload.dang }}
           NGAY: ${{ needs.kiem-moi.outputs.ngay }}
           LINK: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          KQ: kiem-moi=${{ needs.kiem-moi.result }} chon=${{ needs.chon.result }} dung=${{ needs.dung.result }} phat-hanh=${{ needs.phat-hanh.result }}
+          KQ: kiem-moi=${{ needs.kiem-moi.result }} chon=${{ needs.chon.result }} chung=${{ needs.chung.result }} ban=${{ needs.ban.result }} gom=${{ needs.gom.result }} phat-hanh=${{ needs.phat-hanh.result }}
         run: |
           python3 -c "import os,sys; from dang import ntfy; sys.exit(0 if ntfy.loi('Dung video that bai: '+os.environ['DANG'], 'Ngay '+os.environ['NGAY']+' ('+os.environ['KQ']+'). Xem '+os.environ['LINK'], click=os.environ['LINK']) else 1)"

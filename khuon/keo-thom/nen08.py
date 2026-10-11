@@ -113,9 +113,15 @@ def ke_hoach(H):
 if ND.exists():
     S=[(str(TR/f) if not pathlib.Path(f).is_absolute() else f,float(ss),float(dl),int(fz),float(xc),(cr[0] if cr else None)) for f,ss,dl,fz,xc,*cr in json.load(open(ND))]
     print('nen-doan.json co san (mau/ban tay):',len(S),'doan')
+elif os.environ.get('NEN_DUNG_LAI')=='1':   # job `ban` cua CI: dung lai ke hoach job chung da chon (3 ban cung doan nen); thieu = loi, KHONG chon lai
+    if not KH.exists(): raise SystemExit('THIEU nen-ke-hoach.json - job ban KHONG duoc chon lai doan nen')
+    S=[(str(TR/pathlib.Path(f).name),float(ss),float(dl),int(fz),float(xc),cr) for f,ss,dl,fz,xc,cr in json.load(open(KH))['seg']]   # trailer o dau-vao/trailer/ cua may nay
+    print('nen-ke-hoach.json (job chung):',len(S),'doan')
 else:
     S=None
-for nt in chon(sys.argv[1:])[0]:
+CHI_CHON='chon' in sys.argv[1:]   # 'chon' = CHI chon doan (job chung cua CI), khong ma hoa nen
+if CHI_CHON and S is None: S=ke_hoach(cao('tiktok')); print('TU CHON',len(S),'doan; ke hoach ->',KH.name)
+for nt in ([] if CHI_CHON else chon(sys.argv[1:])[0]):
     H=cao(nt)
     if S is None: S=ke_hoach(cao('tiktok')); print('TU CHON',len(S),'doan; ke hoach ->',KH.name)
     a=['ffmpeg','-v','error','-y']
