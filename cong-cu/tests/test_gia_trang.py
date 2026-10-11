@@ -85,6 +85,15 @@ class ThongTinGame(unittest.TestCase):       # 11/10: gioi thieu game — Produc
     def test_hop_nhat_nhieu_trang_lay_truong_dau_tien(self):
         h=GT.hop_nhat_thong_tin([dict(the_loai=[],diem=None,edition=None,mo_ta_dai='',mo_ta_ngan=''),dict(the_loai=['Action'],diem={'tb':4.0,'so_luot':300},edition=None,mo_ta_dai='B',mo_ta_ngan=''),dict(the_loai=['Puzzle'],diem=None,edition=None,mo_ta_dai='C',mo_ta_ngan='D')])
         self.assertEqual((h['the_loai'],h['diem']['so_luot'],h['mo_ta_dai'],h['mo_ta_ngan']),(['Action'],300,'B','D'))
+    def test_p2_hop_nhat_theo_truong_trong_cung_san_pham(self):      # Sol: manh dau chi co SHORT + averageRating, manh sau co LONG + totalRatingsCount -> khong mat du lieu
+        a={f'Product:{PID}':{'descriptions':[{'type':'SHORT','value':'ngan'}],'starRating':{'averageRating':4.2}}}
+        b={f'Product:{PID}':{'descriptions':[{'type':'SHORT','value':''},{'type':'LONG','value':'dai'}],'starRating':{'averageRating':4.9,'totalRatingsCount':500}}}
+        t=GT.thong_tin_game(trang(a,b),PID); self.assertEqual((t['mo_ta_ngan'],t['mo_ta_dai'],t['diem']),('ngan','dai',{'tb':4.2,'so_luot':500}))
+    def test_p2_khong_ghep_edition_cua_trang_nay_voi_mo_ta_trang_khac(self):
+        deluxe=dict(the_loai=[],diem=None,edition=dict(ten='Deluxe Edition',loai='PREMIUM',tinh_nang=[]),mo_ta_dai='',mo_ta_ngan='')
+        std=dict(the_loai=['Action'],diem={'tb':4.0,'so_luot':300},edition=dict(ten='Standard Edition',loai='',tinh_nang=[]),mo_ta_dai='LONG STANDARD',mo_ta_ngan='')
+        h=GT.hop_nhat_thong_tin([deluxe,std],['en-us','en-hk']); self.assertEqual((h['mo_ta_dai'],h['the_loai'],h['diem']),('','',None) if False else ('',[],None)); self.assertEqual(h['edition']['ten'],'Deluxe Edition')
+        d2=dict(deluxe,the_loai=['Action'],mo_ta_dai='LONG DELUXE'); h=GT.hop_nhat_thong_tin([deluxe,d2],['en-us','en-hk']); self.assertEqual((h['mo_ta_dai'],h['nguon_truong']['mo_ta_dai'],h['nguon_truong']['edition']),('LONG DELUXE','en-hk','en-us'))
 
 if __name__=='__main__': unittest.main()
 

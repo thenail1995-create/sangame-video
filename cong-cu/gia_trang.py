@@ -158,35 +158,45 @@ def thong_tin_game(html, pid):
     """Thong tin GIOI THIEU cua DUNG san pham (khong lay cua game goi y): hop nhat moi manh `Product:<pid>` tren trang (ghi de khong; manh nao co truoc thi dung).
     -> dict(the_loai[str], diem{tb, so_luot}|None, edition{ten, loai, tinh_nang[str]}|None, mo_ta_dai str ('<br/>' giu nguyen), mo_ta_ngan str). Truong khong co = rong/None (KHONG doan).
     Chi doc du lieu co san tren trang (PS Store: starRating, localizedGenres, edition, descriptions); noi dung tieng Anh goc, viec dich sang loi doc o khuon/keo-thom/loi_chu.py (bang co dinh)."""
-    hop = {}
+    sr, mo, gen, ed = {}, {}, [], {}
     if pid and isinstance(html, str):
         for c in _cache_cac_the(html):
             p = c.get(f"Product:{pid}")
             if not isinstance(p, dict):
                 continue
-            for k in ("starRating", "localizedGenres", "edition", "descriptions"):
-                if not p.get(k):
-                    continue
-                if k == "edition" and isinstance(p[k], dict):   # edition cung bi chia manh ({name} o the nay, {name, features, type} o the kia): hop nhat tung truong
-                    cu = hop.get(k) or {}
-                    hop[k] = {**{a: b for a, b in p[k].items() if b}, **{a: b for a, b in cu.items() if b}}
-                elif not hop.get(k):
-                    hop[k] = p[k]
-    sr = hop.get("starRating") if isinstance(hop.get("starRating"), dict) else {}
+            # moi truong hop nhat THEO TRUONG (Sol 11/10 P2): starRating tung o (averageRating / totalRatingsCount), descriptions theo `type`, edition tung o; manh sau bo sung cho manh truoc, khong ghi de
+            if isinstance(p.get("starRating"), dict):
+                for k in ("averageRating", "totalRatingsCount"):
+                    if sr.get(k) is None and p["starRating"].get(k) is not None:
+                        sr[k] = p["starRating"][k]
+            for x in (p.get("descriptions") or []):
+                if isinstance(x, dict) and isinstance(x.get("value"), str) and x["value"] and x.get("type") not in mo:
+                    mo[x.get("type")] = x["value"]
+            if not gen and p.get("localizedGenres"):
+                gen = [x.get("value") for x in p["localizedGenres"] if isinstance(x, dict) and isinstance(x.get("value"), str)]
+            if isinstance(p.get("edition"), dict):
+                for k, v in p["edition"].items():
+                    if v and not ed.get(k):
+                        ed[k] = v
     tb, n = sr.get("averageRating"), sr.get("totalRatingsCount")
     diem = dict(tb=float(tb), so_luot=int(n)) if isinstance(tb, (int, float)) and not isinstance(tb, bool) and isinstance(n, int) and not isinstance(n, bool) and n >= 0 else None
-    gen = [x.get("value") for x in (hop.get("localizedGenres") or []) if isinstance(x, dict) and isinstance(x.get("value"), str)]
-    ed = hop.get("edition") if isinstance(hop.get("edition"), dict) else None
-    edition = dict(ten=ed.get("name") or "", loai=ed.get("type") or "", tinh_nang=[x for x in (ed.get("features") or []) if isinstance(x, str)]) if ed and ed.get("name") else None
-    mo = {x.get("type"): x.get("value") for x in (hop.get("descriptions") or []) if isinstance(x, dict) and isinstance(x.get("value"), str)}
+    edition = dict(ten=ed.get("name") or "", loai=ed.get("type") or "", tinh_nang=[x for x in (ed.get("features") or []) if isinstance(x, str)]) if ed.get("name") else None
     return dict(the_loai=gen, diem=diem, edition=edition, mo_ta_dai=mo.get("LONG", ""), mo_ta_ngan=mo.get("SHORT", ""))
 
 
-def hop_nhat_thong_tin(ds):
-    """Nhieu trang (vung re nhat truoc) -> mot dict: moi truong lay tu trang DAU TIEN co truong do."""
-    ra = dict(the_loai=[], diem=None, edition=None, mo_ta_dai="", mo_ta_ngan="")
-    for d in ds:
+def hop_nhat_thong_tin(ds, nhan=None):
+    """Nhieu trang (vung re nhat truoc) -> mot dict. Trang DAU = chuan; trang sau CHI bo sung khi cung EDITION voi trang dau (ten edition giong nhau, ke ca cung rong): khong ghep
+    ten Deluxe cua trang nay voi mo ta Standard cua trang kia. Moi truong lay tu trang dau tien co truong do; ghi nguon theo tung truong vao `nguon_truong` (nhan trang, vd 'en-us').
+    nhan = danh sach nhan (cung thu tu ds)."""
+    ra = dict(the_loai=[], diem=None, edition=None, mo_ta_dai="", mo_ta_ngan="", nguon_truong={})
+    ten = lambda d: ((d.get("edition") or {}).get("ten") or "").strip().lower()
+    for i, d in enumerate(ds):
+        if i and ten(d) != ten(ds[0]):
+            continue
         for k, v in d.items():
+            if k in ("nguon_truong",):
+                continue
             if v and not ra.get(k):
                 ra[k] = v
+                ra["nguon_truong"][k] = (nhan[i] if nhan and i < len(nhan) else i)
     return ra

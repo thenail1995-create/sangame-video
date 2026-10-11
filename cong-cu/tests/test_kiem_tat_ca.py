@@ -165,13 +165,28 @@ class D3TheoLuatKhuon(unittest.TestCase):      # Sol vong 2b #11/#12 o CAP SCRIP
                           ('dap','Store Mỹ đang đắt hơn Hồng Kông 650, rẻ hơn Sinh 706.','CHIEU SO SANH')):
             r=self.keo(dict(self.HK,**{k:moi})); self.assertFalse(r[1],(k,r)); self.assertIn(dau,r[2],(k,r[2]))
     def test_keo_gioi_diem_sai_hoac_thieu_phan_them_thi_truot(self):      # doan `gioi` (11/10): diem sao phai nghe DUNG 4,4 ('4.4' / '4,4' / 'bốn phẩy bốn' deu duoc); thieu phan them bat buoc -> truot
-        for ok in ('Game bắn súng roguelike, chơi chung online được, người chơi chấm 4,4 trên 5 sao. Bản Deluxe có thêm hai vũ khí, vật phẩm, ảnh đại diện và nhạc phim.',
+        for ok in ('Game bắn súng roguelike, chơi chung online được, người chơi chấm 4,4 trên 5 sao. Bản Deluxe có thêm hai vũ khí với vật phẩm dùng sớm, ảnh đại diện và nhạc phim.',
                    'Game bắn súng roguelike, chơi chung online được, người chơi chấm bốn phẩy bốn trên năm sao. Bản Delux có thêm 2 vũ khí với vật phẩm dùng sớm, ảnh đại diện và nhạc phim.'):
             r=self.keo(dict(self.HK,gioi=ok)); self.assertTrue(r[1],r)
-        for k,moi,dau in (('gioi','Game bắn súng roguelike, chơi chung online được, người chơi chấm 4.5 trên 5 sao. Bản Deluxe có thêm 2 vũ khí, vật phẩm, ảnh đại diện và nhạc phim.','DIEM SAO'),
+        for k,moi,dau in (('gioi','Game bắn súng roguelike, chơi chung online được, người chơi chấm 4.5 trên 5 sao. Bản Deluxe có thêm 2 vũ khí với vật phẩm dùng sớm, ảnh đại diện và nhạc phim.','DIEM SAO'),
                           ('gioi','Game bắn súng roguelike, chơi chung online được, người chơi chấm 4.4 trên 5 sao.','TU KHOA phan them'),
-                          ('gioi','Game bắn súng, người chơi chấm 4.4 trên 5 sao. Bản Deluxe có thêm 2 vũ khí, vật phẩm, ảnh đại diện và nhạc phim.','TU KHOA the loai')):
+                          ('gioi','Game bắn súng, người chơi chấm 4.4 trên 5 sao. Bản Deluxe có thêm 2 vũ khí với vật phẩm dùng sớm, ảnh đại diện và nhạc phim.','TU KHOA')):
             r=self.keo(dict(self.HK,**{k:moi})); self.assertFalse(r[1],(k,r)); self.assertIn(dau,r[2],(k,r[2]))
+
+    GOOD='Game bắn súng roguelike, chết là chơi lại từ đầu, chơi chung online được, người chơi chấm 4.4 trên 5 sao. Bản Deluxe có thêm 2 vũ khí với vật phẩm dùng sớm, ảnh đại diện và nhạc phim.'
+    def test_p2_d3_so_luong_dung_som_che_do_edition_phu_dinh_thang_diem(self):      # Sol 11/10: moi bien the SAI phai TRUOT
+        self.assertTrue(self.keo(dict(self.HK,gioi=self.GOOD))[1])
+        for ten,moi,dau in (('so luong',self.GOOD.replace('2 vũ khí','9 vũ khí'),'SO LUONG'),('thieu dung som',self.GOOD.replace(' dùng sớm',''),'DUNG SOM'),
+                            ('che do',self.GOOD.replace('chơi chung online được','chơi chung trên một máy'),'TU KHOA'),('edition',self.GOOD.replace('Bản Deluxe','Bản Standard'),'TU'),
+                            ('phu dinh','Game bắn súng roguelike, chơi chung online được, người chơi chấm 4.4 trên 5 sao. Bản Deluxe không có thêm vũ khí, vật phẩm, ảnh đại diện và nhạc phim.','PHU DINH'),
+                            ('thang 10',self.GOOD.replace('trên 5 sao','trên 10 sao'),'DIEM SAO'),
+                            ('phien ban',self.GOOD.replace('chấm 4.4 trên 5 sao','chấm 4.5 sao, phiên bản 4.4'),'DIEM SAO')):
+            r=self.keo(dict(self.HK,gioi=moi)); self.assertFalse(r[1],(ten,r)); self.assertIn(dau,r[2],(ten,r[2]))
+    def test_p1_d1_khong_sap_khi_diem_ban_the_loai_none(self):      # khoi so sanh D1 THAT trong kiem-tat-ca.py
+        src=KIEM('keo-thom').read_text(encoding='utf-8'); a=src.index("_cs=lambda"); b=src.index("\n",a); g=dict(re=__import__('re')); exec(src[a:b].split(';')[-1].strip() if False else src[a:b],g)
+        i=src.index("nd=d.get('noiDung',{}); sai=[]"); j=src.index("if not okk: sai.append",i); j=src.index("\n",j)
+        for exp in ({'gioi.diem':None,'gioi.ban':None,'gioi.the_loai':None,'gioi.chip':[],'gioi.them':[]},):
+            g2=dict(g,d=dict(noiDung={}),exp=exp); exec(src[i:j],g2); self.assertEqual(g2['sai'],[])
 
 if __name__=='__main__': unittest.main()
 

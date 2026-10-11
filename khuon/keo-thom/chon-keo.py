@@ -136,9 +136,10 @@ def kiem_ung_vien(u):
             if ly: return None,f'anh {u.rsplit("/",1)[-1][:20]} {ly}'
     # GIOI THIEU game (Hao 11/10): the loai / diem sao / dac diem / phan them cua ban dac biet — CHI tu du lieu trang PS Store (cong-cu/gia_trang.thong_tin_game), moi truong lay tu trang dau tien (vung re nhat truoc) co truong do.
     # Khong co GI de noi (khong the loai, diem, dac diem, phan them) -> loai ung vien (khong dung cau doan mo).
-    gioi=gioi_thieu_tu_trang(GT.hop_nhat_thong_tin([p['thong_tin'] for p in tr]))
+    hn=GT.hop_nhat_thong_tin([p['thong_tin'] for p in tr],[LOC[v['ma']] for v in v3])
+    gioi=gioi_thieu_tu_trang(hn)
     if not gioi: return None,'trang PS Store khong co du lieu gioi thieu (the loai / diem / dac diem / phan them)'
-    gioi['nguon']=dict(pid=v3[0]['id'],loc=LOC[v3[0]['ma']],hop_nhat_tu=[LOC[v['ma']] for v in v3])
+    gioi['nguon']=dict(pid=v3[0]['id'],loc=LOC[v3[0]['ma']],pid_theo_loc={LOC[v['ma']]:v['id'] for v in v3},theo_truong=hn['nguon_truong'])   # nguon TUNG truong (trang nao cung cap), khong chi PID dau
     tr[0]['gioi']=gioi
     return tr,None
 chon=None
