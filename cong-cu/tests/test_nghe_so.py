@@ -202,4 +202,65 @@ class NgheTrenAmThanhMp4(unittest.TestCase):   # Sol #17: D3 nghe am thanh trich
             src=(ROOT/'khuon'/k/'kiem'/'kiem-tat-ca.py').read_text(encoding='utf-8'); d3=src[src.index('D3 (B2)'):]
             self.assertIn('nghe_doan',d3,k); self.assertNotIn('nghe(G16',d3,k)
 
+class Vong2b(unittest.TestCase):        # Sol soi ban sua (vong 2b) - moi diem 1 nhom test do -> xanh
+    def test_04_dong_giu_nguyen_gia_tri(self):
+        self.assertEqual(gt('167 đồng'),[167]); self.assertEqual(gt('167đ'),[167]); self.assertEqual(gt('167.000 đồng'),[167000]); self.assertEqual(gt('một trăm sáu mươi bảy nghìn đồng'),[167000])
+        self.assertTrue(ns.doi_chieu('chỉ 167 đồng',tien=[167000])); self.assertEqual(ns.doi_chieu('chỉ 167 nghìn đồng',tien=[167000]),[]); self.assertEqual(gt('chỉ 167'),[167000])   # khong don vi, ngu canh tien -> nghin
+    def test_05_literal_chi_cho_chu_so_whisper(self):
+        cap=[('SG',760000)]
+        self.assertTrue(ns.doi_chieu('Sing tới bảy trăm lẻ sáu nghìn',tien=[760000],tien_tat=[760000],cap=cap))          # chu day du 706.000 != 760.000
+        self.assertTrue(ns.doi_chieu('Sing tới bảy trăm lẻ sáu nghìn',tien=[760000],tien_tat=[760000]))
+        self.assertEqual(ns.doi_chieu('Sing tới 706 lận',tien=[760000],tien_tat=[760000],cap=cap),[])                    # chu so '706' van duoc chap nhan
+        self.assertEqual(ns.doi_chieu('Sing tới 706 nghìn lận',tien=[760000],tien_tat=[760000],cap=cap),[])
+        self.assertEqual(ns.doi_chieu('Sing tới bảy trăm sáu lận',tien=[760000],tien_tat=[760000],cap=cap),[])
+    def test_06_so_trong_ten_game_khong_la_tien(self):
+        ten=['Mortal Kombat mười một']
+        self.assertTrue(ns.doi_chieu('Hạng hai: Mortal Kombat mười một, chỉ mười hai nghìn!',tien=[11000],ten=ten))
+        self.assertEqual(ns.doi_chieu('Hạng hai: Mortal Kombat mười một, chỉ mười hai nghìn!',tien=[12000],ten=ten),[])
+        self.assertEqual(ns.doi_chieu('Hạng hai: Mortal Kombat 11, giảm chín mươi phần trăm, chỉ một trăm ba mươi sáu nghìn!',tien=[136000],ten=ten,hang=True),[])
+        self.assertEqual(ns.doi_chieu('Mortal Kombat mười một, chỉ mười một nghìn!',tien=[11000],ten=ten),[])             # so thu hai (gia that) nam NGOAI cua so ten
+        self.assertEqual(ns.che_so_trong_ten('Mortal Kombat mười một, chỉ 12 nghìn',ten).count('mười'),0); self.assertIn('12',ns.che_so_trong_ten('Mortal Kombat mười một, chỉ 12 nghìn',ten))
+    def test_07_token_phan_biet_thua(self):
+        for mong,nghe in (('Resident Evil','Resident Evil hai'),('Resident Evil','Resident Evil 2'),('Resident Evil 4','Resident Evil 4 Deluxe'),('Resident Evil bốn','Resident Evil bốn Remake'),('Mafia','Mafia bản làm lại')):
+            self.assertFalse(ns.so_ten(mong,nghe)[0],(mong,nghe)); self.assertIn('thua',ns.so_phan_biet(mong,nghe)[1])
+        for mong,nghe in (('Resident Evil 4','Hạng bốn: Resident Evil 4, giảm chín mươi phần trăm, một trăm ba mươi ba nghìn'),('Resident Evil','Resident Evil, giảm 90%'),('Outlast','Outlast 75 phần trăm'),('Outlast','Outlast 133.000'),
+                          ('Outlast','Outlast 133 nghìn'),('Mafia bản làm lại','Và hãng 1, Mafia bản nắm lại 167.000'),('Little Nightmares bản đầy đủ','Hẳn 3. Lý đồ NaiMask bán đầy đủ 130.000.'),('Steelrising','Steelrising giảm chín mươi')):
+            self.assertTrue(ns.so_ten(mong,nghe)[0],(mong,nghe,ns.so_ten(mong,nghe)))
+    def test_08_f1_25_chinh_xac(self):
+        for nghe in ('F1 hai lăm','F1 25','F125','F1 hai mươi lăm'): self.assertTrue(ns.so_ten('F1 hai lăm',nghe)[0],nghe)
+        for nghe in ('F225','F2 25','F1 24','F1 hai bốn','F1','F1 hai lăm Deluxe','F1 hai lăm hai'): self.assertFalse(ns.so_ten('F1 hai lăm',nghe)[0],nghe)
+        self.assertFalse(ns.so_phan_biet('F1 hai lăm','F225')[0])
+    def test_09_la_ma_mot_ky_tu(self):
+        for nghe in ('GTA V','GTA năm','GTA 5','GTA5','Hạng một: GTA V, giảm'): self.assertTrue(ns.so_ten('GTA V',nghe)[0],nghe); self.assertTrue(ns.so_ten('GTA năm',nghe)[0],nghe)
+        for nghe in ('GTA VI','GTA sáu','GTA 6','GTA','GTA IV'): self.assertFalse(ns.so_ten('GTA V',nghe)[0],nghe)
+        self.assertFalse(ns.so_ten('GTA VI','GTA V')[0]); self.assertTrue(ns.so_ten('GTA VI','GTA sáu')[0])
+        self.assertTrue(ns.so_ten('Final Fantasy X','Final Fantasy mười')[0]); self.assertTrue(ns.so_ten('V Rising','V Rising')[0])    # V dau ten = chu, khong phai La Ma
+    def test_10_cat_hang_chi_khi_nhan_dang_duoc(self):
+        self.assertEqual(ns.cat_hang('Resident Evil bốn đang giảm'),'Resident Evil bốn đang giảm'); self.assertEqual(ns.cat_hang('Hai game này'),'Hai game này'); self.assertEqual(ns.cat_hang('Năm game đang giảm'),'Năm game đang giảm')
+        for x,y in (('Hạng năm: Steelrising','Steelrising'),('Và hạng một, Mafia','Mafia'),('Hẳn 3. Lý đồ','Lý đồ'),('hang hai Outlast','Outlast'),('h3 Outlast','Outlast'),('Và hãng 1, Mafia','Mafia'),('Hạng 4: Resident Evil 4','Resident Evil 4')):
+            self.assertEqual(ns.cat_hang(x),y,x)
+        self.assertEqual(ns.doi_chieu('Resident Evil bốn đang giảm chín mươi phần trăm',ten=['Resident Evil bốn'],hang=True),[])
+        self.assertEqual(ns.doi_chieu('Resident Evil bốn đang giảm chín mươi phần trăm',ten=['Resident Evil bốn']),[])
+        self.assertEqual(ns.doi_chieu('Hạng bốn: Resident Evil bốn, giảm',ten=['Resident Evil bốn'],hang=True),[]); self.assertTrue(ns.doi_chieu('Hạng bốn: Resident Evil năm, giảm',ten=['Resident Evil bốn'],hang=True))
+        self.assertTrue(ns.doi_chieu('Resident Evil năm đang giảm',ten=['Resident Evil bốn'],hang=True))          # khong cat -> thay 'năm' that -> TRUOT
+    def test_11_nhiem_vu_theo_luat_khuon(self):
+        self.assertEqual([ns.nhiem_vu_top5(r) for r in range(1,6)],[(False,True),(True,False),(False,False),(True,True),(True,False)])
+        self.assertEqual(ns.KEO_VUNG,{'mo':('A',),'hoi':('B','C'),'dap':('A','B','C')}); self.assertEqual(ns.KEO_PHAN_TRAM,{'mo'})
+    def test_12_chieu_so_sanh_keo(self):
+        cap=[('HK',650000),('SG',760000)]; kw=dict(cap=cap,tien_tat=[760000],chu_the='US')
+        self.assertEqual(ns.doi_chieu('Quy ra tiền Việt, Mỹ vẫn rẻ hơn Hồng Kông sáu trăm rưỡi, rẻ hơn Sing tới bảy trăm sáu lận.',**kw),[])
+        self.assertEqual(ns.doi_chieu('Mỹ vẫn rẻ hơn Hồng Kông sáu trăm rưỡi, rẻ hơn Sing tới 706 lận.',**kw),[])
+        self.assertEqual(ns.doi_chieu('Quy ra tiền Việt, Mỹ vẫn dạy hơn Hồng Kông 600 rưỡi, dạy hơn sinh tới 706 lận.',**kw),[])      # CAU THAT thu-d: Whisper nghe 'rẻ hơn' thanh 'dạy hơn' — khong phai chieu nguoc
+        for sai in ('Quy ra tiền Việt, Mỹ vẫn đắt hơn Hồng Kông sáu trăm rưỡi, rẻ hơn Sing tới bảy trăm sáu lận.',
+                    'Quy ra tiền Việt, Mỹ vẫn rẻ hơn Hồng Kông sáu trăm rưỡi, đắt hơn Sing tới bảy trăm sáu lận.',
+                    'Quy ra tiền Việt, Mỹ vẫn mắc hơn Hồng Kông sáu trăm rưỡi, mắc hơn Sing tới bảy trăm sáu lận.',
+                    'Quy ra tiền Việt, Hồng Kông vẫn rẻ hơn Mỹ sáu trăm rưỡi, rẻ hơn Sing tới bảy trăm sáu lận.',
+                    'Quy ra tiền Việt, Mỹ với Hồng Kông sáu trăm rưỡi, với Sing tới bảy trăm sáu lận.'):
+            self.assertTrue([x for x in ns.doi_chieu(sai,**kw) if 'CHIEU' in x],sai)
+        self.assertEqual(ns.doi_chieu('Mỹ vẫn đắt hơn Hồng Kông sáu trăm rưỡi, rẻ hơn Sing tới bảy trăm sáu lận.',cap=cap,tien_tat=[760000]),[])      # khong yeu cau chu_the -> khong kiem chieu
+    def test_ngay_thieu_khong_crash(self):
+        ok,sd,_=ns.kiem_ngay('','2026-10-12'); self.assertFalse(ok); self.assertIn('THIEU ngay_dang',sd)
+        ok,sd,nd=ns.kiem_ngay('','',hoi_quy=True); self.assertTrue(ok); self.assertIn('hoi quy',sd); self.assertIsNone(nd)
+        self.assertEqual(ns.ngay_tu_ddmm('10/10','Thứ Bảy',datetime.date(2026,10,12)),datetime.date(2026,10,10)); self.assertIsNone(ns.ngay_tu_ddmm('abc')); self.assertEqual(ns.ngay_tu_ddmm('31/12',None,datetime.date(2026,10,12)),datetime.date(2026,12,31))
+
 if __name__=='__main__': unittest.main()

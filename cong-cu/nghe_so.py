@@ -116,7 +116,7 @@ def _tien_tu(T,i,r):
     if x in NGHIN or x=='k': return round(v*1000),j+1
     if x in DONG:
         j+=1
-        return (v if hang=='nhom' or (hang=='nguyen' and v>=1000) else round(v*1000)),j
+        return int(round(v)),j        # 'đồng/đ' GIỮ NGUYÊN giá trị (167 đồng = 167 đ, không phải 167.000; Sol vòng 2b #4)
     if x in NON_TIEN_SAU: return None
     if i>0 and not T[i][2] and _w(T,i-1) in NON_TIEN_TRUOC: return None
     if hang=='nhom': return v,j
@@ -125,6 +125,9 @@ def _tien_tu(T,i,r):
     return round(v*1000),j       # khong co don vi trong ngu canh tien -> nghin (luat B1)
 def doc_tien(van_ban):
     """-> [(gia_tri_vnd, tien_to, vi_tri)] theo thu tu xuat hien. Con so di kem 'phan tram' / '%' la PHAN TRAM, khong bao gio la tien."""
+    return [(v,tt,p) for v,tt,p,_ in doc_tien_ct(van_ban)]
+def doc_tien_ct(van_ban):
+    """Nhu doc_tien nhung them nguon: 's' = khoi tien bat dau bang CHU SO Whisper viet ("706", "167k"), 'c' = viet bang chu ("bay tram le sau nghin")."""
     T=_tach(van_ban); kq=[]; i=0
     while i<len(T):
         r=_so(T,i)
@@ -136,7 +139,7 @@ def doc_tien(van_ban):
         vnd,j=t
         if _w(T,j) in DONG and _lien(T,j): j+=1
         tt=_w(T,i-1) if i>0 and not T[i][2] and _w(T,i-1) in TIEN_TO_TU else ''
-        kq.append((vnd,tt,T[i][3])); i=j
+        kq.append((vnd,tt,T[i][3],'s' if T[i][0]=='s' else 'c')); i=j
     return kq
 def doc_phan_tram(van_ban):
     """-> [(so, vi_tri)]"""
@@ -242,20 +245,25 @@ def _la_ma_gt(s):
     return tong if ra==s and tong<40 else None
 _DAY_DON=set(CHU_SO)|set(DON_VI_SAU)
 VER_CHU={'remake':'banlamlai','complete':'bandaydu'}
+_LA_MA_1={'I':1,'V':5,'X':10}
 def _tok_ten(text):
-    """Ten game -> [('n',gia_tri)|('v',lop_phien_ban)|('w',tu_bo_dau)]. 4 = IV = 'bốn' ; 'mười một' = 11 ; 'hai lăm' = 25 (doc tung chu so)."""
-    raw=re.findall(r"[^\W_]+",nfc(text)); low=[r.lower() for r in raw]; ra=[]; i=0
+    """Ten game -> [(loai,gia_tri,bat_dau,ket_thuc)] voi loai 'n' (so) | 'v' (lop phien ban) | 'w' (tu bo dau); bat_dau/ket_thuc = vi tri trong nfc(text).
+    4 = IV = 'bốn' ; 'mười một' = 11 ; 'hai lăm' = 25 (doc tung chu so) ; 'GTA V' = 'GTA năm' = 'GTA 5' = 'GTA5' (La Ma 1 ky tu V/X/I chi tu vi tri thu 2 tro di: 'V Rising' giu la chu) ;
+    'F1 hai lăm' = 'F1 25' = 'F125' (chu+so dinh nhau tach thanh chu + so, so dung ngay sau noi vao: 1 + 25 = 125, KHONG so theo hau to)."""
+    t=nfc(text); ms=list(re.finditer(r"[^\W_]+",t)); raw=[m.group() for m in ms]; low=[r.lower() for r in raw]; ra=[]; i=0
+    sp=lambda a,b:(ms[a].start(),ms[b-1].end())
     while i<len(raw):
         r,l=raw[i],low[i]
-        if l.isdigit(): ra.append(('n',int(l))); i+=1; continue
+        if l.isdigit(): ra.append(('n',int(l))+sp(i,i+1)); i+=1; continue
         rm=_la_ma_gt(r) if r.isupper() else None
-        if rm: ra.append(('n',rm)); i+=1; continue
+        if rm: ra.append(('n',rm)+sp(i,i+1)); i+=1; continue
+        if i>0 and r in _LA_MA_1: ra.append(('n',_LA_MA_1[r])+sp(i,i+1)); i+=1; continue
         hit=None; bd=[bo_dau(x) for x in low[i:i+3]]
         for ph,lop in VERSION_VN:
             if tuple(bd[:len(ph)])==ph: hit=(len(ph),lop); break
             if bd[:1]==['ban'] and tuple(bd[1:1+len(ph)])==ph: hit=(len(ph)+1,lop); break
-        if hit: ra.append(('v',hit[1])); i+=hit[0]; continue
-        if l in VERSION: ra.append(('v',VERSION[l])); i+=1; continue
+        if hit: ra.append(('v',hit[1])+sp(i,i+hit[0])); i+=hit[0]; continue
+        if l in VERSION: ra.append(('v',VERSION[l])+sp(i,i+1)); i+=1; continue
         if l in CHU_SO or l=='mười':
             T=[('w',x,False,0) for x in low[i:i+8]]; r2=_ba(T,0)
             if r2:
@@ -263,38 +271,57 @@ def _tok_ten(text):
                 if hang=='don':
                     ds=[gt]; k=1
                     while k<len(T) and T[k][1] in _DAY_DON: ds.append(CHU_SO.get(T[k][1],DON_VI_SAU.get(T[k][1]))); k+=1
-                    ra.append(('n',int(''.join(map(str,ds))))); i+=k
-                else: ra.append(('n',gt)); i+=j
+                    ra.append(('n',int(''.join(map(str,ds)))))
+                    ra[-1]+=sp(i,i+k); i+=k
+                else: ra.append(('n',gt)+sp(i,i+j)); i+=j
                 continue
-        ra.append(('w',bo_dau(l))); i+=1
-    return ra
+        m2=re.fullmatch(r'([^\W\d_]+)(\d+)',l)
+        if m2: ra.append(('w',bo_dau(m2.group(1)))+sp(i,i+1)); ra.append(('n',int(m2.group(2)),ms[i].start(),ms[i].end(),'dinh')); i+=1; continue
+        ra.append(('w',bo_dau(l))+sp(i,i+1)); i+=1
+    ket=[]; k=0
+    while k<len(ra):                      # 'F1' + '25' -> chu F + so 125 (so dinh lien chu noi tiep so ke ngay sau)
+        x=ra[k]
+        if len(x)==5 and k+1<len(ra) and ra[k+1][0]=='n' and len(ra[k+1])==4:
+            y=ra[k+1]; ket.append(('n',int(str(x[1])+str(y[1])),x[2],y[3])); k+=2; continue
+        ket.append(x[:4]); k+=1
+    return ket
 def _cs(t): return f'#{t[1]}' if t[0]=='n' else f'~{t[1]}' if t[0]=='v' else t[1]
-def _cua_so_tot_nhat(M,H):
-    """cua so [s:s+L) cua H (L = m-1 .. m+3 token) giong ten `M` nhat -> list token"""
-    mj=''.join(_cs(t) for t in M); m=len(M); tot=(-1.0,[])
+def _cua_so(M,H):
+    """cua so (s,L) cua H (L = m-1 .. m+3 token) giong ten `M` nhat"""
+    mj=''.join(_cs(t) for t in M); m=len(M); tot=(-1.0,0,0)
     for L in range(max(1,m-1),m+4):
         for s in range(0,max(1,len(H)-L+1)):
             w=H[s:s+L]
             if not w: continue
             sc=difflib.SequenceMatcher(None,mj,''.join(_cs(t) for t in w)).ratio()-0.001*abs(L-m)
-            if sc>tot[0]: tot=(sc,w)
-    return tot[1]
+            if sc>tot[0]: tot=(sc,s,len(w))
+    return tot[1],tot[2]
+def _cua_so_tot_nhat(M,H):
+    s,L=_cua_so(M,H); return H[s:s+L]
+_DON_VI_GIA=NGHIN|TRIEU|DONG|{'k','phần','giờ','phút','giây','tháng','ngày','phan','gio'}
+def _la_them_vao_ten(text,H,k):
+    """Token H[k] ngay sau cua so ten co phai MOT PHAN CUA TEN (so phan, phien ban) khong: noi lien (khong dau cau), khong phai tien/phan tram/gio/ngay."""
+    tk=H[k]
+    if tk[0] not in ('n','v') or k==0: return False
+    if re.search(r'\S',text[H[k-1][3]:tk[2]]): return False
+    if tk[0]=='n' and not (tk[1]<100 or 1980<=tk[1]<=2100): return False
+    rest=text[tk[3]:]
+    if re.match(r'\s*%',rest) or re.match(r'[.,]\d',rest): return False
+    m=re.match(r'\s*([^\W_]+)',rest)
+    return not (tk[0]=='n' and m and m.group(1).lower() in _DON_VI_GIA)
 def so_phan_biet(mong,nghe):
-    """Chi so token PHAN BIET (so phan/thu tu, so La Ma, so chu, Deluxe/Ultimate/Definitive/Remastered/Remake/Complete/'bản làm lại'/'bản đầy đủ') giua ten ky vong va cau nghe duoc.
-    -> (dat, ly_do). Ten ky vong khong co token phan biet -> dat."""
-    M=_tok_ten(mong); H=_tok_ten(nghe)
-    can_n=Counter(t[1] for t in M if t[0]=='n'); can_v=Counter(t[1] for t in M if t[0]=='v')
-    if not can_n and not can_v: return True,'khong co token phan biet'
+    """So DU TAP token PHAN BIET (so phan/thu tu, so La Ma, so chu, Deluxe/Ultimate/Definitive/Remastered/Remake/Complete/'bản làm lại'/'bản đầy đủ') giua ten ky vong va cua so TEN trong cau nghe duoc:
+    THIEU hoac THUA deu TRUOT ('Resident Evil' nghe 'Resident Evil hai' -> truot; 'Resident Evil 4' nghe '... 4 Deluxe' -> truot). Cua so ten = cum giong ten nhat + cac token phan biet NOI LIEN ngay sau
+    (khong lay so cua cum gia/hang phia sau). -> (dat, ly_do)."""
+    t=nfc(nghe); M=_tok_ten(mong); H=_tok_ten(t)
     if not H: return False,'khong nghe duoc gi'
-    W=_cua_so_tot_nhat(M,H); co_n=Counter(t[1] for t in W if t[0]=='n'); co_v=Counter(t[1] for t in W if t[0]=='v')
-    chu_so_dinh=[t[1] for t in W if t[0]=='w' and re.fullmatch(r'[a-z]+\d+',t[1])]     # 'F125' = 'F1' + '25'
-    thieu=[]
-    for n,c in can_n.items():
-        if co_n[n]<c and not any(s.endswith(str(n)) for s in chu_so_dinh): thieu.append(f'so {n}')
-    for v,c in can_v.items():
-        if co_v[v]<c: thieu.append(f'phien ban {v}')
-    if thieu:
-        return False,'thieu '+', '.join(thieu)+'; nghe duoc «'+' '.join(_cs(t) for t in W)+'»'
+    s,L=_cua_so(M,H); e=s+L
+    while e<len(H) and _la_them_vao_ten(t,H,e): e+=1
+    W=H[s:e]
+    can_n=Counter(x[1] for x in M if x[0]=='n'); can_v=Counter(x[1] for x in M if x[0]=='v')
+    co_n=Counter(x[1] for x in W if x[0]=='n'); co_v=Counter(x[1] for x in W if x[0]=='v')
+    sai=[f'thieu so {n}' for n in (can_n-co_n)]+[f'thieu phien ban {v}' for v in (can_v-co_v)]+[f'thua so {n}' for n in (co_n-can_n)]+[f'thua phien ban {v}' for v in (co_v-can_v)]
+    if sai: return False,', '.join(sai)+'; nghe duoc «'+' '.join(_cs(x) for x in W)+'»'
     return True,'khop token phan biet'
 def so_ten(mong,nghe,nguong=0.40):
     """Ten game: token phan biet khop CHINH XAC (so_phan_biet) + phan chu con lai giong >= nguong (0,40: Whisper tieng Viet nghe ten Anh rat sai chinh ta). -> (dat, ly_do)"""
@@ -307,43 +334,72 @@ def so_ten(mong,nghe,nguong=0.40):
     W=_cua_so_tot_nhat(M,H); b=chu(W)
     r=difflib.SequenceMatcher(None,a,b).ratio()
     return (r>=nguong),(f'ten giong {r:.2f}' if r>=nguong else f'ten giong {r:.2f} < {nguong}: mong «{a}» nghe «{b}»')
+_HANG_TU={'hang','hac','han','hanh'}; _SO_HANG={'mot','hai','ba','bon','tu','nam','1','2','3','4','5'}
 def cat_hang(nghe):
-    """Bo tien to 'Hạng N' / 'Và hạng một' o dau cau Top 5 truoc khi so ten (Whisper hay nghe 'hạc bốn', 'h3', 'hang hai')."""
-    tk=re.findall(r"[^\W_]+",nfc(nghe))
-    for i in range(min(3,len(tk))):
-        if re.fullmatch(r'h\d|một|hai|ba|bốn|năm|[1-5]|mot|bon|nam',tk[i].lower()):
-            m=list(re.finditer(r"[^\W_]+",nfc(nghe)))[i]; return nfc(nghe)[m.end():].lstrip(' :,.;-')
-    return nfc(nghe)
+    """Bo tien to hang CHI KHI nhan dang duoc dung dang tien to Top 5: [Và] + (hạng|hãng|hạc|hẳn…) + so 1..5 ('Hạng năm:', 'Và hạng một,', 'Hẳn 3.', 'hang hai', 'h3').
+    Khong nhan dang duoc -> giu nguyen ('Resident Evil bốn đang giảm' khong bi cat mat 'bốn')."""
+    t=nfc(nghe); ms=list(re.finditer(r"[^\W_]+",t)); k=0
+    if k<len(ms) and bo_dau(ms[k].group())=='va': k+=1
+    if k<len(ms) and re.fullmatch(r'h[1-5]',ms[k].group().lower()): return t[ms[k].end():].lstrip(' :,.;-')
+    if k+1<len(ms) and bo_dau(ms[k].group()) in _HANG_TU and bo_dau(ms[k+1].group()) in _SO_HANG: return t[ms[k+1].end():].lstrip(' :,.;-')
+    return t
+def che_so_trong_ten(nghe,ten):
+    """Thay (bang khoang trang, giu do dai) cac SO nam trong cua so TEN game ky vong ('Mortal Kombat mười một' -> '11') de doc_tien khong coi so phan cua ten la tien."""
+    ra=nfc(nghe)
+    for tn in ten:
+        M=_tok_ten(tn); can={x[1] for x in M if x[0]=='n'}; H=_tok_ten(ra)
+        if not can or not H: continue
+        s,L=_cua_so(M,H)
+        for x in H[s:s+L]:
+            if x[0]=='n' and x[1] in can: ra=ra[:x[2]]+' '*(x[3]-x[2])+ra[x[3]:]
+    return ra
 
 # ---------------------------------------------------------------- doi chieu mot doan
-def cap_vung_tien(nghe):
-    """-> [(ma_vung_gan_nhat_dung_truoc, vnd)] : moi khoan tien ghep voi vung nhac TRUOC no (vai tro 'vung -> chenh lech')."""
+def cap_vung_tien_ct(nghe):
+    """-> [(ma_vung_gan_nhat_dung_truoc, vnd, nguon)] : moi khoan tien ghep voi vung nhac TRUOC no (vai tro 'vung -> chenh lech')."""
     vs=doc_vung(nghe); ra=[]
-    for v,_,pos in doc_tien(nghe):
+    for v,_,pos,ng in doc_tien_ct(nghe):
         truoc=[m for m,p in vs if p<pos]
-        ra.append((truoc[-1] if truoc else None,v))
+        ra.append((truoc[-1] if truoc else None,v,ng))
     return ra
+def cap_vung_tien(nghe): return [(m,v) for m,v,_ in cap_vung_tien_ct(nghe)]
 def noi_tat_literal(vnd):
     """Cum KY VONG dang noi tat 'X tram Y' (loi_chu.noi_chenh: 760.000 = 'bảy trăm sáu') -> gia tri Whisper co the viet THEO CHU SO LITERAL ('706' = 706.000). Khong phai dung sai:
-    chi tra gia tri khi ky vong that su la dang noi tat (Y = 2..9, tru 5 'rưỡi' va 1 'mười'; < 1 trieu); khong thi None."""
+    chi tra gia tri khi ky vong that su la dang noi tat (Y = 2..9, tru 5 'rưỡi' va 1 'mười'; < 1 trieu); khong thi None. Ap dung CHI cho khoan tien Whisper viet bang CHU SO (xem doi_chieu)."""
     n=int(vnd/10000+0.5)
     if vnd<1_000_000 and 10<n<100 and n%10 not in (0,1,5): return ((n//10)*100+n%10)*1000
     return None
 def _la_day_con(can,co):
     it=iter(co); return all(any(x==y for y in it) for x in can)
-def doi_chieu(nghe,tien=(),phan_tram=(),vung=(),ten=(),han=None,tien_thu_tu=(),cap=(),tien_tat=(),ngay=()):
+def chieu_so_sanh(nghe,chu_the,ma_kia):
+    """Cau 'chu_the RE HON kia ...': chu the (vung re nhat) phai la vung nhac DAU TIEN; doan van giua vung truoc va vung `kia` phai con cau truc so sanh ('hơn') va KHONG co 'dat/mac' (đắt/mắc hơn = nguoc chieu).
+    KHONG bat buoc nghe ra dung chu 'rẻ': Whisper small hay nghe 'rẻ hơn' thanh 'dạy hơn'/'dẻ hơn' (video that thu-d) — chieu sai that su la 'đắt/mắc hơn', loi nghe thi khong phai chieu sai. -> list loi (rong = dung chieu)."""
+    t=bo_dau(nfc(nghe)); vs=doc_vung(nfc(nghe)); loi=[]
+    if not vs or vs[0][0]!=chu_the: return [f'CHIEU SO SANH: chu the phai la {chu_the} (nhac dau tien) nghe duoc {vs[0][0] if vs else "khong co vung"} («{nghe[:70]}»)']
+    for k in range(1,len(vs)):
+        if vs[k][0]!=ma_kia: continue
+        seg=t[vs[k-1][1]:vs[k][1]]
+        if re.search(r'(?<![a-z])(?:dat|mac)(?![a-z])',seg): loi.append(f'CHIEU SO SANH: {chu_the} khong the DAT hon {ma_kia} («{nghe[:70]}»)')
+        elif not re.search(r'(?<![a-z])hon(?![a-z])',seg): loi.append(f'CHIEU SO SANH: thieu cau truc "{chu_the} rẻ hơn {ma_kia}" (khong co "hơn" giua hai vung) («{nghe[:70]}»)')
+        return loi
+    return [f'CHIEU SO SANH: khong thay vung {ma_kia} sau chu the {chu_the} («{nghe[:70]}»)']
+def doi_chieu(nghe,tien=(),phan_tram=(),vung=(),ten=(),han=None,tien_thu_tu=(),cap=(),tien_tat=(),ngay=(),hang=False,chu_the=None):
     """So cau Whisper nghe duoc (`nghe`) voi gia tri KY VONG tinh tu du lieu. -> list loi (rong = dat).
-    tien_tat: [vnd] ky vong dang noi tat 'X tram Y' (cho phep viet literal '706') · tien_thu_tu: [vnd] phai xuat hien DUNG THU TU · cap: [(ma_vung, vnd)] tien di sau vung tuong ung
-    tien: [vnd] moi gia tri phai co mat DUNG (doc_tien) · phan_tram: [so] · vung: [ma] · ten: [ten mong (chu doc)] · han: han_ky_vong()."""
+    tien_tat: [vnd] ky vong dang noi tat 'X tram Y' (cho phep Whisper viet CHU SO literal '706' = 706.000; nghe CHU DAY DU 'bay tram le sau nghin' van so DUNG gia tri) · tien_thu_tu: [vnd] phai xuat hien DUNG THU TU ·
+    cap: [(ma_vung, vnd)] tien di sau vung tuong ung · chu_the: ma vung re nhat -> kiem chieu 'chu_the RE HON kia' voi moi vung trong `cap` · hang=True (Top 5): cat tien to 'Hạng N' truoc khi so TEN ·
+    tien: [vnd] moi gia tri phai co mat DUNG (doc_tien; SO TRONG TEN GAME khong tinh la tien) · phan_tram: [so] · vung: [ma] · ten: [ten mong (chu doc)] · han: han_ky_vong()."""
     loi=[]
-    gt=[v for v,_,_ in doc_tien(nghe)]
-    alt=lambda v:noi_tat_literal(v) if v in tien_tat else None      # tien_tat: ky vong la dang noi tat -> chap nhan dung phien am literal cua CHINH cum do
+    nt=che_so_trong_ten(nghe,ten) if ten else nfc(nghe)       # so phan cua ten game ('Mortal Kombat mười một') khong phai tien
+    ct=doc_tien_ct(nt); gt=[v for v,_,_,_ in ct]; gt_so={v for v,_,_,ng in ct if ng=='s'}
+    alt=lambda v:noi_tat_literal(v) if v in tien_tat else None      # tien_tat: ky vong la dang noi tat -> chap nhan phien am literal CHU SO cua CHINH cum do
     for v in tien:
-        if v not in gt and alt(v) not in gt: loi.append(f'TIEN: mong {v:,} nghe duoc {sorted(set(gt))} («{nghe[:70]}»)'.replace(',','.'))
+        if v not in gt and alt(v) not in gt_so: loi.append(f'TIEN: mong {v:,} nghe duoc {sorted(set(gt))} («{nghe[:70]}»)'.replace(',','.'))
     if tien_thu_tu and not _la_day_con(list(tien_thu_tu),gt): loi.append(f'TIEN THEO THU TU (vd goc roi con): mong {list(tien_thu_tu)} nghe duoc {gt} («{nghe[:70]}»)')
-    cv=cap_vung_tien(nghe)
+    cv=cap_vung_tien_ct(nt); cv2={(m,v) for m,v,_ in cv}; cv_so={(m,v) for m,v,ng in cv if ng=='s'}
     for c in cap:
-        if tuple(c) not in cv and (c[0],alt(c[1])) not in cv: loi.append(f'CAP vung-tien: mong {tuple(c)} nghe duoc {cv} («{nghe[:70]}»)')
+        if tuple(c) not in cv2 and (c[0],alt(c[1])) not in cv_so: loi.append(f'CAP vung-tien: mong {tuple(c)} nghe duoc {[(m,v) for m,v,_ in cv]} («{nghe[:70]}»)')
+    if chu_the:
+        for c in cap: loi+=chieu_so_sanh(nghe,chu_the,c[0])
     pt=[p for p,_ in doc_phan_tram(nghe)]
     for p in phan_tram:
         if p not in pt: loi.append(f'PHAN TRAM: mong {p}% nghe duoc {pt} («{nghe[:70]}»)')
@@ -351,7 +407,7 @@ def doi_chieu(nghe,tien=(),phan_tram=(),vung=(),ten=(),han=None,tien_thu_tu=(),c
     for m in vung:
         if m not in vg: loi.append(f'VUNG: mong {m} nghe duoc {vg or "khong co"} («{nghe[:70]}»)')
     for t in ten:
-        ok,ly=so_ten(t,cat_hang(nghe))
+        ok,ly=so_ten(t,cat_hang(nghe) if hang else nghe)
         if not ok: loi.append(f'TEN «{t}»: {ly} («{nghe[:70]}»)')
     if ngay:
         ng=doc_ngay(nghe)
@@ -362,6 +418,13 @@ def doi_chieu(nghe,tien=(),phan_tram=(),vung=(),ten=(),han=None,tien_thu_tu=(),c
         if not any(h['gio24']==han['gio24'] and h['buoi']==han['buoi'] and h['ngay']==han['ngay'] for h in hs):
             loi.append(f'HAN: mong {han} nghe duoc {hs or "khong co"} («{nghe[:70]}»)')
     return loi
+
+# ---------------------------------------------------------------- NHIEM VU doc theo LUAT KHUON (khong suy tu chinh loi dang kiem)
+# Sol vong 2b #11: kiem-tat-ca.py cu hoi chinh `loi` xem co cau giam gia / ten vung khong roi moi doi chieu -> loi bo cau do thi phep kiem TU TAT. Nay % / vung bat buoc theo LUAT cua kich-ban.py
+# (Top 5: hang 5/4/2 doc phan tram, hang 4/1 doc vung; Keo thom: doan mo = ten+%+vung A, hoi = vung B+C, dap = vung A+B+C). test_kiem_tat_ca.py chay kich-ban.py that va doi chieu voi bang nay.
+TOP5_PHAN_TRAM=frozenset({5,4,2}); TOP5_VUNG=frozenset({4,1})
+def nhiem_vu_top5(hang): return hang in TOP5_PHAN_TRAM, hang in TOP5_VUNG       # -> (doc_phan_tram, doc_vung)
+KEO_PHAN_TRAM=frozenset({'mo'}); KEO_VUNG={'mo':('A',),'hoi':('B','C'),'dap':('A','B','C')}
 
 # ---------------------------------------------------------------- nghe tren am thanh MP4 cuoi + cache theo bam PCM
 def sha_pcm(x16):
@@ -385,16 +448,29 @@ def nghe_doan(x16,cua_so,nghe,thu_muc_cache,rev=''):
 
 # ---------------------------------------------------------------- ngay du lieu = ngay DANG cua luot chay (B6)
 GIO_DANG_MAC_DINH={'top5':'12:00','tin-nhanh':'07:30','keo-thom':'20:00'}
+THU_VN=['Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy','Chủ Nhật']
+def ngay_tu_ddmm(ddmm,thu=None,moc=None):
+    """'10/10' (+ 'Thứ Bảy') -> date gan `moc` nhat (nam moc +-1) khop thu; khong suy ra duoc -> None. Dung cho du lieu cu (fixture) khong co ngay_dang khi HOI_QUY=1."""
+    m=re.fullmatch(r'\s*(\d{1,2})/(\d{1,2})\s*',ddmm or '')
+    if not m: return None
+    moc=moc or datetime.date.today(); ds=[]
+    for y in (moc.year,moc.year-1,moc.year+1):
+        try: d=datetime.date(y,int(m.group(2)),int(m.group(1)))
+        except ValueError: continue
+        if thu is None or THU_VN[d.weekday()]==thu: ds.append(d)
+    return min(ds,key=lambda d:abs((d-moc).days)) if ds else None
 def kiem_ngay(ngay_du_lieu,ngay_env,hoi_quy=False):
-    """Ngay trong cau hinh/du lieu (ISO) PHAI bang env NGAY (ngay dang cua luot chay). Thieu NGAY -> TRUOT. Ngoai le DUY NHAT: HOI_QUY=1.
+    """Ngay trong cau hinh/du lieu (ISO) PHAI bang env NGAY (ngay dang cua luot chay). Thieu NGAY -> TRUOT. Du lieu THIEU ngay (fixture cu khong co khoa ngay_dang) -> TRUOT co ly do (khong crash).
+    Ngoai le DUY NHAT: HOI_QUY=1 (bo qua phep ngay, ghi 'hoi quy'; cac phep khac van chay).
     -> (dat, so_do, ngay_dung)  ; ngay_dung = datetime.date dung de tinh han (NGAY neu co)."""
     if hoi_quy:
         try: nd=datetime.date.fromisoformat(ngay_env or ngay_du_lieu)
         except Exception: nd=None
-        return True,f'HOI_QUY=1: bo qua doi chieu ngay (du lieu {ngay_du_lieu}, NGAY {ngay_env or "khong"})',nd
-    if not ngay_env: return False,'THIEU env NGAY (ngay dang cua luot chay): khong the doi chieu ngay du lieu '+str(ngay_du_lieu),None
-    try: nd=datetime.date.fromisoformat(ngay_env)
+        return True,f'HOI_QUY=1 (hoi quy): bo qua doi chieu ngay (du lieu {ngay_du_lieu or "khong co ngay_dang"}, NGAY {ngay_env or "khong"})',nd
+    try: nd=datetime.date.fromisoformat(ngay_env) if ngay_env else None
     except Exception: return False,f'NGAY khong hop le: {ngay_env}',None
+    if not ngay_du_lieu: return False,'du lieu THIEU ngay_dang: khong the doi chieu voi NGAY '+(ngay_env or '(khong co)'),nd
+    if not ngay_env: return False,'THIEU env NGAY (ngay dang cua luot chay): khong the doi chieu ngay du lieu '+str(ngay_du_lieu),None
     if str(ngay_du_lieu)!=nd.isoformat(): return False,f'ngay du lieu {ngay_du_lieu} != NGAY {nd.isoformat()} (du lieu cu / sai ngay)',nd
     return True,f'ngay du lieu = NGAY {nd.isoformat()}',nd
 def han_toi_thieu(nd,gio_dang,gio_them=2):

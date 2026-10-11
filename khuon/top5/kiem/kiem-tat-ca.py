@@ -173,10 +173,11 @@ heard,bc=NS.nghe_doan(X16,cs,nghe,B/'kiem',rev=mo_hinh.REV_GHIM if hasattr(mo_hi
 for r in range(1,6):
     g=TOP[r-1]; k=f'h{r}'
     if k not in heard: continue
-    loi_dong=next(x['loi'] for x in RAW if x['k']==k)
-    ma=g.get('ma') or (NS.doc_vung(g['vung']) or [(None,0)])[0][0]
-    ky=dict(ten=[TR.ten_doc_cua(g)],tien=[TR.nghin_so(g['gia'])*1000],phan_tram=[g['giam']] if NS.doc_phan_tram(loi_dong) else [],vung=[ma] if NS.doc_vung(loi_dong) else [])
+    # Sol vong 2b #11: % / vung BAT BUOC theo LUAT khuon (nghe_so.nhiem_vu_top5 = kich-ban.py) + du lieu top5.json — KHONG suy tu chinh `loi` dang kiem (loi bo cau giam gia thi van phai TRUOT)
+    ma=g.get('ma') or (NS.doc_vung(g['vung']) or [(None,0)])[0][0]; can_pt,can_vung=NS.nhiem_vu_top5(r)
+    ky=dict(ten=[TR.ten_doc_cua(g)],tien=[TR.nghin_so(g['gia'])*1000],phan_tram=[g['giam']] if can_pt else [],vung=[ma] if can_vung else [],hang=True)   # hang=True: cat tien to 'Hang N' (chi Top 5)
     loi=NS.doi_chieu(heard[k],**ky)
+    if can_vung and not ma: loi.append(f"VUNG: top5.json khong cho biet ma vung cua «{g.get('vung')}» — khong kiem duoc")
     thu.append(f"h{r} «{heard[k][:40]}»"); sai+=[f'hang {r} {x}' for x in loi]
 for k in ('mo','ket'):
     if k in heard:

@@ -122,7 +122,15 @@ ghi('Whisper tung cau: ban ghep nghe khong kem giong goc',rv>=rg-0.05 and not xa
 # 6) C3 — kiem tin TU DONG (chon-tin.py / sinh-tin.py). Moi phep gan voi mot loi that cua may tu dong: ten bia, ngay, so doc sai, loi dang.
 sys.path.insert(0,str(B)); import so_chu as sc
 TJ=json.load(open(B/'tin.json')); KB={x['k']:x['loi'] for x in json.load(open(B/'kich-ban.json'))}
-ND=datetime.date.fromisoformat(TJ['ngay_dang'])
+# B6 + ngay dang: tin.json THIEU ngay_dang (fixture cu) thi KHONG crash — thuc te TRUOT B6 co ly do; HOI_QUY=1 bo qua phep ngay (cac phep khac van chay, ngay suy tu 'ngay'/'thu')
+HOI_QUY=os.environ.get('HOI_QUY')=='1'
+ok_ng,so_ng,exp=NS.kiem_ngay(TJ.get('ngay_dang') or '',os.environ.get('NGAY',''),HOI_QUY)
+def _iso(x):
+    try: return datetime.date.fromisoformat(x)
+    except Exception: return None
+ND_DL=_iso(TJ.get('ngay_dang') or '')
+exp=exp or ND_DL or NS.ngay_tu_ddmm(TJ.get('ngay'),TJ.get('thu')) or datetime.date.today()
+ND=ND_DL or exp
 # 6a) ten game DOC trong loi phai co trong tin.json (khong de may bịa/ghi sai ten): moi tu viet hoa trong loi tung tin phai nam trong du lieu cua tin do
 def bag(o,ra,bo=('loi','chi_so','kiem','anh','khoa','kieu')):
     if isinstance(o,dict):
@@ -149,13 +157,10 @@ for i,g in enumerate(TJ['tin'],1):
 ghi('Ten game doc trong loi co trong tin.json (khong chu so, khong tu la)',not sai_ten,f"{len(TJ['tin'])} tin"+(f"; {sai_ten[:4]}" if sai_ten else ''),'C3')
 
 # 6b) ngay tren giay = ngay DANG (khong phai ngay dung): tin.json, chu tren trang that, loi dao dau. B6: ngay du lieu PHAI = env NGAY (thieu NGAY -> TRUOT; ngoai le DUY NHAT HOI_QUY=1)
-HOI_QUY=os.environ.get('HOI_QUY')=='1'
-ok_ng,so_ng,exp=NS.kiem_ngay(TJ['ngay_dang'],os.environ.get('NGAY',''),HOI_QUY)
 ghi('B6 ngay du lieu (tin.json) = NGAY dang cua luot chay',ok_ng,so_ng,'B6')
-if exp is None: exp=ND
 sai_ngay=[]
-if TJ['ngay_dang']!=exp.isoformat() and not HOI_QUY: sai_ngay.append(f"tin.json ngay_dang {TJ['ngay_dang']} != ngay dang {exp}")
-if TJ['ngay']!=sc.ngay_ddmm(exp) or TJ['thu']!=sc.thu_cua(exp): sai_ngay.append(f"tin.json {TJ['thu']} {TJ['ngay']} != {sc.thu_cua(exp)} {sc.ngay_ddmm(exp)}")
+if TJ.get('ngay_dang') and TJ['ngay_dang']!=exp.isoformat() and not HOI_QUY: sai_ngay.append(f"tin.json ngay_dang {TJ['ngay_dang']} != ngay dang {exp}")
+if TJ.get('ngay')!=sc.ngay_ddmm(exp) or TJ.get('thu')!=sc.thu_cua(exp): sai_ngay.append(f"tin.json {TJ.get('thu')} {TJ.get('ngay')} != {sc.thu_cua(exp)} {sc.ngay_ddmm(exp)}")
 n1,n6=d['ngay']['n1'].strip(),d['ngay']['n6'].strip()
 if n1!=f"{sc.thu_cua(exp)} · {sc.ngay_ddmm(exp)}": sai_ngay.append(f"giay dau trang '{n1}'")
 if n6!=f"Bản tin sáng · {sc.ngay_ddmm(exp)}": sai_ngay.append(f"giay cuoi '{n6}'")
