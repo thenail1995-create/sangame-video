@@ -70,7 +70,9 @@ def lich_su():
             if it.get('ten'): goc.add(t._ten_goc(it['ten']))
     return dict(so_ky=len(ks)+1,pid=pid,goc=goc,co_hom_nay=hom_nay)
 LS=lich_su()
-if LS['co_hom_nay']: thoat(4,f'Da co Release Keo thom ngay {NGAY} — khong chon lai')
+# Chi che do THAT moi dung khi da co Release that hom nay; che do thu (kiem thu khuon) van chon (11/10: thu sau luot that 20:00 bi chan)
+if LS['co_hom_nay'] and os.environ.get('CHE_DO','that')=='that': thoat(4,f'Da co Release Keo thom ngay {NGAY} — khong chon lai')
+elif LS['co_hom_nay']: print(f'CHU Y: da co Release that ngay {NGAY}; che do thu van chon (game da len trong 14 ngay van bi loai)')
 # ---------- ung vien tu so (chua mo trang)
 def ung_vien():
     ra=[]

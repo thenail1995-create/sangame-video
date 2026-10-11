@@ -231,7 +231,7 @@ jobs:
           CHE_DO: ${{ github.event.inputs.che_do || github.event.client_payload.che_do || 'thu' }}
         run: |
           set -uo pipefail
-          bash "khuon/$DANG/chuan-bi.sh"; rc=$?
+          rc=0; bash "khuon/$DANG/chuan-bi.sh" || rc=$?   # shell GitHub chay bash -e: phai bat ma thoat kieu nay, khong thi 3/4 lam do job (11/10 run 38149526532)
           if [ "$rc" = "3" ] || [ "$rc" = "4" ]; then   # 3 = khong chon duoc noi dung (bo khung + ntfy); 4 = da co Release hom nay (khong dung lai)
             echo "du=0" >> "$GITHUB_OUTPUT"
             cat "khuon/$DANG/ket-qua-chon.json" || true
