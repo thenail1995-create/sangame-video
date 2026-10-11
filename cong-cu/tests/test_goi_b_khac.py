@@ -55,7 +55,25 @@ class KiemLaiMoiThe(unittest.TestCase):                       # Sol #13: kiem-la
     def test_day_du(self): self.assertEqual(SMC.loi_kiem_lai(tin(),[kl(0),kl(1),dict(kl(9))]),[])
     def test_rong(self): self.assertEqual(len(SMC.loi_kiem_lai(tin(),[])),2)
     def test_thieu_mot_the(self): self.assertEqual(len(SMC.loi_kiem_lai(tin(),[kl(0)])),1)
-    def test_trung_ban_ghi(self): self.assertTrue(SMC.loi_kiem_lai(tin(),[kl(0),kl(0),kl(1)]))
+    def test_trung_ban_ghi_dong_nhat_duoc_gop(self): self.assertEqual(SMC.loi_kiem_lai(tin(),[kl(0),kl(0),kl(1)]),[])   # vong 2 #5
+    def test_trung_ban_ghi_khac_endtime_la_loi(self):
+        x=kl(0); x['endTime']='1792594740001'; self.assertTrue(SMC.loi_kiem_lai(tin(),[kl(0),x,kl(1)]))
+    def test_hai_nhom_giao_nhau_chia_chung_game(self):    # nhom [A,B,C] + [B,C,D]: the B, C xuat hien 2 lan; kiem_lai trung (pid,loc) dong nhat
+        ts=tin(4); ts['tin'].append(dict(ts['tin'][2])); ts['tin'].append(dict(ts['tin'][3]))   # the 3,4 lap lai o nhom 2
+        ds=[kl(0),kl(1),kl(2),kl(3),kl(2),kl(3)]
+        self.assertEqual(SMC.loi_kiem_lai(ts,ds),[]); self.assertEqual(len(SMC.khu_trung(ds)[0]),4)
+    def test_doi_truong_so_voi_the_gia_la_loi(self):
+        for f,v in (('gia_cuc_bo',31.0),('tien_te','SGD'),('endTime','1792594740001')):
+            x=kl(0); x[f]=v; self.assertTrue(SMC.loi_kiem_lai(tin(),[x,kl(1)]),f)
+        x=kl(0); x['gia_cuc_bo']=30.6; self.assertEqual(SMC.loi_kiem_lai(tin(),[x,kl(1)]),[])   # lech < 0,5%
+    def test_loc_khac_vung_la_loi(self):
+        t=tin(); t['tin'][1]['kiem']['the_gia']['loc']='en-us'; x=kl(0); x['loc']='en-us'; self.assertTrue(SMC.loi_kiem_lai(t,[x,kl(1)]))
+        t=tin(); del t['tin'][1]['kiem']['vung']; self.assertTrue(SMC.loi_kiem_lai(t,[kl(0),kl(1)]))
+    def test_main_ghi_manifest_da_khu_trung(self):
+        with tempfile.TemporaryDirectory() as d:
+            d=pathlib.Path(d); (d/'tin.json').write_text(json.dumps(tin()),encoding='utf-8'); (d/'kiem-lai.json').write_text(json.dumps([kl(0),kl(0),kl(1)])); (d/'m.json').write_text('{}')
+            r=subprocess.run([sys.executable,str(ROOT/'cong-cu'/'sau_manifest_chung.py'),str(d),str(d/'m.json')],capture_output=True,text=True)
+            self.assertEqual(r.returncode,0,r.stderr); self.assertEqual(len(json.loads((d/'m.json').read_text())['kiem_lai']),2)
     def test_thieu_truong(self):
         x=kl(0); x['endTime']=''; self.assertTrue(SMC.loi_kiem_lai(tin(),[x,kl(1)]))
         x=kl(0); x['gia_cuc_bo']=0; self.assertTrue(SMC.loi_kiem_lai(tin(),[x,kl(1)]))

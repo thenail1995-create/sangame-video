@@ -41,6 +41,7 @@ def kiem(repo,ngay):
         if not (isinstance(gi.get(v),int) and gi[v]>0): ly.append(f'bang-gia so_mon_giu_lai[{v}] = {gi.get(v)}')
         g=doc(dl/f'giam-gia-en-{v}.json')
         if not g or not (g.get('so_mon') or 0)>0: ly.append(f'giam-gia-en-{v}.json rong/thieu'); continue
+        if not isinstance(g.get('mon'),dict) or not g['mon']: ly.append(f'giam-gia-en-{v}.json so_mon={g.get("so_mon")} nhung mon rong/sai kieu'); continue
         mc=g.get(TRUONG_MOC_FEED)   # moc RIENG cua tung feed; thieu truong = coi la cu
         if not du_ngay(mc,ngay): ly.append(f'giam-gia-en-{v}.json {TRUONG_MOC_FEED} = {mc or "thieu"} (can >= {ngay})')
     return (not ly),ly

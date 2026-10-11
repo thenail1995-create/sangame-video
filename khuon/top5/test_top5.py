@@ -40,7 +40,7 @@ class KiemDoMoi(unittest.TestCase):
         dl=pathlib.Path(d)/'du-lieu'; dl.mkdir(parents=True,exist_ok=True)
         json.dump({'cap_nhat':ngay,'so_mon_giu_lai':{v:5 for v in ('SG','HK','IN','ID','US','TH')}},open(dl/'bang-gia.json','w'))
         json.dump({'cap_nhat':ngay},open(dl/'trang-game.json','w')); json.dump({'ngay':ngay},open(dl/'gia-the.json','w'))
-        for v in vung: json.dump({'so_mon':3,'cap_nhat':ngay},open(dl/f'giam-gia-en-{v}.json','w'))   # moc rieng tung feed (Sol bcd #19)
+        for v in vung: json.dump({'so_mon':3,'mon':{'UP1':{'gia':1}},'cap_nhat':ngay},open(dl/f'giam-gia-en-{v}.json','w'))   # moc rieng tung feed (Sol bcd #19)
     def test_moi(self):
         with tempfile.TemporaryDirectory() as d:
             self.dung(d,'2026-10-12'); self.assertEqual(km.kiem(d,'2026-10-12'),(True,[]))
@@ -132,4 +132,13 @@ class SauManifest(unittest.TestCase):
                 ld.unlink(missing_ok=True)
                 if co: ld.write_text(cu,encoding='utf-8')
 import unittest.mock
+
+class KiemTatCaMaThoat(unittest.TestCase):   # vong 2 #6: kiem-video.py thoat != 0 => phep ky thuat TRUOT (khong chi doc chuoi "0 FAIL")
+    def test_kiem_ma_thoat_kiem_video(self):
+        for kh in ('top5','keo-thom'):
+            s=(pathlib.Path(__file__).resolve().parents[1]/kh/'kiem'/'kiem-tat-ca.py').read_text(encoding='utf-8')
+            self.assertIn("rv=subprocess.run([sys.executable,str(SK/'kiem-video.py')",s,kh)
+            dong=[l for l in s.split('\n') if "'Ky thuat file (kiem-video.py)'" in l][0]
+            self.assertIn('rv.returncode==0',dong,kh)
+
 if __name__=='__main__': unittest.main(verbosity=1)
