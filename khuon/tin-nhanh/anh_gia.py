@@ -40,10 +40,14 @@ def o_toi_phang(img):
     anel=[mean[y][x] for y in range(max(0,y0-2),min(gh,y1+3)) for x in range(max(0,x0-2),min(gw,x1+3)) if not (y0<=y<=y1 and x0<=x<=x1)]
     tr=sum(mean[y][x] for y,x in best)/len(best)
     return bool(anel) and sum(anel)/len(anel)-tr>=25
+class OcrLoi(Exception): pass
 def chu_cam(path):
-    """Chữ cấm OCR thấy trong ảnh (chuỗi) hoặc None; không có tesseract -> None."""
-    if not co_ocr(): return None
-    r=subprocess.run(['tesseract',str(path),'stdout','--psm','11'],capture_output=True,timeout=60)
+    """Chu cam OCR thay trong anh (chuoi) hoac None (khong thay; tesseract thoat 0 + stdout rong la HOP LE).
+    Khong chay duoc tesseract / ma thoat != 0 / exception -> OcrLoi (khong kiem duoc != khong thay)."""
+    if not co_ocr(): raise OcrLoi('may khong co tesseract')
+    try: r=subprocess.run(['tesseract',str(path),'stdout','--psm','11'],capture_output=True,timeout=60)
+    except Exception as e: raise OcrLoi(f'tesseract loi: {e}')
+    if r.returncode!=0: raise OcrLoi(f'tesseract ma thoat {r.returncode}: {r.stderr.decode("utf-8","ignore")[:100]}')
     m=CAM.search((r.stdout or b'').decode('utf-8','ignore')); return m.group(0) if m else None
 def ly_do(path,toi=True):
     """Lý do ảnh bị loại (str) hoặc None nếu dùng được."""
@@ -52,7 +56,8 @@ def ly_do(path,toi=True):
         if phang(im): return 'mang mau phang (anh giu cho)'
         if toi and o_toi_phang(im): return 'co mang toi dong mau lon (khung UI/o phu de trong nguon)'
     except Exception as e: return f'khong doc duoc anh: {e}'
-    c=chu_cam(path)
+    try: c=chu_cam(path)
+    except OcrLoi as e: return f'khong kiem duoc OCR: {e}'     # loai media / TRUOT phep kiem
     return f'co chu cam «{c}»' if c else None
 def khung_video(src,t,ra):
     subprocess.run(['ffmpeg','-v','error','-y','-ss',f'{t:.2f}','-i',str(src),'-frames:v','1','-vf','scale=960:-2',str(ra)],check=True,timeout=120)

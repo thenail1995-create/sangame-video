@@ -11,6 +11,7 @@ print('nen tang:',NT,TREN,DUOI)
 import os
 SK=pathlib.Path(os.environ.get('MG_SCRIPTS') or pathlib.Path.home()/'.claude/skills/motion-graphics/scripts')   # A3: khong ghi cung duong dan Mac
 sys.path.insert(0,str(B.parent.parent/'cong-cu')); import mo_hinh   # A4: Whisper ghim revision
+import nghe_so as NS   # goi B: doc so/vung/han/ten theo GIA TRI
 import traceback
 (B/f'kiem/kiem-{NT}.json').unlink(missing_ok=True); (B/f'kiem/bao-cao-{NT}.md').unlink(missing_ok=True)   # A5: khong de ket qua cu lam bao 'dat' oan
 def _crash(t,v,tb):   # A5: crash = ma thoat != 0 + kiem.json ghi ro
@@ -56,7 +57,10 @@ import datetime
 VN=datetime.timezone(datetime.timedelta(hours=7))
 def _k(g): return (f"{g//1000}.{g%1000:03d}" if g>=1000 else str(g))
 def _d(vnd): return _k(int(round(vnd/1000)))+'.000đ'
-_h=datetime.datetime.fromtimestamp(int(KEO['han']['endTime'])/1000,VN); _nd=datetime.date.fromisoformat(KEO['ngay_dang']); _dl=datetime.date.fromisoformat(KEO.get('ngay_du_lieu') or KEO['ngay_dang'])
+HOI_QUY=os.environ.get('HOI_QUY')=='1'   # B6: ngoai le DUY NHAT
+_ok_ng,_so_ng,_nd=NS.kiem_ngay(KEO.get('ngay_dang') or '',os.environ.get('NGAY',''),HOI_QUY)
+_nd=_nd or datetime.date.fromisoformat(KEO['ngay_dang'])
+_h=datetime.datetime.fromtimestamp(int(KEO['han']['endTime'])/1000,VN); _dl=datetime.date.fromisoformat(KEO.get('ngay_du_lieu') or KEO['ngay_dang'])
 _V=KEO['vung']; _G=KEO['game']; _cs=lambda s:re.sub(r'\s+',' ',s).strip()
 _VH={'US':'MỸ','HK':'HỒNG KÔNG','SG':'SINGAPORE','TH':'THÁI LAN','ID':'INDONESIA'}
 _so=f"{int(KEO.get('so_ky',1)):03d}"
@@ -75,11 +79,12 @@ for k,v in exp.items():
 _tg=_cs(nd.get('bia.title',''))
 if _G['ten'] and not all(w.lower() in _tg.lower() for w in re.findall(r"[\wÀ-ỹ-]+",_ten.replace('’',''))[-2:] ): sai.append(f"bia.title: hinh «{_tg}» khong chua ten «{_ten}»")
 _cat=d.get('catChu',[])
+ghi('B6 ngay dang (keo.json) = NGAY dang cua luot chay',_ok_ng,_so_ng,'B6')
 ghi('Chu (ten game, gia, vung, gio) khong tran / bi cat o moi moc dung yen (ten dai tu thu co)',not _cat,f"{len(_cat)} cho cat/tran"+(f": {_cat[:3]}" if _cat else ''),'H32')
 ghi('Ten game / giam % / gia / 3 vung / chenh lech / gio het giam tren hinh khop keo.json (D1)',not sai,f"{len(exp)+1} muc doi chieu, {len(sai)} lech"+(f": {sai[:3]}" if sai else ''),'D1')
 # D2: giay het giam (dung vung) con it nhat den 20:00 ngay dang + 1 ngay (mau hoi quy v8.3: deal da het han tu truoc — bo qua, ghi ro)
-_can=datetime.datetime.combine(_nd,datetime.time(20,0),VN)+datetime.timedelta(days=1)
-if KEO.get('che_do_hoi_quy'): ghi('Gio het giam >= 20:00 ngay dang + 1 ngay (D2)',True,f"BO QUA — mau hoi quy v8.3, het giam {_h:%d/%m %H:%M} (khong dang)",'D2')
+_can=NS.han_toi_thieu(_nd,os.environ.get('GIO_DANG') or NS.GIO_DANG_MAC_DINH['keo-thom'],gio_them=24)   # NGAY dang + gio dang (20:00) + 1 ngay
+if HOI_QUY: ghi('Gio het giam >= 20:00 ngay dang + 1 ngay (D2)',True,f"BO QUA — HOI_QUY=1 (mau hoi quy v8.3), het giam {_h:%d/%m %H:%M} (khong dang)",'D2')
 else: ghi('Gio het giam >= 20:00 ngay dang + 1 ngay (D2)',_h>=_can,f"het giam {_h:%d/%m %H:%M} VN (vung {KEO['han'].get('ma')}), can >= {_can:%d/%m %H:%M}",'D2')
 
 # 2b) do tren LOP CHU that (anh alpha) o luc dung yen cua tung canh (v8.3, N11/N12):
@@ -168,6 +173,29 @@ _t0=_mo[_i0]['s']; _cau=next((tv for s,e,tv in TVS if s-0.05<=_t0<=e+0.05),'')
 _tt=chuan(_cau); _co=[t for t in _tok if t in _tt]
 ghi('Whisper nghe dung ten game trong ban ghep (D3)',len(_co)>=max(1,int(0.6*len(_tok)+0.5)),f"ten «{' '.join(w['w'] for w in _mo[_i0:_i1])}»: nghe duoc {len(_co)}/{len(_tok)} tu; «{_cau[:60]}»",'D3')
 
+# 5d) D3 (B2) — nghe AM THANH MP4 CUOI tung doan, so GIA TRI theo VAI TRO: mo (ten, % giam, vung A) · gia (goc ROI con) · hoi (vung B, C) · dap (cap vung -> chenh lech) · han (gio + buoi + ngay).
+#     Ky vong tinh lai tu keo.json (cung luat lam tron voi loi_chu.py). % / vung chi doi o doan ma LOI co doc. 3 ban chung luong tieng -> chung 1 lan Whisper (cache theo bam PCM).
+from loi_chu import ten_noi
+KBD={x['k']:x['loi'] for x in json.load(open(B/'kich-ban.json'))['doan']}
+cs={}
+for k in ('mo','gia','hoi','dap','han'):
+    ws=[w for w in moc if w.get('doan')==k]
+    if ws: cs[k]=(max(0,int((ws[0]['s']-0.15)*16000)),int((ws[-1]['e']+0.25)*16000))
+heard,NGHE_BC=NS.nghe_doan(X16,cs,nghe,B/'kiem',rev=os.environ.get('WHISPER_REV') or mo_hinh.REV_GHIM)
+_ma=[x['ma'] for x in _V[:3]]; _round=lambda v,q:max(1,int(v/q+0.5))*q
+_ky={'mo':dict(ten=[ten_noi(_G['ten'])],phan_tram=[_G['giam']],vung=[_ma[0]]),
+     'gia':dict(tien=[_round(KEO['goc_vnd'],100000),_round(KEO['con_vnd'],1000)],tien_thu_tu=[_round(KEO['goc_vnd'],100000),_round(KEO['con_vnd'],1000)]),
+     'hoi':dict(vung=[_ma[1],_ma[2]]),
+     'dap':dict(tien_tat=[_round(_V[1]['vnd']-_V[0]['vnd'],10000),_round(_V[2]['vnd']-_V[0]['vnd'],10000)],vung=_ma,cap=[(_ma[1],_round(_V[1]['vnd']-_V[0]['vnd'],10000)),(_ma[2],_round(_V[2]['vnd']-_V[0]['vnd'],10000))],tien=[_round(_V[1]['vnd']-_V[0]['vnd'],10000),_round(_V[2]['vnd']-_V[0]['vnd'],10000)]),
+     'han':dict(han=NS.han_ky_vong(_h,_nd))}
+_sai=[]
+for k,ky in _ky.items():
+    if k not in heard: _sai.append(f'doan {k}: khong co chu trong moc-chu'); continue
+    if not NS.doc_vung(KBD.get(k,'')) : ky.pop('vung',None); ky.pop('cap',None)     # chi doi vung o doan ma LOI doc ten vung
+    if not NS.doc_phan_tram(KBD.get(k,'')): ky.pop('phan_tram',None)
+    _sai+=[f'{k} {x}' for x in NS.doi_chieu(heard[k],**ky)]
+ghi('D3 am thanh MP4 cuoi: ten + % + vung + goc roi con + cap vung-chenh + han khop keo.json (theo vai tro)',not _sai,f"{len(cs)} doan; pcm {NGHE_BC['pcm_sha256'][:12]} (nghe moi {NGHE_BC['nghe_moi']}, dung lai {NGHE_BC['dung_lai']})"+(f"; SAI: {_sai}" if _sai else ''),'D3')
+
 # 5c) NEN trailer khong co anh giu cho / man phang: OCR + mang mau phang tren khung nen (khong co chu cua khuon) o 6 moc dung yen
 sys.path.insert(0,str(B))
 import media_xau
@@ -178,7 +206,7 @@ dat=sum(1 for x in KQ if x[1]); tong=len(KQ)
 with open(B/f'kiem/bao-cao-{NT}.md','w',encoding='utf-8') as f:
     f.write(f"# Bao cao kiem — {VID.name} ({NTS[NT]['ten']}) — {datetime.datetime.now():%d/%m/%Y %H:%M}\n\n**{dat}/{tong} DAT**\n\n| Phep kiem | Ket qua | So do | Loi da tung gap |\n|---|---|---|---|\n")
     for t,ok,so,ma in KQ: f.write(f"| {t} | {'DAT' if ok else '**LOI**'} | {so.replace('|','/')} | {ma} |\n")
-json.dump(dict(nt=NT,video=VID.name,dat=(dat==tong),so_dat=dat,tong=tong,luc=datetime.datetime.now().isoformat(timespec='seconds'),phien_ban=mo_hinh.in_phien_ban(),
+json.dump(dict(nt=NT,video=VID.name,dat=(dat==tong),so_dat=dat,tong=tong,nghe_d3=NGHE_BC,luc=datetime.datetime.now().isoformat(timespec='seconds'),phien_ban=mo_hinh.in_phien_ban(),
      phep=[dict(ten=a,dat=bool(b),so_do=c,loi=d) for a,b,c,d in KQ]),open(B/f'kiem/kiem-{NT}.json','w'),ensure_ascii=False,indent=1)
 print(f"\n{dat}/{tong} DAT -> {B/f'kiem/bao-cao-{NT}.md'}")
 sys.exit(0 if dat==tong else 1)
