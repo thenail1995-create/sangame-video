@@ -140,6 +140,20 @@ class CauMoTinhHuong(unittest.TestCase):
             m=self.mo('so_sao',con=900000,giam=40,diem=D(tb,luot)); self.assertEqual(m['kieu']=='so_sao',ok,(tb,luot,m))
         m=self.mo('so_sao',con=900000,diem=D(4.78,571)); self.assertEqual(m['loi'],'Game bốn phẩy tám sao mà giờ giảm sâu nè.')
         self.assertEqual(self.mo('so_sao',con=900000,diem=D(5.0,300))['loi'],'Game năm sao mà giờ giảm sâu nè.')
+    def test_du_phong_xoay_theo_khung(self):      # Sol P2: khung chan thu p+1 roi p+2; khung le thu p+2 roi p+1. Du lieu: chi so_sao va giam_sau hop le (so_gia khong: gia > 600.000)
+        kw=dict(con_vnd=900000,giam=60,diem=D(4.8,571))
+        for dang,mong in (('keo-thom-2','so_sao'),('keo-thom','giam_sau'),('keo-thom-3','so_sao')):
+            ng=ngay_khung('so_gia',dang); self.assertEqual(lc.cau_mo(ng,dang,kw['con_vnd'],kw['giam'],kw['diem'])['kieu'],mong,dang)
+        kw=dict(con_vnd=300000,giam=40,diem=None)    # chi so_gia hop le; kieu uu tien so_sao / giam_sau khong hop le -> du phong so_gia (khung nao cung vay)
+        for dang in KHUNG: self.assertEqual(lc.cau_mo(ngay_khung('so_sao',dang),dang,**kw)['kieu'],'so_gia')
+    def test_cau_that_3_khung_cung_ngay_cung_keo_json_khi_2_khung_uu_tien_khong_hop_le(self):
+        """Chay kich-ban.py THAT cho 3 khung cung ngay, cung keo.json (chi kieu so_gia hop le -> 2 khung co kieu uu tien khong hop le). Cau mo = cau cua kieu hop le (neu du phong) hoac
+        cum cam than; moi khung KHONG bi mat cau mo / khong co `đang`. GIOI HAN: voi cung du lieu, kieu du phong cua khung khac chinh la kieu uu tien hop le cua khung kia -> cau giong nhau la khong tranh khoi."""
+        ng=ngay(0); cau={}
+        for dang in KHUNG:
+            doan,_=chay_kich_ban(ng,dang,giam=40,con_vnd=300000,diem=None); mo=doan[0]; self.assertEqual(mo['kieu'],'so_gia',dang)
+            self.assertNotIn('đang',mo['loi'].split()[:mo['neo']['ten']]); cau[dang]=mo['loi']
+        self.assertEqual(len(cau),3)
     def test_giam_sau_bien(self):
         for g,ok in ((49,False),(50,True),(51,True),(75,True)):
             m=self.mo('giam_sau',con=900000,giam=g); self.assertEqual(m['kieu']=='giam_sau',ok,g)

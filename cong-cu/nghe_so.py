@@ -431,13 +431,35 @@ def doc_diem(van_ban):
     return ra
 def _tach_bd(t): return re.findall(r'[a-z0-9]+',t)
 def doc_sao(van_ban):
-    """Diem sao nghe duoc TRONG CAU MO (Keo v10: 'mot game bon phay tam sao' / 'Game 4,8 sao' / 'game bon sao') -> [float]: gom doc_diem (so thap phan, 'cham N sao') va so nguyen 1-5 NGAY TRUOC chu 'sao'
-    ('bon sao', '5 sao'). Dung cho phep 'sao' cua doi_chieu (so theo GIA TRI, chua kem 'cham ... tren 5 sao' nhu doan gioi)."""
-    ra=list(doc_diem(van_ban)); t=bo_dau(nfc(van_ban))
-    for m in re.finditer(r'(?<![a-z0-9.,])(?<!phay )(\d|khong|mot|hai|ba|bon|nam|sau|bay|tam|chin)\s+sao(?![a-z0-9])',t):
-        g=m.group(1); v=int(g) if g.isdigit() else _SO_CHU_BD.get(g)
-        if v is not None and 1<=v<=5: ra.append(float(v))
+    """Diem sao nghe duoc TRONG CAU MO (Keo v10: 'mot game bon phay tam sao' / 'Game 4,8 sao' / 'game 4, 5 sao' / 'game bon sao') -> [float]. Phan tich NGUYEN CUM so gan voi 'sao'
+    (thap phan '4,5' / '4, 5' / 'bon phay nam', hoac so nguyen 1-5): mot cum -> mot gia tri, KHONG bat lai phan le ('4, 5 sao' khong tra them 5.0)."""
+    t=bo_dau(nfc(van_ban)); ra=[]
+    D=r'(\d\s*[.,]\s*\d|[a-z0-9]+\s+phay\s+[a-z0-9]+|[a-z0-9]+)'
+    def so(x): return int(x) if x.isdigit() else _SO_CHU_BD.get(x)
+    for m in re.finditer(r'(?<![a-z0-9.,])'+D+r'\s+(?:sao|sau|xao)(?![a-z0-9])',t):
+        g=m.group(1); d=re.fullmatch(r'(\d)\s*[.,]\s*(\d)',g); w=re.fullmatch(r'([a-z0-9]+)\s+phay\s+([a-z0-9]+)',g)
+        if d: ra.append(int(d.group(1))+int(d.group(2))/10)
+        elif w:
+            a_,b_=so(w.group(1)),so(w.group(2))
+            if a_ is not None and b_ is not None and a_<10 and b_<10: ra.append(a_+b_/10)
+        else:
+            v=so(g)
+            if v is not None and 1<=v<=5: ra.append(float(v))
     return ra
+_PHU_DINH_TU={'khong','chang','chua','ko'}
+def ket_luan_khop(nghe,cau,nguong=0.78):
+    """Cau KET LUAN (Keo v10 B) co mat trong ban nghe khong, va co bi PHU DINH khong -> (khop, phu_dinh). Khop = cua so tu (n-1..n+1 tu) giong cau ky vong >= nguong (Whisper sai chinh ta).
+    Phu dinh = BAT KY cua so khop nao co chu 'khong/chang/chua/ko' NGAY TRUOC no hoac NAM TRONG no (tru so lan co san trong cau ky vong): 'Khong hop voi ai thich the loai nay',
+    'Voi gia nay thi khong dang mua' -> phu_dinh=True (cau doi nghia, phai TRUOT)."""
+    tk=_tach_bd(bo_dau(nfc(nghe))); a=' '.join(_tach_bd(bo_dau(cau)))
+    if not a: return False,False
+    n=len(a.split()); co_san=sum(1 for w in a.split() if w in _PHU_DINH_TU); khop=phu=False
+    for k in {max(1,n-1),n,n+1}:
+        for i in range(len(tk)-k+1):
+            if difflib.SequenceMatcher(None,a,' '.join(tk[i:i+k])).ratio()<nguong: continue
+            khop=True
+            if sum(1 for w in tk[max(0,i-1):i+k] if w in _PHU_DINH_TU)>co_san: phu=True
+    return khop,phu
 def co_tu_khoa(nghe,alts,nguong=0.78):
     """Mot nhom tu khoa (cac cach viet khong dau, 1-4 tu): co mat trong ban nghe neu la chuoi con, hoac cua so tu cung do dai giong >= nguong (Whisper hay nghe sai chinh ta: 'delux', 'vu khi' -> 'vu khi')."""
     tk=_tach_bd(bo_dau(nfc(nghe))); chuoi=' '.join(tk)
@@ -483,9 +505,9 @@ def co_so_luong(nghe,so,tu):
 def tu_khoa_gioi(gt,ket_luan=None):
     """Kiem doan gioi thieu (tinh tu keo.json.gioi_thieu). (Keo v10: `ket_luan=(cau_dung,[cau_khac])` them cau ket luan cuoi doan: cau dung BAT BUOC, cau khac CAM.) BAT BUOC: tung phan them cua ban dac biet (kem SO vu khi + 'dung som' dung muc), TEN edition, che do co-op dung chu ('choi chung online' / 'tren mot may', khong
     alias 'choi chung'). MEM (>= 60%): the loai, dac diem khac. CAM: ten edition khac / 'standard', che do co-op nguoc, 'dung som' khi khong co, phu dinh ('khong co them'). -> dict."""
-    gt=gt or {}; BB=[]; MEM=[]; CAM=[]; SL=[]; SOM=False
+    gt=gt or {}; BB=[]; MEM=[]; CAM=[]; SL=[]; SOM=False; KL=None
     if ket_luan:    # Keo v10 B: (cau dung, [cac cau con lai]) — cau dung BAT BUOC (mem theo chinh ta), cau khac CAM (khop nguyen cum)
-        BB.append([bo_dau(ket_luan[0]).strip(' .')]); CAM+=[[bo_dau(x).strip(' .')] for x in ket_luan[1]]
+        KL=ket_luan[0]; CAM+=[[bo_dau(x).strip(' .')] for x in ket_luan[1]]     # cau dung kiem rieng bang ket_luan_khop (bat phu dinh), khong qua `bat_buoc`
     DIEN={'skin_vu_khi':['skin vu khi'],'vu_khi':['vu khi'],'trang_phuc':['trang phuc'],'mo_rong':['goi mo rong','mo rong'],'tien':['tien trong game'],'vat_pham':['vat pham'],'hinh_nen':['hinh nen'],'chu_de_menu':['chu de menu','chu de'],'sach_tranh':['sach tranh'],'avatar':['anh dai dien','dai dien'],'nhac':['nhac phim'],'choi_som':['choi som']}
     ban=gt.get('ban')
     if ban:
@@ -505,7 +527,7 @@ def tu_khoa_gioi(gt,ket_luan=None):
         else: MEM.append(DD.get(x['k'],[bo_dau(x['noi'])]))
     if 'co_op_online' in keys: CAM.append(['choi chung tren mot may'])
     if 'co_op_local' in keys: CAM.append(['choi chung online'])
-    return dict(bat_buoc=BB,mem=MEM,cam=CAM,so_luong=SL,dung_som=SOM)
+    return dict(bat_buoc=BB,mem=MEM,cam=CAM,so_luong=SL,dung_som=SOM,ket_luan=KL)
 def doi_chieu(nghe,tien=(),phan_tram=(),vung=(),ten=(),han=None,tien_thu_tu=(),cap=(),tien_tat=(),ngay=(),hang=False,chu_the=None,kiem_ten=True,diem=(),tu_khoa=None,sao=()):
     """So cau Whisper nghe duoc (`nghe`) voi gia tri KY VONG tinh tu du lieu. -> list loi (rong = dat).
     tien_tat: [vnd] ky vong dang noi tat 'X tram Y' (cho phep Whisper viet CHU SO literal '706' = 706.000; nghe CHU DAY DU 'bay tram le sau nghin' van so DUNG gia tri) · tien_thu_tu: [vnd] phai xuat hien DUNG THU TU ·
@@ -549,6 +571,11 @@ def doi_chieu(nghe,tien=(),phan_tram=(),vung=(),ten=(),han=None,tien_thu_tu=(),c
         if thieu: loi.append(f'TU KHOA phan them / edition / che do choi: thieu {thieu} («{nghe[:90]}»)')
         for so_,tu_ in tu_khoa.get('so_luong',[]):
             if not co_so_luong(nghe,so_,tu_): loi.append(f'SO LUONG: mong "{so_} {tu_}" («{nghe[:90]}»)')
+        kl=tu_khoa.get('ket_luan')
+        if kl:       # Keo v10 B: dung MENH DE ket luan ky vong; cau doi nghia ('Khong hop voi ai...', '...thi khong dang mua') -> TRUOT
+            khop,phu=ket_luan_khop(nghe,kl)
+            if not khop: loi.append(f'KET LUAN: thieu cau ket luan «{bo_dau(kl).strip(" .")}» («{nghe[:90]}»)')
+            elif phu: loi.append(f'KET LUAN PHU DINH: cau ket luan bi doi nghia bang "khong" («{nghe[:90]}»)')
         if tu_khoa.get('dung_som') and not co_tu_khoa(nghe,['dung som']): loi.append(f'DUNG SOM: thieu "dung som" («{nghe[:90]}»)')
         co=[a[0] for a in tu_khoa.get('cam',[]) if _co_chinh_xac(nghe,a)]
         if co: loi.append(f'TU CAM (sai edition / che do choi / dung som): {co} («{nghe[:90]}»)')

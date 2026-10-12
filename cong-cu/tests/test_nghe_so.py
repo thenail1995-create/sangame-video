@@ -307,6 +307,20 @@ class DocSaoCauMoKeoV10(unittest.TestCase):
         for s,v in (('mà mua được một game bốn phẩy tám sao nè',[4.8]),('Game 4,8 sao mà giờ giảm sâu nè',[4.8]),('một game bốn sao nè',[4.0]),('game 5 sao',[5.0]),('Game bốn phẩy năm sao',[4.5]),
                     ('Game 4.5 sao',[4.5]),('không có sao',[]),('Giảm bảy mươi lăm phần trăm',[])):
             self.assertEqual(sorted(set(ns.doc_sao(s))),v,s)
+    def test_doc_sao_nguyen_cum_khong_bat_lai_phan_le(self):      # Sol P1: '4, 5 sao' khong duoc tra them 5.0
+        for s,v in (('game 4,5 sao nè',[4.5]),('game 4, 5 sao nè',[4.5]),('game 4 , 5 sao',[4.5]),('game bốn phẩy năm sao',[4.5]),('game 5 sao',[5.0]),('game năm sao',[5.0]),('game 4.5 sao',[4.5]),('game 4,5 sau nè',[4.5])):
+            self.assertEqual(ns.doc_sao(s),v,s)
+        self.assertEqual(ns.doc_sao('Game 4,5 sao và 5 sao'),[4.5,5.0])
+    def test_ket_luan_khop_va_phu_dinh(self):      # Sol P1: cau ket luan doi nghia bang 'khong' phai TRUOT
+        dm='Với giá này thì đáng mua.'; hop='Hợp với ai thích thể loại này.'
+        for nghe,cau,khop,phu in (('Game hành động. Với giá này thì đáng mua.',dm,True,False),('Game hành động. Với giá này thì không đáng mua.',dm,True,True),('Với giá này thì đáng mua',dm,True,False),
+                                  ('Game hành động. Không hợp với ai thích thể loại này.',hop,True,True),('Game x. Hợp với ai thích thể loại này.',hop,True,False),('Hợp với ai thích thể loại nầy',hop,True,False),
+                                  ('Game x. Chẳng hợp với ai thích thể loại này.',hop,True,True),('Game x.',hop,False,False)):
+            self.assertEqual(ns.ket_luan_khop(nghe,cau),(khop,phu),(nghe,cau))
+        tk=ns.tu_khoa_gioi({},ket_luan=(dm,[hop]))
+        self.assertTrue(any('PHU DINH' in x for x in ns.doi_chieu('Game hành động. Với giá này thì không đáng mua.',tu_khoa=tk)))
+        self.assertTrue(any('PHU DINH' in x for x in ns.doi_chieu('Game hành động. Không hợp với ai thích thể loại này.',tu_khoa=ns.tu_khoa_gioi({},ket_luan=(hop,[dm])))))
+        self.assertEqual(ns.doi_chieu('Game hành động. Với giá này thì đáng mua.',tu_khoa=tk),[])
     def test_doi_chieu_sao(self):
         self.assertEqual(ns.doi_chieu('một game bốn phẩy tám sao nè',sao=[4.8]),[])
         self.assertEqual(len(ns.doi_chieu('một game bốn phẩy chín sao nè',sao=[4.8])),1); self.assertIn('SAO (cau mo)',ns.doi_chieu('game này nè',sao=[4.8])[0])

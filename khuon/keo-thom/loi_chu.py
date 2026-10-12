@@ -269,7 +269,7 @@ BANG_SO_GIA=((45000,'Rẻ hơn một ly trà sữa'),(110000,'Chưa bằng một
 SAO_TOI_THIEU_SO_GIA=4.0      # kieu 1 chi nhac "mot game X sao" khi diem >= 4,0 (diem da lam tron 1 chu so, cung so voi cau gioi thieu)
 SAO_KIEU_SAO=4.5; LUOT_KIEU_SAO=200       # kieu 2: diem >= 4,5 va >= 200 luot
 GIAM_KIEU_GIAM_SAU=50                     # kieu 3: giam >= 50%
-KIEU_MO=('so_gia','so_sao','giam_sau')    # thu tu xoay; fallback: kieu uu tien -> 2 kieu con lai theo vong -> cum cam than (CUM_MO)
+KIEU_MO=('so_gia','so_sao','giam_sau')    # thu tu xoay; fallback: kieu uu tien -> 2 kieu con lai (thu tu XOAY theo khung) -> cum cam than (CUM_MO)
 def kieu_uu_tien(ngay_dang,dang):
     """Kieu uu tien theo (ngay, khung) = (so_ngay + thu_tu_khung) % 3: 3 khung CUNG NGAY ra 3 kieu KHAC nhau; CUNG KHUNG hom sau sang kieu ke tiep (khac hom truoc).
     Khong biet khung / khong co ngay -> None (hanh vi cu: cum cam than)."""
@@ -291,7 +291,9 @@ def cau_mo(ngay_dang,dang,con_vnd,giam,diem):
     ky_vong = {'tien':[] (v10: cau mo khong doc tien), 'sao':[diem], 'phan_tram':[giam]} — cac so xuat hien trong cau mo (D3 doc theo GIA TRI)."""
     r,_=_diem_lam_tron(diem); p=kieu_uu_tien(ngay_dang,dang)
     if p is not None:
-        for k in [KIEU_MO[(p+i)%3] for i in range(3)]:
+        # kieu uu tien truoc; du phong XOAY THEO KHUNG (Sol P2): khung thu tu chan (keo-thom-2, keo-thom-3) thu p+1 roi p+2, khung le (keo-thom) thu p+2 roi p+1
+        nho=(1,2) if KHUNG_KEO[dang]%2==0 else (2,1)
+        for k in [KIEU_MO[p]]+[KIEU_MO[(p+i)%3] for i in nho]:
             if not _hop_le_kieu(k,con_vnd,giam,diem): continue
             if k=='so_gia':
                 ss=next(c for m,c in BANG_SO_GIA if con_vnd<=m); co_sao=r is not None and r>=SAO_TOI_THIEU_SO_GIA
