@@ -196,7 +196,7 @@ class TestTaiSanDay(Khung):
     def test_chuan_bi_kiem_ca_ban_tiktok(self):  # chay.py:109
         with mock.patch.object(chay.manifest, "tai_release", self._hong("video-tiktok.mp4")):
             self.assertEqual(self.chay("chuan-bi"), 3)
-        self.assertTrue(all(self.kenh[k].cb == 0 for k in chay.KENH))
+        self.assertTrue(all(self.kenh[k].cb == 0 for k in self.kenh))
 
     def test_cong_khai_kiem_ca_ban_reels_va_bia(self):
         self.chay("chuan-bi")
