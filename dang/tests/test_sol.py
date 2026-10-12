@@ -386,6 +386,28 @@ class TestGiaFailClosed(unittest.TestCase):
         # trung han -> dat
         self.assertEqual(self.kiem(P(raw=trang_ps(pid, "HK$100.00", cu)), {**self.MUC, "endTime": cu}), [])
 
+    def test_tai_lai_khi_trang_bat_thuong(self):  # 12/10 Tin nhanh bi bo vi Sony tra trang loi 1 lan
+        pid = self.MUC["pid"]
+        con = str(int((g.GIO_DANG.timestamp() + 5 * 3600) * 1000))
+        muc = {**self.MUC, "endTime": con}
+        tot = P(raw=trang_ps(pid, "HK$100.00", con))
+        hong = P(raw=b"<html>loi</html>")
+        with mock.patch.object(gia, "CHO_GIUA_LAN", 0):
+            # lan 1 trang rong, lan 2 dung -> dat
+            m = Mang().them("GET", "store.playstation.com", [hong, tot])
+            with mock.patch("dang.http.gui", m):
+                self.assertEqual(gia.kiem_lai([muc], g.GIO_DANG)[0], [])
+            # lan 1 timeout, lan 2 HTTP 503, lan 3 dung -> dat
+            m = Mang().them("GET", "store.playstation.com", [http.LoiMang("timeout"), P(503, {}), tot])
+            with mock.patch("dang.http.gui", m):
+                self.assertEqual(gia.kiem_lai([muc], g.GIO_DANG)[0], [])
+            # ca 3 lan hong -> van bo (fail-closed)
+            m = Mang().them("GET", "store.playstation.com", [hong, hong, hong])
+            with mock.patch("dang.http.gui", m):
+                v = gia.kiem_lai([muc], g.GIO_DANG)[0]
+            self.assertTrue(v and "sau 3 lan tai" in v[0])
+            self.assertEqual(len(m.goi), 3)
+
     def test_manifest_khong_co_kiem_lai_thi_bo(self):
         self.assertTrue(gia.kiem_lai([], g.GIO_DANG)[0])
 
