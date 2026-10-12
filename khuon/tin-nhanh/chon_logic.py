@@ -29,3 +29,12 @@ def chon_ba(ung_vien,toi_da=3):
         if len(chon)==toi_da: break
         if r['khoa'] not in khoa: chon.append(r); khoa.add(r['khoa'])
     return chon
+
+def loc_noi_bat_truoc_khi_cat(ds_day_du,trung,toi_da):
+    """Bo game da noi bat TRUOC khi cat gioi han (toi_da), de con du ung vien bu (Sol P1: lay 10 roi loc co the con 2). ds_day_du = danh sach CHUA cat theo thu tu uu tien;
+    trung(h) -> ly do|None. -> (list sau loc va cat toi_da, list (h,ly) bi bo)."""
+    bo,giu=[],[]
+    for h in ds_day_du:
+        ly=trung(h)
+        (bo if ly else giu).append((h,ly) if ly else h)
+    return giu[:toi_da],bo

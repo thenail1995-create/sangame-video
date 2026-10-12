@@ -53,21 +53,54 @@ class HamPhu(unittest.TestCase):
 
 class DongGame(MoGh):
     def test_khoa_dong_game(self):
-        for a,b in (('Mafia III: Definitive Edition for PS5®','Mafia: Definitive Edition for PS5®'),('Mafia','Mafia III'),("Marvel's Spider-Man 2 PS4 & PS5",'Marvel’s Spider-Man Remastered'),
-                    ('Call of Duty®: Black Ops 6','Call of Duty: Modern Warfare III'),('Mortal Kombat™ 1','Mortal Kombat 11')):
+        for a,b in (('Mafia III: Definitive Edition for PS5®','Mafia: Definitive Edition for PS5®'),('Mafia','Mafia III'),('Mafia III','Mafia: Definitive Edition'),
+                    ('Spider-Man 2',"Marvel's Spider-Man Remastered"),("Marvel's Spider-Man 2 PS4 & PS5",'Marvel’s Spider-Man Remastered'),('Mortal Kombat™ 1','Mortal Kombat 11')):
             self.assertEqual(DN.dong_game(a),DN.dong_game(b),(a,b))
-        self.assertEqual(DN.dong_game('Call of Duty®: Black Ops 6'),'call of duty')
-        self.assertNotEqual(DN.dong_game('It Takes Two PS4™ & PS5™'),DN.dong_game('Split Fiction'))
+        self.assertEqual(DN.dong_game('Mafia: Definitive Edition'),'mafia'); self.assertEqual(DN.dong_game('Spider-Man 2'),'spider man')
+    def test_anno_khong_gop_nham(self):
+        self.assertNotEqual(DN.dong_game('ANNO: Mutationem'),DN.dong_game('Anno 117: Pax Romana'))
+        nb=DN.NoiBat(); nb.them('Anno 117: Pax Romana',[],'t'); self.assertIsNone(nb.trung('ANNO: Mutationem',[]))
+    def test_call_of_duty_khac_phan_khong_khop(self):       # chap nhan (Sol P2): khong cat sau dau ':'
+        self.assertNotEqual(DN.dong_game('Call of Duty: Black Ops 6'),DN.dong_game('Call of Duty: Modern Warfare III'))
+        self.assertEqual(DN.dong_game('Call of Duty®: Black Ops 6'),'call of duty black ops')
+        nb=DN.NoiBat(); nb.them('Call of Duty: Black Ops 6',[],'t'); self.assertTrue(nb.trung('Call of Duty: Black Ops 6 Deluxe Edition')); self.assertIsNone(nb.trung('Call of Duty: Modern Warfare III'))
     def test_chan_cung_dong(self):
         nb=DN.NoiBat(); nb.them('Mafia III: Definitive Edition for PS5®',['UP1001-PPSA36864_00-MAFIA3DEPS500000'],'t')
         self.assertIn('dong game',nb.trung('Mafia: Definitive Edition for PS5®',['UP1001-PPSA36393_00-MAFIA1DEPS500000']))
-        nb=DN.NoiBat(); nb.them('Marvel’s Spider-Man Remastered',[],'t'); self.assertIn('dong game',nb.trung('Marvel’s Spider-Man 2',[]) or '')
+        nb=DN.NoiBat(); nb.them('Marvel’s Spider-Man Remastered',[],'t'); self.assertIn('dong game',nb.trung('Spider-Man 2',[]) or '')
     def test_khac_dong_khong_chan_nham(self):
         nb=DN.NoiBat(); nb.them('It Takes Two',[],'t'); self.assertIsNone(nb.trung('Split Fiction',[]))
         nb=DN.NoiBat(); nb.them('Split Fiction',[],'t'); self.assertIsNone(nb.trung('It Takes Two',[]))
-        nb=DN.NoiBat(); nb.them('Call of Duty: Black Ops 6',[],'t'); self.assertTrue(nb.trung('Call of Duty®: Modern Warfare III')); self.assertIsNone(nb.trung('Duty Free Shop'))
     def test_mafia_tu_lich_su(self):
-        self.assertIn('dong game',self.chay('2026-10-13','tin-nhanh').trung('Mafia: Definitive Edition for PS5®',['UP1001-PPSA36393_00-MAFIA1DEPS500000x']) or '')   # Mafia III 12/10 -> chan Mafia 1
+        self.assertIn('dong game',self.chay('2026-10-13','tin-nhanh').trung('Mafia: Definitive Edition for PS5®',['UP1001-PPSA36393_00-MAFIA1DEPS500000x']) or '')
+
+class Deadline(unittest.TestCase):
+    def test_qua_90_giay_tap_rong_canh_bao(self):
+        t=[1000.0]; goc_m=DN.time.monotonic; goc_s=DN.time.sleep; goc_r=DN.subprocess.run
+        class R:
+            returncode=0; stderr=''
+            def __init__(s,out): s.stdout=out
+        def fake(cmd,**kw):
+            DN.time.monotonic.advance(40)                # moi lenh gh "ton" 40s (timeout rieng khong cat duoc)
+            if cmd[2]=='list': return R(json.dumps([dict(tagName=k,isDraft=False) for k in KHO]))
+            return R(json.dumps(KHO[cmd[3]]))
+        class Dong:
+            def __call__(s): return t[0]
+            def advance(s,x): t[0]+=x
+        DN.time.monotonic=Dong(); DN.time.sleep=lambda x:None; DN.subprocess.run=fake
+        try: nb=DN.da_noi_bat('2026-10-13','top5')
+        finally: DN.time.monotonic=goc_m; DN.time.sleep=goc_s; DN.subprocess.run=goc_r
+        self.assertTrue(nb.canh_bao.startswith('CANH BAO')); self.assertIn('Timeout',nb.canh_bao); self.assertEqual(len(nb),0)
+        self.assertIsNone(DN._han_chot[0])
+    def test_timeout_moi_lenh_toi_da_20s(self):
+        thay=[]; goc=DN.subprocess.run
+        class R: returncode=0; stdout='[]'; stderr=''
+        DN.subprocess.run=lambda cmd,**kw:(thay.append(kw['timeout']),R())[1]
+        try: DN._gh(['release','list'])
+        finally: DN.subprocess.run=goc
+        self.assertEqual(thay,[20])
+    def test_nhanh_thi_binh_thuong(self):
+        nb=MoGh().chay('2026-10-13','top5'); self.assertIsNone(nb.canh_bao); self.assertTrue(nb.trung('It Takes Two'))
 
 class DocLichSu(MoGh):
     def test_khoang_ngay_va_loai_chinh_khung(self):

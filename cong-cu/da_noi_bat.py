@@ -6,6 +6,7 @@ Nguon: manifest.json cua cac Release `v-<ngay>-<dang>` (tin-nhanh, top5, keo-tho
       tin-nhanh  : cau "rẻ nhất <ten rut gon>, <gia>đ" trong loi_dang.mo_ta, ghep voi kiem_lai theo GIA (gia_vnd) + ten; khong ghep duoc -> chi giu ten rut gon.
   Khoang ngay: [ngay - so_ngay, ngay], tru chinh khung (ngay, dang) dang dung (cac khung KHAC cung ngay van tinh).
   Khop theo PID (bo tien to vung UP/HP/EP.. truoc dau '-') HOAC ten goc chuan hoa HOAC khoa DONG game (dong_game: Mafia = Mafia III = Mafia: Definitive Edition).
+  Deadline TONG 90 giay cho ca phan tai (moi lenh gh toi da 20 giay, tinh ca thu lai): qua gio -> CANH BAO + tap RONG.
   Loi mang: thu 3 lan; van loi -> tap RONG kem ghi chu 'CANH BAO' (khong chan khung, nhu lich_su_top5).
   da_noi_bat(ngay, dang, so_ngay=3, ten_goc=None) -> NoiBat ; ten_goc = tin_tu_sinh._ten_goc neu co (mac dinh: chuan hoa don gian).
   Thu tren Mac khong co mang: env NOI_BAT_LICH_SU = duong dan json {"v-2026-10-12-top5": <manifest>, ...}."""
@@ -28,16 +29,16 @@ _LA_MA=frozenset('i ii iii iv v vi vii viii ix x xi xii'.split())
 _BO=frozenset('edition standard deluxe definitive remastered remaster remake ultimate complete collection bundle gold premium digital super game of the year goty director cut version for ps4 ps5 and pack'.split())
 _TIEN_TO=('marvel s','tom clancy s','sid meier s','disney s')
 def dong_game(ten):
-    """Khoa DONG game (Hao 12/10: Mafia III hom truoc, Mafia phan 1 hom sau): cat sau ':' / ' - ', bo (..), tien to hang (Marvel's), so phan, so La Ma, hau to edition/nen tang.
-    'Mafia', 'Mafia III', 'Mafia: Definitive Edition' -> 'mafia'; 'Marvel's Spider-Man 2' / 'Spider-Man Remastered' -> 'spider man'; 'Call of Duty: X' -> 'call of duty'."""
+    """Khoa DONG game (Hao 12/10: Mafia III hom truoc, Mafia phan 1 hom sau). KHONG cat phan sau ':' / ' - ' (ANNO: Mutationem != Anno 117: Pax Romana).
+    Chi bo: (..), tien to hang (Marvel's), roi LAP tu CUOI ten: hau to edition/nen tang (': Definitive Edition', Remastered, Deluxe, PS5...), so phan, so La Ma.
+    'Mafia', 'Mafia III', 'Mafia: Definitive Edition' -> 'mafia'; 'Spider-Man 2' = 'Marvel's Spider-Man Remastered' -> 'spider man';
+    'Call of Duty: Black Ops 6' -> 'call of duty black ops' (khac 'Modern Warfare III')."""
     k=re.sub(r'[®™©]','',ten or '').lower().replace('’',"'")
-    k=re.sub(r'\(.*?\)','',k); k=re.split(r':|\s[-–—]\s',k)[0]
-    k=' '.join(re.sub(r'[^\w\s]',' ',k).split())
+    k=re.sub(r'\(.*?\)','',k); k=' '.join(re.sub(r'[^\w\s]',' ',k).split())
     for tt in _TIEN_TO:
         if k.startswith(tt+' '): k=k[len(tt)+1:]
-    # 'of'/'the' o GIUA ten ('Call of Duty') phai giu: chi bo chung o dau/cuoi
-    gh=[w for w in k.split() if not w.isdigit() and w not in _LA_MA and w not in (_BO-{'of','the','for','and'})]
-    while gh and gh[-1] in ('of','the','for','and'): gh.pop()
+    gh=k.split()
+    while gh and (gh[-1] in _BO or gh[-1] in _LA_MA or gh[-1].isdigit()): gh.pop()
     while gh and gh[0]=='the': gh.pop(0)
     return ' '.join(gh) or k
 class NoiBat:
@@ -68,16 +69,23 @@ class NoiBat:
         return None
     def __len__(self): return len(self.ten)+len(self.pids)+len(self.dong)
 
-def _gh(args,timeout=60):
-    """Chay `gh`, thu 3 lan. Tra stdout; loi cuoi -> raise RuntimeError."""
+TONG_GIAY=90; MOI_LENH_GIAY=20
+_han_chot=[None]   # deadline tong (time.monotonic) cua phan tai lich su; da_noi_bat dat va xoa
+def _con_lai():
+    return None if _han_chot[0] is None else _han_chot[0]-time.monotonic()
+def _gh(args,timeout=MOI_LENH_GIAY):
+    """Chay `gh`, thu 3 lan, moi lenh toi da `timeout` giay VA khong vuot deadline tong (_han_chot). Tra stdout; loi cuoi -> raise RuntimeError (het gio -> TimeoutError)."""
     err=''
     for lan in range(3):
+        cl=_con_lai()
+        if cl is not None and cl<=0: raise TimeoutError(f'qua {TONG_GIAY}s tai lich su noi bat')
         try:
-            r=subprocess.run(['gh']+args,capture_output=True,text=True,timeout=timeout)
+            r=subprocess.run(['gh']+args,capture_output=True,text=True,timeout=timeout if cl is None else max(1,min(timeout,cl)))
             if r.returncode==0: return r.stdout
             err=r.stderr.strip()[:200]
         except Exception as e: err=f'{type(e).__name__}: {str(e)[:120]}'
-        time.sleep(2*(lan+1))
+        cl=_con_lai()
+        if lan<2: time.sleep(2*(lan+1) if cl is None else max(0,min(2*(lan+1),cl)))
     raise RuntimeError(err or 'gh loi')
 
 def tu_manifest(m,dang):
@@ -106,7 +114,7 @@ def tu_manifest(m,dang):
 def da_noi_bat(ngay,dang,so_ngay=3,ten_goc=None,repo=None):
     """ngay = ngay DANG ('YYYY-MM-DD' hoac date); dang = khung dang dung (bi loai khoi lich su). -> NoiBat."""
     d0=ngay if isinstance(ngay,datetime.date) else datetime.date.fromisoformat(str(ngay)); tu=d0-datetime.timedelta(days=so_ngay)
-    nb=NoiBat(ten_goc); dem=0
+    nb=NoiBat(ten_goc); dem=0; _han_chot[0]=time.monotonic()+TONG_GIAY
     try:
         f=os.environ.get('NOI_BAT_LICH_SU')
         if f:
@@ -117,6 +125,7 @@ def da_noi_bat(ngay,dang,so_ngay=3,ten_goc=None,repo=None):
             j=json.loads(_gh(['release','list','-R',repo,'--limit','200','--json','tagName,isDraft']) or '[]')
             ds=[(x['tagName'],(lambda tg=x['tagName']:json.loads(_gh(['release','download',tg,'-R',repo,'-p','manifest.json','-O','-'])))) for x in j if not x.get('isDraft')]
         for tg,tai in ds:
+            if _con_lai()<=0: raise TimeoutError(f'qua {TONG_GIAY}s tai lich su noi bat')
             m=_RE_TAG.fullmatch(tg)
             if not m: continue
             ng=datetime.date.fromisoformat(m.group(1)); d_=m.group(2)
@@ -127,4 +136,5 @@ def da_noi_bat(ngay,dang,so_ngay=3,ten_goc=None,repo=None):
     except Exception as e:
         nb=NoiBat(ten_goc); nb.canh_bao=f'CANH BAO: khong doc duoc lich su noi bat ({type(e).__name__}: {str(e)[:120]}) - khong loc game da noi bat'
         nb.ghi_chu=nb.canh_bao; print(nb.canh_bao)
+    finally: _han_chot[0]=None
     return nb

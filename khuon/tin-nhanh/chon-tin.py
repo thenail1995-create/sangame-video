@@ -149,21 +149,24 @@ def xac_minh(h):
     if g['end']<HAN_MIN_MS: return None,f'het han {dtm.datetime.fromtimestamp(g["end"]/1000,VN):%d/%m %H:%M} (< han toi thieu)'
     return dict(pid=b['id'],loc=tc.LOC[ma],end=g['end'],gia_cuc_bo=tc.so_tien(b['con']),tien_te=tc.TIEN_TE[ma],html=html),None
 
-def ds_giam_sau():
+TOI_DA_XET=1000   # lay DANH SACH DAY DU (chua cat 10) de loc game noi bat truoc, roi moi cat
+def _pid_h(h): return [v.get('id') for v in ((d['so']['game'].get(h['khoa']) or {}).get('vung') or {}).values() if v.get('id')]
+def ds_giam_sau(toi_da=None):
     hn1=NGAY_DUNG-dtm.timedelta(days=1)     # trạng thái "như lúc bài của NGAY_DUNG sinh": không tính chính bài của hôm đó vào danh sách loại trừ
     bai=[b for b in BAI if b.get('loai_tu_sinh')=='giam-sau' and b['ngay']==NGAY_DUNG.isoformat() and isinstance(b.get('khoa_game'),list)]
     if bai:
         ks=bai[0]['khoa_game']; by={h['khoa']:h for h in d['hangs']}
         return [by[k] for k in ks if k in by]
-    return t.chon_giam_sau(d['hangs'],th,t.lich_su_giam_sau(t.THU_MUC_BAI,hn1),hn1,slug_loai=t.slug_keo_gan_day(t.THU_MUC_BAI,hn1))
-def ds_vua_giam(): return t.chon_vua_giam(d['so'],d['dls'],th,NGAY_DUNG)
-def ds_deal_hot(): return t.chon_deal_hot(d['hangs'],th)
+    return t.chon_giam_sau(d['hangs'],th,t.lich_su_giam_sau(t.THU_MUC_BAI,hn1),hn1,slug_loai=t.slug_keo_gan_day(t.THU_MUC_BAI,hn1),**({'toi_da':toi_da} if toi_da else {}))
+def ds_vua_giam(toi_da=t.TOI_DA_GAME): return t.chon_vua_giam(d['so'],d['dls'],th,NGAY_DUNG,toi_da=toi_da)
+def ds_deal_hot(toi_da=t.TOI_DA_GAME): return t.chon_deal_hot(d['hangs'],th,toi_da=toi_da)
 MAX_XET_SAP_HET=60
-def ds_sap_het():
+def ds_sap_het(toi_da=None):
     """Game bán chạy đang giảm (cùng luật hạng/% giảm/không gói với giảm sâu) có hạn nằm trong [HAN_MIN, HAN_MIN + 2 ngày] theo trang PS Store đúng vùng.
     Xếp theo hạng; xét tối đa MAX_XET_SAP_HET ứng viên; dừng sớm khi đủ TOI_DA_GAME game."""
     ung=[h for h in d['hangs'] if h['khoa'] in th and th[h['khoa']][0]+1<=t.GIAM_SAU_HANG_TOI_DA and h['giam']>=t.GIAM_TOI_THIEU
          and not t._la_goi_nhieu_game(h) and h.get('vnd')]
+    ung=[h for h in ung if not NB.trung(h['ten'],_pid_h(h))]    # bo game noi bat 3 ngay TRUOC khi cat MAX_XET
     ung.sort(key=lambda h:(th[h['khoa']],h['slug'])); ung=t._bo_trung_ten(ung)[:MAX_XET_SAP_HET]
     ra=[]; xa=0; loi=0; xet=0
     for h in ung:
@@ -178,17 +181,16 @@ def ds_sap_het():
 DA_DUNG_GOC=set()
 def tin_gia(loai,ham,uu):
     ten_loai,cum,nhan=LOAI_GIA[loai]
-    try: ds=ham()
+    try: ds=ham(TOI_DA_XET)
     except Exception as e: return bo(loai,f'loi chon: {e}')
     # Game da NOI BAT (re nhat tin nhanh / top 5 / keo) trong 3 ngay -> bo khoi danh sach TRUOC khi chon "re nhat" (12/10: It Takes Two, Mafia III, Mortal Kombat 1 lap lai)
-    def _pid_h(h): return [v.get('id') for v in ((d['so']['game'].get(h['khoa']) or {}).get('vung') or {}).values() if v.get('id')]
-    lap=[(h,NB.trung(h['ten'],_pid_h(h))) for h in ds]
-    if any(ly for _,ly in lap): print('    bo khoi danh sach (da noi bat 3 ngay):',', '.join(f'{h["ten"][:30]} [{ly}]' for h,ly in lap if ly))
-    ds=[h for h,ly in lap if not ly]
+    # Sol P1: danh sach DAY DU (chua cat 10) -> bo game noi bat -> moi cat; vong xac minh ben duoi tu bu cho toi du TOI_DA_GAME game.
+    ds,bi_bo=cl.loc_noi_bat_truoc_khi_cat(ds,lambda h:NB.trung(h['ten'],_pid_h(h)),TOI_DA_XET)
+    if bi_bo: print('    bo khoi danh sach (da noi bat 3 ngay):',', '.join(f'{h["ten"][:30]} [{ly}]' for h,ly in bi_bo))
     if len(ds)<3: return bo(loai,f'chi {len(ds)} game (can >= 3; da bo game noi bat 3 ngay)')
-    ok=[]
+    ok=[]; cap=t.TOI_DA_GIAM_SAU if loai=='giam-sau' else t.TOI_DA_GAME   # giu tran cu cua tung loai (giam sau 8, con lai 10)
     for h in ds:
-        if len(ok)>=t.TOI_DA_GAME: break
+        if len(ok)>=cap: break
         kq,ly=xac_minh(h)
         if kq: ok.append((h,kq))
         else: print('    loai game',h['ten'][:40],'-',ly)
