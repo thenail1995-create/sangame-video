@@ -69,10 +69,12 @@ def ten_noi(t):
     if g in NGOAI_LE_NOI: return NGOAI_LE_NOI[g]
     g=ten_hien(g)[1]
     return re.sub(r'\s+',' ',g.replace(':',' ')).strip()
+TIEN_TO_HANG=('Marvel’s','Tom Clancy’s','Sid Meier’s','Disney’s',)
 def ten_hien(t):
     """(tien to, phan nhan manh) cho bia: "Marvel's Spider-Man 2" -> ('Marvel’s','Spider-Man 2'); khong co tien to so huu cach -> ('', ten)."""
     g=gon_ten(t).replace("'",'’'); w=g.split(' ',1)
-    if len(w)==2 and w[0].endswith('’s') and len(g.split())>=3: return w[0],w[1]
+    # 12/10: CHI tien to so huu cua HANG/TAC GIA (Marvel's...) moi tach; 'Assassin's Creed' la ten game -> giu nguyen (tung doc 'Creed Shadows')
+    if len(w)==2 and w[0] in TIEN_TO_HANG and len(g.split())>=3: return w[0],w[1]
     return '',g
 def buoi(gio24):
     """gio (1..23) -> (so doc 1..12, buoi): 14 -> ('hai','chiều')."""

@@ -432,6 +432,7 @@ jobs:
         env:
           GD: chung
           WORKERS: '4'
+          GH_TOKEN: ${{ github.token }}   # chon-tin.py (Tin nhanh) doc manifest cac Release 3 ngay qua `gh` (cong-cu/da_noi_bat.py); thieu -> CANH BAO, khong loc
           WHISPER_DIR: /home/runner/whisper-cache
           # chi khi chay fixture (hoi quy): bo kiem ngay du lieu theo NGAY (khuon/*/kiem). Khong fixture (LIVE) = khong dat. fixture + che_do=that da bi cam o kiem-moi.
           HOI_QUY: ${{ env.FIXTURE != '' && '1' || '' }}

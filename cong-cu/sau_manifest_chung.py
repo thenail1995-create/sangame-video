@@ -58,6 +58,10 @@ def main():
     elif (K/'tin.json').exists():
         loi=loi_kiem_lai(json.load(open(K/'tin.json',encoding='utf-8')),[])
         assert not loi,'kiem_lai khong du cho cac the co gia: '+'; '.join(loi)
+    if (K/'noi-bat.json').exists():
+        nb=json.load(open(K/'noi-bat.json',encoding='utf-8'))
+        assert isinstance(nb,list) and all(isinstance(x,dict) and x.get('ten') for x in nb),nb
+        m['noi_bat']=nb; lam.append(f'noi_bat({len(nb)})')
     json.dump(m,open(M,'w',encoding='utf-8'),ensure_ascii=False,indent=1)
     print('sau_manifest_chung:',', '.join(lam) or 'khong co loi-dang.json / kiem-lai.json - giu mac dinh cua manifest.py')
 if __name__=='__main__': main()
