@@ -29,6 +29,8 @@ han_ms=int((datetime.datetime.fromisoformat(f'{ngay_dang}T{GIO_DANG}:00+07:00')+
 gia=lambda h:int(t._dong(qd,h['vnd']).replace('.','').replace('đ',''))
 cung_game=lambda ten:t._ten_goc(ten) or ten   # dung de DEM: chi gop cac ban cua cung 1 game
 dong_game=ls.ten_dong_game
+_sp2=importlib.util.spec_from_file_location('sangame_da_noi_bat',str(T.parent.parent/'cong-cu'/'da_noi_bat.py')); DNB=importlib.util.module_from_spec(_sp2); _sp2.loader.exec_module(DNB)   # game da noi bat o dang KHAC (Tin nhanh 're nhat', Keo) trong 3 ngay (Hao 12/10: tin bi trung)
+NB=DNB.da_noi_bat(ngay_dang,'top5',3,ten_goc=t._ten_goc); print('da noi bat 3 ngay (dang khac):',NB.ghi_chu)
 da_len,ghi_chu_ls=ls.da_len(ngay_dang,3); print('lich su Top 5:',ghi_chu_ls,'| dong game da len:',sorted(da_len))
 TIEN_TE={'US':'USD','HK':'HKD','SG':'SGD','ID':'IDR','TH':'THB','IN':'INR'}
 _trang={}
@@ -49,6 +51,8 @@ def xet(h):
     """Ung vien -> dict hoac None (kem ly do). Goi trang PS Store DUNG vung cua gia duoc chon."""
     k=dong_game(h['ten'])
     if k in da_len: return None,'da len Top 5 trong 3 ngay'
+    ly_nb=NB.trung(h['ten'],[v.get('id') for v in ((d['so']['game'].get(h['khoa']) or {}).get('vung') or {}).values() if v.get('id')])
+    if ly_nb: return None,f'da noi bat o dang khac trong 3 ngay: {ly_nb}'
     if not tr.doc_duoc(h['ten']): return None,f"ten may doc khong on dinh ({tr.hien_thi(h['ten'])})"
     if not h.get('anh'): return None,'khong co anh bia'
     ma=h['ma']; loc='en-'+ma.lower()

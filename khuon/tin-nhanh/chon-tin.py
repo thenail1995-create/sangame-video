@@ -25,6 +25,9 @@ HAN_MIN_MS=int((dtm.datetime.combine(NGAY_DANG,dtm.time(7,30),VN)+dtm.timedelta(
 REPO=pathlib.Path(a.du_lieu).resolve(); TS=T/'tai-san'; a.ra=str(pathlib.Path(a.ra).resolve())
 sys.path.insert(0,str(REPO)); os.chdir(REPO)
 import bai_viet, tin_tu_sinh as t
+import importlib.util
+_sp=importlib.util.spec_from_file_location('sangame_da_noi_bat',str(T.parent.parent/'cong-cu'/'da_noi_bat.py')); DNB=importlib.util.module_from_spec(_sp); _sp.loader.exec_module(DNB)   # game da noi bat o dang KHAC/ngay truoc (Hao 12/10: tin bi trung)
+NB=DNB.da_noi_bat(NGAY_DANG,'tin-nhanh',3,ten_goc=t._ten_goc); print('da noi bat 3 ngay:',NB.ghi_chu)
 
 BO=[]   # ly do bo tung ung vien (ghi vao tin-chon.json)
 def bo(ten,ly_do):
@@ -177,7 +180,12 @@ def tin_gia(loai,ham,uu):
     ten_loai,cum,nhan=LOAI_GIA[loai]
     try: ds=ham()
     except Exception as e: return bo(loai,f'loi chon: {e}')
-    if len(ds)<3: return bo(loai,f'chi {len(ds)} game (can >= 3)')
+    # Game da NOI BAT (re nhat tin nhanh / top 5 / keo) trong 3 ngay -> bo khoi danh sach TRUOC khi chon "re nhat" (12/10: It Takes Two, Mafia III, Mortal Kombat 1 lap lai)
+    def _pid_h(h): return [v.get('id') for v in ((d['so']['game'].get(h['khoa']) or {}).get('vung') or {}).values() if v.get('id')]
+    lap=[(h,NB.trung(h['ten'],_pid_h(h))) for h in ds]
+    if any(ly for _,ly in lap): print('    bo khoi danh sach (da noi bat 3 ngay):',', '.join(f'{h["ten"][:30]} [{ly}]' for h,ly in lap if ly))
+    ds=[h for h,ly in lap if not ly]
+    if len(ds)<3: return bo(loai,f'chi {len(ds)} game (can >= 3; da bo game noi bat 3 ngay)')
     ok=[]
     for h in ds:
         if len(ok)>=t.TOI_DA_GAME: break
@@ -201,7 +209,7 @@ def tin_gia(loai,ham,uu):
     return dict(kieu=loai,mau='do',uu=uu,khoa=f'{loai}:{h["khoa"].split("|")[0]}',loai=ten_loai,nguon=f'PS STORE · {ddmm(d["cap_nhat"])}',
                 n=len(ok),cum=cum,giam_min=min(x[0]['giam'] for x in ok),giam_max=max(x[0]['giam'] for x in ok),
                 re_nhat=dict(ten=h['ten'],ten_hien=hien,ten_doc=so_chu.ten_doc(hien,h['ten']),gia_vnd=vnd_so(h),gia=t._dong(qd,h['vnd']),giam=h['giam'],vung=h['vung'],ma=h['ma'],
-                             khoa=h['khoa'],pid=kq['pid'],loc=kq['loc'],end=kq['end'],gia_cuc_bo=kq['gia_cuc_bo'],tien_te=kq['tien_te']),
+                             khoa=h['khoa'],pid=kq['pid'],pids_vung=sorted(set(_pid_h(h))),loc=kq['loc'],end=kq['end'],gia_cuc_bo=kq['gia_cuc_bo'],tien_te=kq['tien_te']),
                 nhan_dong=f'{nhan} · STORE {h["vung"].upper()}',anh_url=[anh],anh_tep=[f'tai-san/{f.name}'],trailer=tr,anh_chup=shot,
                 kiem_lai=[dict(ten=x[0]['ten'],pid=x[1]['pid'],loc=x[1]['loc'],gia_vnd=vnd_so(x[0]),gia_cuc_bo=x[1]['gia_cuc_bo'],tien_te=x[1]['tien_te'],endTime=str(x[1]['end'])) for x in ok])
 
@@ -241,7 +249,8 @@ def tin_sale(uu):
     top=[h for h in top if ((d['so']['game'].get(h['khoa']) or {}).get('vung',{}).get('US') or {}).get('id') in trong]
     if not top: return bo('sale',f'khong co game ban chay nao thuoc danh muc dot sale ({len(trong)} mon dang giam)')
     ung_anh=[(t._ten_goc(h['ten']),t.url_anh_day_du(h['anh']),h['ten']) for h in top[:12]]
-    chua=[x for x in ung_anh if x[0] not in DA_DUNG_GOC] or ung_anh
+    # bia sale uu tien game CHUA noi bat 3 ngay (12/10: bia It Takes Two lap lai khi game do vua la 're nhat' hom truoc), roi toi chua la 're nhat' cua tin khac
+    chua=[x for x in ung_anh if x[0] not in DA_DUNG_GOC and not NB.trung(x[2])] or [x for x in ung_anh if x[0] not in DA_DUNG_GOC] or ung_anh
     print(f"  sale: anh = {chua[0][2][:40]} (thuoc danh muc dot, {len(trong)} mon dang giam; {len(ung_anh)} ung vien anh)")
     try: f=tc.tai_anh(chua[0][1],TS,'sale',rong=720)
     except Exception as ex: return bo('sale',f'loi tai anh: {ex}')
@@ -273,7 +282,7 @@ for r in chon: print('  CHON',r['kieu'],r['khoa'])
 _da={t._ten_goc(r['re_nhat']['ten']) for r in chon if r.get('re_nhat')}
 for r in chon:
     if r['kieu']=='sale' and r.get('anh_goc') in _da:
-        moi=next((x for x in r['anh_ung_vien'] if x[0] not in _da),None)
+        moi=next((x for x in r['anh_ung_vien'] if x[0] not in _da and not NB.trung(x[2])),None) or next((x for x in r['anh_ung_vien'] if x[0] not in _da),None)
         if moi:
             f=tc.tai_anh(moi[1],TS,'sale',rong=720); r.update(anh_url=[moi[1]],anh_tep=[f'tai-san/{f.name}'],anh_goc=moi[0]); print('  sale: doi anh ->',moi[2][:40],'(tranh trung tin khac)')
         else: print('  sale: khong con ung vien anh khac, giu anh trung')

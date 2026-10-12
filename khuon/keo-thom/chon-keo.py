@@ -74,6 +74,8 @@ def lich_su():
             if it.get('ten'): goc.add(t._ten_goc(it['ten']))
     return dict(so_ky=len(ks)+1,pid=pid,goc=goc,co_hom_nay=hom_nay)
 LS=lich_su()
+_sp3=importlib.util.spec_from_file_location('sangame_da_noi_bat',str(T.parent.parent/'cong-cu'/'da_noi_bat.py')); DNB=importlib.util.module_from_spec(_sp3); _sp3.loader.exec_module(DNB)   # game da noi bat o Tin nhanh / Top 5 (va khung Keo khac) trong 3 ngay (Hao 12/10: tin bi trung)
+NB=DNB.da_noi_bat(NGAY,DANG,3,ten_goc=t._ten_goc); print('da noi bat 3 ngay:',NB.ghi_chu)
 # Chi che do THAT moi dung khi da co Release that hom nay; che do thu (kiem thu khuon) van chon (11/10: thu sau luot that 20:00 bi chan)
 if LS['co_hom_nay'] and os.environ.get('CHE_DO','that')=='that': thoat(4,f'Da co Release Keo thom ngay {NGAY} — khong chon lai')
 elif LS['co_hom_nay']: print(f'CHU Y: da co Release that ngay {NGAY}; che do thu van chon (game da len trong 14 ngay van bi loai)')
@@ -95,6 +97,7 @@ def ung_vien():
         hang=th[k][0]+1; w=(1.0 if hang<=50 else .8 if hang<=100 else .6 if hang<=200 else .45)*(.7 if h.get("loai")=="goi" else 1)   # ban Deluxe/dac biet: ten dai, kem phan khi doc -> nhe diem
         pids={v['id'] for v in x['vung'] if v.get('id')}
         if pids&LS['pid'] or t._ten_goc(h['ten']) in LS['goc']: continue
+        if NB.trung(h['ten'],pids): continue   # da noi bat o Tin nhanh/Top 5 (3 ngay)
         ra.append(dict(h=h,x=x,v3=v3,hang=hang,diem=c3*w,chenh=c3))
     ra.sort(key=lambda u:(-u['diem'],u['hang'],u['h']['slug']))
     return ra
@@ -165,8 +168,9 @@ for v,p in zip(v3,tr):
                      gia_cuc_bo=p['gia_cuc_bo'],tien_te=p['tien_te'],endTime=p['endTime']))
 may=' · '.join(u['x'].get('may') or []) or 'PS5'
 tien,chinh=ten_hien(h['ten'])
+ten_day=gon_ten(h['ten'])   # 12/10: caption dung TEN DAY DU ('Assassin's Creed Shadows'), ten_hien chi cho bia (tung cat 'Assassin's' -> 'Creed Shadows')
 a=vung[0]; con_goc=lambda n:f"{n:,}".replace(',','.')+'đ'
-mo_ta=(f"{chinh} đang giảm {a['giam']}% ở PS Store {a['dd']}: còn {con_goc(a['vnd'])} (giá gốc {con_goc(a['goc_vnd'])}) khi quy theo giá thẻ PSN. "
+mo_ta=(f"{ten_day} đang giảm {a['giam']}% ở PS Store {a['dd']}: còn {con_goc(a['vnd'])} (giá gốc {con_goc(a['goc_vnd'])}) khi quy theo giá thẻ PSN. "
        f"So với {vung[1]['dd']}: +{con_goc(vung[1]['vnd']-a['vnd'])}; {vung[2]['dd']}: +{con_goc(vung[2]['vnd']-a['vnd'])}. "
        f"Hết giảm {het:%H:%M ngày %d/%m} giờ Việt Nam. Giá quy đổi chỉ để tham khảo.\n\nXem giá ở 6 vùng PS Store: https://sangame.com.vn/{trang_game.ten_file_trang(h['slug'])}")
 keo=dict(phien_ban=1,che_do_hoi_quy=False,ngay_dang=NGAY.isoformat(),gio_dang=GIO_DANG.isoformat(),ngay_du_lieu=str(d['cap_nhat'])[:10],gia_the_ngay=d.get('gia_the_ngay'),so_ky=LS['so_ky'],
@@ -174,7 +178,7 @@ keo=dict(phien_ban=1,che_do_hoi_quy=False,ngay_dang=NGAY.isoformat(),gio_dang=GI
     goc_vnd=a['goc_vnd'],con_vnd=a['vnd'],vung=vung,gioi_thieu=tr[0]['gioi'],han=dict(ma=a['ma'],endTime=a['endTime'],iso=het.isoformat()),
     ghi_chu_bang='Quy theo giá thẻ PSN từng vùng · giá tham khảo',
     kiem_lai=[dict(ten=h['ten'],pid=v['pid'],loc=v['loc'],gia_vnd=v['vnd'],gia_cuc_bo=v['gia_cuc_bo'],tien_te=v['tien_te'],endTime=v['endTime']) for v in vung],
-    loi_dang=dict(tieu_de=f"{chinh} giảm {a['giam']}% ở PS Store {a['dd']}: còn {con_goc(a['vnd'])}"[:100],mo_ta=mo_ta[:2000],hashtag=['#SănGame','#PlayStation','#PS5','#GiảmGiá'],link='https://sangame.com.vn/'))
+    loi_dang=dict(tieu_de=f"{ten_day} giảm {a['giam']}% ở PS Store {a['dd']}: còn {con_goc(a['vnd'])}"[:100],mo_ta=mo_ta[:2000],hashtag=['#SănGame','#PlayStation','#PS5','#GiảmGiá'],link='https://sangame.com.vn/'))
 json.dump(keo,open(A.ra,'w',encoding='utf-8'),ensure_ascii=False,indent=1)
 json.dump(keo['loi_dang'],open(pathlib.Path(A.ra).resolve().parent/'loi-dang.json','w',encoding='utf-8'),ensure_ascii=False,indent=1)
 json.dump(dict(du=True,ngay=NGAY.isoformat(),game=h['ten'],hang=u['hang'],vung=[x['ma'] for x in vung],thu=i,ung_vien=len(UV),loai=NHAT_KY[-30:]),open(KQ,'w',encoding='utf-8'),ensure_ascii=False,indent=1)

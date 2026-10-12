@@ -6,5 +6,7 @@ if not L.exists(): print('khong co loi-dang.json - giu loi_dang mac dinh cua man
 m=json.load(open(M,encoding='utf-8')); ld=json.load(open(L,encoding='utf-8'))
 assert 0<len(ld['tieu_de'])<=100 and 0<len(ld['mo_ta'])<=2000 and ld['link'].startswith('https://sangame.com.vn') and ld['hashtag']==['#SănGame','#PlayStation','#PS5','#GiảmGiá'],ld
 m['loi_dang']=ld
+T5=pathlib.Path(__file__).resolve().parent/'top5.json'
+if T5.exists(): m['noi_bat']=[dict(ten=g['ten_goc'],pids=[g['pid']] if g.get('pid') else []) for g in json.load(open(T5,encoding='utf-8')) if g.get('ten_goc')]   # cong-cu/da_noi_bat.py
 json.dump(m,open(M,'w',encoding='utf-8'),ensure_ascii=False,indent=1)
 print('manifest.loi_dang <- loi-dang.json:',ld['tieu_de'])

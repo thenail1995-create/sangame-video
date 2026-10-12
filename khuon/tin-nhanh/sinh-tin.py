@@ -125,6 +125,8 @@ json.dump(nguon,open(T/'nen-nguon.json','w'),indent=1)
 kl=[]
 for r in C['tin']: kl+=r.get('kiem_lai') or []
 json.dump(kl,open(T/'kiem-lai.json','w',encoding='utf-8'),ensure_ascii=False,indent=1)
+# noi-bat.json -> manifest.noi_bat (cong-cu/sau_manifest_chung.py): game "re nhat" cua tung tin gia, de cac khung sau (Tin nhanh / Top 5 / Keo) khong lap (cong-cu/da_noi_bat.py)
+json.dump([dict(ten=r['re_nhat']['ten'],pids=sorted({r['re_nhat']['pid']}|set(r['re_nhat'].get('pids_vung') or []))) for r in C['tin'] if r.get('re_nhat')],open(T/'noi-bat.json','w',encoding='utf-8'),ensure_ascii=False,indent=1)
 tits=[x['tit'] for x in TIN]; td=f'Tin nhanh PlayStation {D["ngay"]}:'
 for i in range(len(tits)):
     thu=td+' '+' | '.join(tits[:i+1])
