@@ -15,7 +15,7 @@ on:
       dang:
         required: true
         type: choice
-        options: [tin-nhanh, top5, keo-thom]
+        options: [tin-nhanh, top5, keo-thom-2, keo-thom, keo-thom-3]
       ngay:
         description: "Ngay DANG (gio VN) YYYY-MM-DD. De trong = hom nay gio VN (lich cron-job.org gui rong)"
         required: false
@@ -49,7 +49,7 @@ jobs:
         run: |
           set -euo pipefail
           NGAY="${NGAY:-$(TZ=Asia/Ho_Chi_Minh date +%F)}"; [[ "$NGAY" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "ngay sai dinh dang"; exit 1; }
-          [[ "$DANG" =~ ^(tin-nhanh|top5|keo-thom)$ ]] || { echo "dang sai"; exit 1; }
+          [[ "$DANG" =~ ^(tin-nhanh|top5|keo-thom|keo-thom-2|keo-thom-3)$ ]] || { echo "dang sai"; exit 1; }
           [[ -z "$DANG_BU_GIO" || "$DANG_BU_GIO" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]] || { echo "gio_bu sai (HH:MM)"; exit 1; }
           [[ "$CHE_DO" =~ ^(thu|that)$ ]] || { echo "che_do sai"; exit 1; }
 

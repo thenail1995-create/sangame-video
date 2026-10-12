@@ -149,12 +149,32 @@ class DungNhanhMatrix(unittest.TestCase):
         self.assertNotIn('needs.chon', khoi_job('ban')); self.assertNotIn('needs.chon', khoi_job('gom'))   # khong phu thuoc truc tiep job chon (co the bi bo qua)
 
     def test_concurrency_van_theo_dang(self):
-        self.assertIn("group: dung-${{ github.event.inputs.dang || github.event.client_payload.dang }}", Y); self.assertIn('cancel-in-progress: false', Y)
+        # 12/10: 3 khung Keo (keo-thom-2 / keo-thom / keo-thom-3) CUNG nhom `dung-keo-thom` de chay tuan tu (chong chon trung game); tin-nhanh / top5 van nhom rieng
+        self.assertIn("group: dung-${{ startsWith(github.event.inputs.dang || github.event.client_payload.dang, 'keo-thom') && 'keo-thom' || (github.event.inputs.dang || github.event.client_payload.dang) }}", Y)
+        self.assertIn('cancel-in-progress: false', Y)
+
+    def test_khuon_tach_khoi_dang(self):    # DANG = khoa rieng (tag Release, sg_dang, URL, manifest); KHUON = thu muc khuon (bo hau to -<so>)
+        self.assertNotRegex(Y, r'khuon/\$DANG|khuon/"\$DANG"|khuon/\'\+d\+\'')
+        for j in ('kiem-moi', 'chon', 'chung', 'ban', 'gom'):
+            self.assertIn("KHUON: ${{ startsWith(github.event.inputs.dang || github.event.client_payload.dang, 'keo-thom') && 'keo-thom' ||", khoi_job(j), j)
+        self.assertIn('lay-tai-san.sh "$KHUON"', Y); self.assertIn('--dang "$DANG"', khoi_job('chung')); self.assertIn('--dang "$DANG"', khoi_job('gom'))
+        self.assertIn('v-${NGAY}-${DANG}', Y); self.assertIn('thu-${NGAY}-${DANG}', Y)
+        self.assertIn("os.environ['KHUON']+'/ket-qua-chon.json'", khoi_job('chon'))
+        self.assertIn('keo-thom|keo-thom-2|keo-thom-3', khoi_job('kiem-moi'))
+        for d in ('keo-thom-2', 'keo-thom', 'keo-thom-3'): self.assertIn(d, Y.split('jobs:')[0])   # options cua workflow_dispatch
+
+    def test_gio_dang_nam_khung(self):    # bieu thuc GIO_DANG o 3 job = bang 5 gia tri
+        bt = re.findall(r"GIO_DANG: \$\{\{ (.+?) \}\}\n", Y); self.assertEqual(len(bt), 3)
+        def tinh(dang):    # 'X == a && V1 || X == b && V2 || ... || MAC_DINH'
+            bang = dict(re.findall(r"== '([a-z0-9-]+)' && '(\d\d:\d\d)'", bt[0]))
+            return bang.get(dang) or re.search(r"\|\| '(\d\d:\d\d)'$", bt[0]).group(1)
+        self.assertEqual([tinh(d) for d in ('tin-nhanh', 'top5', 'keo-thom-2', 'keo-thom', 'keo-thom-3')], ['07:30', '12:00', '15:00', '20:00', '22:00'])
+        self.assertEqual(bt[0], bt[1]); self.assertEqual(bt[1], bt[2])
 
     def test_bo_khung_khong_vao_ban(self):    # chung xuat bo_khung; chi buoc dong goi/upload chay khi bo_khung != 1
         c = khoi_job('chung'); self.assertIn('bo_khung: ${{ steps.dung.outputs.bo_khung }}', c)
         for ten in ('- name: Dong goi + MA HOA ket qua chung', '- name: Chuyen ket qua chung', '- name: Chuyen thong tin manifest'): self.assertIn("steps.dung.outputs.bo_khung != '1'", buoc_trong(c, ten), ten)
-        self.assertIn('bo_khung=1', c); self.assertIn('khuon/$DANG/chay.sh', c)
+        self.assertIn('bo_khung=1', c); self.assertIn('khuon/$KHUON/chay.sh', c)
 
     def test_ban_gom_it_bi_mat_nhat(self):    # job ban/gom khong cam khoa thu giong / ntfy / Supabase: chi DATA_DEPLOY_KEY + GOI_KHOA (+ ARTIFACT_KEY o buoc go-loi)
         for j in ('ban', 'gom'):

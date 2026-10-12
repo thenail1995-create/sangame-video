@@ -94,10 +94,12 @@ _cat=d.get('catChu',[])
 ghi('B6 ngay dang (keo.json) = NGAY dang cua luot chay',_ok_ng,_so_ng,'B6')
 ghi('Chu (ten game, gia, vung, gio) khong tran / bi cat o moi moc dung yen (ten dai tu thu co)',not _cat,f"{len(_cat)} cho cat/tran"+(f": {_cat[:3]}" if _cat else ''),'H32')
 ghi('Ten game / giam % / gia / 3 vung / chenh lech / gio het giam tren hinh khop keo.json (D1)',not sai,f"{len(exp)+1} muc doi chieu, {len(sai)} lech"+(f": {sai[:3]}" if sai else ''),'D1')
-# D2: giay het giam (dung vung) con it nhat den 20:00 ngay dang + 1 ngay (mau hoi quy v8.3: deal da het han tu truoc — bo qua, ghi ro)
-_can=NS.han_toi_thieu(_nd,os.environ.get('GIO_DANG') or NS.GIO_DANG_MAC_DINH['keo-thom'],gio_them=24)   # NGAY dang + gio dang (20:00) + 1 ngay
-if HOI_QUY: ghi('Gio het giam >= 20:00 ngay dang + 1 ngay (D2)',True,f"BO QUA — HOI_QUY=1 (mau hoi quy v8.3), het giam {_h:%d/%m %H:%M} (khong dang)",'D2')
-else: ghi('Gio het giam >= 20:00 ngay dang + 1 ngay (D2)',_h>=_can,f"het giam {_h:%d/%m %H:%M} VN (vung {KEO['han'].get('ma')}), can >= {_can:%d/%m %H:%M}",'D2')
+# D2: giay het giam (dung vung) con it nhat den GIO DANG CUA KHUNG ngay dang + 1 ngay (mau hoi quy v8.3: deal da het han tu truoc — bo qua, ghi ro)
+#   12/10: 3 khung Keo (15:00 / 20:00 / 22:00): gio lay env GIO_DANG, thieu thi theo bang GIO_DANG_MAC_DINH cua DANG (mac dinh khung goc keo-thom 20:00)
+_gio_d=os.environ.get('GIO_DANG') or NS.GIO_DANG_MAC_DINH.get(os.environ.get('DANG') or 'keo-thom',NS.GIO_DANG_MAC_DINH['keo-thom'])
+_can=NS.han_toi_thieu(_nd,_gio_d,gio_them=24)   # NGAY dang + gio dang cua khung + 1 ngay
+if HOI_QUY: ghi(f'Gio het giam >= {_gio_d} ngay dang + 1 ngay (D2)',True,f"BO QUA — HOI_QUY=1 (mau hoi quy v8.3), het giam {_h:%d/%m %H:%M} (khong dang)",'D2')
+else: ghi(f'Gio het giam >= {_gio_d} ngay dang + 1 ngay (D2)',_h>=_can,f"het giam {_h:%d/%m %H:%M} VN (vung {KEO['han'].get('ma')}), can >= {_can:%d/%m %H:%M}",'D2')
 
 # 2b) do tren LOP CHU that (anh alpha) o luc dung yen cua tung canh (v8.3, N11/N12):
 #   khoi dau trang nam NGAY DUOI vung app: 0..tren khong co giay; tren+20..tren+100 kin giay. Do che vung trailer net de theo doi (N10).

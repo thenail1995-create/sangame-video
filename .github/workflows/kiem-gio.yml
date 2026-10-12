@@ -6,7 +6,7 @@ on:
       dang:
         required: true
         type: choice
-        options: [tin-nhanh, top5, keo-thom]
+        options: [tin-nhanh, top5, keo-thom-2, keo-thom, keo-thom-3]
       ngay:
         description: "Ngay DANG (gio VN) YYYY-MM-DD. De trong = hom nay gio VN (lich cron-job.org gui rong)"
         required: false

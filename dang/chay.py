@@ -1,5 +1,5 @@
 """Dieu phoi bo dang. CLI:
-  python -m dang.chay --pha kiem|chuan-bi|cong-khai|kiem-gio|gia-han --dang tin-nhanh|top5|keo-thom --ngay YYYY-MM-DD --che-do thu|that
+  python -m dang.chay --pha kiem|chuan-bi|cong-khai|kiem-gio|gia-han --dang tin-nhanh|top5|keo-thom-2|keo-thom|keo-thom-3 --ngay YYYY-MM-DD --che-do thu|that
 Ma thoat: 0 xong · 1 co kenh loi / kiem that bai · 3 bo khung (manifest sai hoac gia/han lech)."""
 import argparse
 import datetime as dt
@@ -15,7 +15,7 @@ from . import chung, fb, gia, ig, manifest, ntfy, site, threads, tiktok, yt
 from .chung import LoiDang
 from .so import Cong, LoiCong
 
-GIO = {"tin-nhanh": "07:30", "top5": "12:00", "keo-thom": "20:00"}
+GIO = {"tin-nhanh": "07:30", "top5": "12:00", "keo-thom-2": "15:00", "keo-thom": "20:00", "keo-thom-3": "22:00"}
 KENH = ("fb", "ig", "threads", "youtube", "tiktok")
 MOD = {"fb": fb, "ig": ig, "threads": threads, "youtube": yt, "tiktok": tiktok}
 KHOA_DICH = {"fb": "page_id", "ig": "ig_user_id", "threads": "threads_user_id", "youtube": "channel_id", "tiktok": "open_id"}

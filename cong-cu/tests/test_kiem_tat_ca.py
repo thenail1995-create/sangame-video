@@ -188,6 +188,54 @@ class D3TheoLuatKhuon(unittest.TestCase):      # Sol vong 2b #11/#12 o CAP SCRIP
         for exp in ({'gioi.diem':None,'gioi.ban':None,'gioi.the_loai':None,'gioi.chip':[],'gioi.them':[]},):
             g2=dict(g,d=dict(noiDung={}),exp=exp); exec(src[i:j],g2); self.assertEqual(g2['sai'],[])
 
+
+class D3TenSauCumMoKeo(unittest.TestCase):
+    """12/10: 3 khung Keo doi CUM CAM THAN truoc ten game. Khoi 5b THAT (kiem-tat-ca.py «Whisper nghe dung ten game») tim chu `đang` DAU TIEN cua doan `mo`
+    => voi MOI cum mo (loi_chu.CUM_MO) khoi phai chay (khong StopIteration) va DAT khi ten duoc nghe dung; ten sai van TRUOT."""
+    def chay(self,cum,nghe_mo):
+        sys.path.insert(0,str(ROOT/'khuon'/'keo-thom'))
+        try:
+            import loi_chu as lc
+            src=KIEM('keo-thom').read_text(encoding='utf-8'); i=src.index('# 5b) Whisper nghe TEN GAME'); j=src.index('# 5e)',i)
+            a=src.index('import unicodedata'); b=src.index('def nghe(x16)'); g0=dict(re=re); exec(src[a:b],g0)
+            tok=cum.split()+'Returnal Digital Deluxe Edition đang giảm bảy mươi lăm phần trăm trên PS Store Mỹ nè!'.split()
+            moc=[dict(w=w,s=0.2*k,e=0.2*k+0.15,doan='mo') for k,w in enumerate(tok)]; kq=[]
+            with tempfile.TemporaryDirectory() as d:
+                (pathlib.Path(d)/'kich-ban.json').write_text(json.dumps(dict(doan=[dict(k='mo',loi=' '.join(tok),neo=dict(ten=len(cum.split())))])),encoding='utf-8')
+                g=dict(json=json,re=re,B=pathlib.Path(d),SOM=False,moc=moc,chuan=g0['chuan'],NS=ns,ten_noi=lc.ten_noi,_G=dict(ten='Returnal™ Digital Deluxe Edition'),TVS=[(0.0,9.0,'x')],
+                       heard={'mo':nghe_mo},ghi=lambda t,ok,so,ma:kq.append((t,bool(ok),so)))
+                exec(compile(src[i:j],'d3-5b-keo','exec'),g)
+            return kq
+        finally: sys.path.remove(str(ROOT/'khuon'/'keo-thom'))
+    def test_moi_cum_mo_chay_duoc_va_dat(self):
+        sys.path.insert(0,str(ROOT/'khuon'/'keo-thom'))
+        try:
+            import loi_chu as lc
+            for cum in lc.CUM_MO:
+                kq=self.chay(cum,cum+' Returnal Digital Deluxe Edition đang giảm 75% trên PS Store Mỹ nè!'); self.assertEqual(len(kq),1,cum); self.assertTrue(kq[0][1],(cum,kq))
+                kq=self.chay(cum,cum+' Xin chao cac ban dang giảm 75% trên PS Store Mỹ nè!'); self.assertFalse(kq[0][1],(cum,kq))
+        finally: sys.path.remove(str(ROOT/'khuon'/'keo-thom'))
+
+
+class D2GioTheoKhungKeo(unittest.TestCase):
+    """12/10: D2 (het giam >= gio dang CUA KHUNG + 1 ngay) cho 3 khung; thieu env GIO_DANG thi theo DANG, thieu ca hai thi khung goc 20:00."""
+    def chay(self,env,het):
+        src=KIEM('keo-thom').read_text(encoding='utf-8'); i=src.index('# D2: giay het giam'); j=src.index('# 2b) do tren LOP CHU',i); kq=[]
+        VN=datetime.timezone(datetime.timedelta(hours=7)); old=dict(os.environ)
+        try:
+            for k in ('DANG','GIO_DANG'): os.environ.pop(k,None)
+            os.environ.update(env)
+            g=dict(os=os,NS=ns,_nd=datetime.date(2026,10,13),_h=het.replace(tzinfo=VN),HOI_QUY=False,KEO=dict(han=dict(ma='US')),ghi=lambda t,ok,so,ma:kq.append((t,bool(ok),so)))
+            exec(compile(src[i:j],'d2-keo','exec'),g)
+        finally: os.environ.clear(); os.environ.update(old)
+        return kq[0]
+    def test_nguong_ba_khung(self):
+        for env,gio in (({'DANG':'keo-thom-2','GIO_DANG':'15:00'},'15:00'),({'DANG':'keo-thom','GIO_DANG':'20:00'},'20:00'),({'DANG':'keo-thom-3','GIO_DANG':'22:00'},'22:00'),
+                        ({'DANG':'keo-thom-2'},'15:00'),({'DANG':'keo-thom-3'},'22:00'),({},'20:00')):
+            h,m=map(int,gio.split(':')); can=datetime.datetime(2026,10,14,h,m)
+            t,ok,_=self.chay(env,can); self.assertTrue(ok,(env,gio)); self.assertIn(f'>= {gio} ngay dang',t)
+            t,ok,_=self.chay(env,can-datetime.timedelta(minutes=1)); self.assertFalse(ok,(env,gio))
+
 if __name__=='__main__': unittest.main()
 
 
