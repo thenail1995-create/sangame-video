@@ -55,6 +55,12 @@ def gon_ten(t):
     t=re.sub(r'\s+(?:full game|digital|standard edition)\s*$','',t,flags=re.I)
     return re.sub(r'\s+',' ',t).strip(' -–')
 NGOAI_LE_NOI={'Mortal Kombat 11':'Mortal Kombat mười một','Mafia: Definitive Edition':'Mafia bản làm lại'}   # them khi gap ten doc sai
+# Ten giong AI (Minh Dang, eleven_v3) KHONG doc ro duoc -> chon-keo BO ung vien (12/10: 'Lies of P' -> Whisper turbo/small nghe 'Line Zoppy'/'live doc pi';
+# da thu 'Lies of Pi', 'Lai-do op Pi' van truot D3). Khoa = chu thuong, khop neu nam trong ten goc (moi phien ban). Them khi gap ten moi.
+TEN_KHO_DOC=('lies of p',)
+def kho_doc(ten):
+    g=' '+re.sub(r'\s+',' ',(ten or '').lower())+' '
+    return any(re.search(r'(?<![a-z0-9])'+re.escape(k)+r'(?![a-z0-9])',g) for k in TEN_KHO_DOC)
 def ten_noi(t):
     """Ten de DOC: bo tien to so huu cach ('Marvel's Spider-Man 2' -> 'Spider-Man 2', nhu ban v8.3 da duyet), bo ':'."""
     g=gon_ten(t)

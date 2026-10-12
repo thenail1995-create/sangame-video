@@ -164,3 +164,14 @@ class GioiThieuGame(unittest.TestCase):       # 11/10: cau giới thieu tu bang 
         self.assertIn('TA.g3=TA.dut+.30;',h); self.assertIn('t_ = TA.g3+.12',h)          # thể loại vào tại max(neo 'tl' - 0,04, g3+0,12): không tới sau lời đọc hơn ~0,4 s
         self.assertIn('Math.max(M.gioi.e+.02,gl+.5),TA.ra3-.05',h)                         # D1 lấy mẫu sau chữ cuối + 0,5 s, trước khi thẻ bay đi
 if __name__=='__main__': unittest.main()
+
+
+class TenKhoDoc(unittest.TestCase):
+    def test_lies_of_p_bi_bo(self):
+        from loi_chu import kho_doc
+        self.assertTrue(kho_doc('Lies of P'))
+        self.assertTrue(kho_doc('Lies of P Deluxe Edition'))
+        self.assertTrue(kho_doc('Lies of P: Overture'))
+        self.assertFalse(kho_doc('Lies of Pain'))
+        self.assertFalse(kho_doc('Indiana Jones and the Great Circle'))
+        self.assertFalse(kho_doc(None))

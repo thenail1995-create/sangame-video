@@ -15,7 +15,7 @@
 #    Ma thoat: 0 chon duoc · 3 bo khung (du lieu cu / khong ung vien dat) · 4 da co Release hom nay · 5 khong doc duoc lich su Release.
 import argparse,datetime,hashlib,json,os,pathlib,re,subprocess,sys,urllib.request,zoneinfo
 T=pathlib.Path(__file__).resolve().parent; sys.path.insert(0,str(T))
-from loi_chu import VUNG,TEN_DAY_DU,gon_ten,ten_hien,gioi_thieu_tu_trang
+from loi_chu import VUNG,TEN_DAY_DU,gon_ten,ten_hien,gioi_thieu_tu_trang,kho_doc
 ap=argparse.ArgumentParser()
 ap.add_argument('--repo',default=os.environ.get('DATA_DIR') or str(T.parent.parent.parent/'kenh-game-du-lieu'))
 ap.add_argument('--ngay'); ap.add_argument('--ra',default=str(T/'keo.json'))
@@ -83,6 +83,7 @@ def ung_vien():
     for h in d['hangs']:
         k=h['khoa']
         if k not in th or th[k][0]+1>HANG_TOI_DA or t._la_goi_nhieu_game(h): continue
+        if kho_doc(h.get('ten')): continue   # giong AI doc khong ro ten -> truot D3 (12/10 Lies of P)
         x=d['dls'].get(k)
         if not x: continue
         vs=[v for v in x['vung'] if not v.get('khong_co_the') and not v.get('khong_the') and not v.get('chi_hoi_vien') and v.get('vnd_con') and v['ma'] in VUNG]
