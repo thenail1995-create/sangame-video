@@ -51,7 +51,8 @@ class Khung(unittest.TestCase):
     def setUp(self):
         self.thu_muc = tempfile.mkdtemp(prefix="sg-chay-")
         self.cong = cong_day_du()
-        self.kenh = {k: KenhGia(k) for k in chay.KENH}
+        self.x_goi = 0
+        self.kenh = {k: KenhGia(k) for k in chay.KENH if k in chay.KHOA_DICH}   # X (Buffer) khong co token/danh tinh
         self.ntfy = []
         self.dich = tempfile.mktemp(suffix=".json")
         self.viet_dich(g.DICH_DU)
@@ -64,7 +65,8 @@ class Khung(unittest.TestCase):
             mock.patch.object(chay.gia, "kiem_lai", lambda m, gio: ([], [])),
             mock.patch.object(chay.ntfy, "tin", lambda t, n, **k: self.ntfy.append(("tin", t, n))),
             mock.patch.object(chay.ntfy, "loi", lambda t, n, **k: self.ntfy.append(("loi", t, n))),
-            mock.patch.dict(os.environ, {"DICH_JSON": self.dich, "PAGES_URL": "https://x.github.io/sangame-video"}),
+            mock.patch.dict(os.environ, {"DICH_JSON": self.dich, "PAGES_URL": "https://x.github.io/sangame-video", "BUFFER_KHOA": "bk_test_123456"}),
+            mock.patch.object(chay.x, "cong_khai", self.x_cong_khai),
             vo_ngu(),
             mock.patch.object(chung, "bay_gio", lambda: g.GIO_DANG),
         ]
@@ -75,6 +77,10 @@ class Khung(unittest.TestCase):
         self.ps2 = mock.patch.object(chay.tiktok, "hop_thu", self.kenh["tiktok"].hop_thu)
         self.ps2.start()
         self.addCleanup(self.ps2.stop)
+
+    def x_cong_khai(self, nc):
+        self.x_goi += 1
+        return {"id_bai": "x-bai", "link": "https://x/x", "kieu": "buffer"}
 
     def viet_dich(self, d):
         pathlib.Path(self.dich).write_text(json.dumps(d))
@@ -180,7 +186,7 @@ class TestChuanBiVaCongKhai(Khung):
             return m
         with mock.patch.object(chay.manifest, "tai_release", hong):
             self.assertEqual(self.chay("chuan-bi"), 3)
-        self.assertTrue(all(self.kenh[k].cb == 0 for k in chay.KENH))
+        self.assertTrue(all(self.kenh[k].cb == 0 for k in self.kenh))
         self.assertEqual({r["trang_thai"] for r in self.cong.dong.values()}, {"bo"})
         self.assertTrue(any("sha256" in x[2] for x in self.ntfy if x[0] == "loi"))
 
@@ -193,7 +199,7 @@ class TestChuanBiVaCongKhai(Khung):
         with mock.patch.object(chay.gia, "kiem_lai", lambda m, gio: (["X: gia doi 100 -> 150"], [])):
             self.assertEqual(self.chay("chuan-bi"), 3)
         self.assertEqual(self.cong.trang_thai("ig"), "bo")
-        self.assertTrue(all(self.kenh[k].cb == 0 for k in chay.KENH))
+        self.assertTrue(all(self.kenh[k].cb == 0 for k in self.kenh))
 
     def test_url_cong_khai_hong_chi_ig_threads_dung(self):
         def hong(url, kieu="video/mp4", **k):

@@ -11,15 +11,15 @@ import sys
 import tempfile
 import types
 
-from . import chung, fb, gia, ig, manifest, ntfy, site, threads, tiktok, yt, zernio
+from . import chung, fb, gia, ig, manifest, ntfy, site, threads, tiktok, x, yt, zernio
 from .chung import LoiDang
 from .so import Cong, LoiCong
 
 GIO = {"tin-nhanh": "07:30", "top5": "12:00", "keo-thom-2": "15:00", "keo-thom": "20:00", "keo-thom-3": "22:00"}
-KENH = ("fb", "ig", "threads", "youtube", "tiktok")
+KENH = ("fb", "ig", "threads", "youtube", "tiktok", "x")   # x = Buffer, khong co token/danh tinh sg_token (khong nam trong MOD/KHOA_DICH)
 MOD = {"fb": fb, "ig": ig, "threads": threads, "youtube": yt, "tiktok": tiktok}
 KHOA_DICH = {"fb": "page_id", "ig": "ig_user_id", "threads": "threads_user_id", "youtube": "channel_id", "tiktok": "open_id"}
-TEN = {"fb": "Facebook", "ig": "Instagram", "threads": "Threads", "youtube": "YouTube", "tiktok": "TikTok"}
+TEN = {"fb": "Facebook", "ig": "Instagram", "threads": "Threads", "youtube": "YouTube", "tiktok": "TikTok", "x": "X"}
 DICH_MAC_DINH = pathlib.Path(__file__).resolve().parent.parent / "dich.json"
 TRE_KIEM_GIO = dt.timedelta(minutes=15)
 
@@ -66,6 +66,8 @@ def bo_khung(cong, ngay, dang, che_do, gio, ly_do, sha=None):
     KHONG dung (neu_trang_thai khong khop)."""
     ly = chung.che(ly_do)[:500]
     for k in KENH:
+        if k == "x" and che_do != "that":
+            continue   # X chi co o che do that
         try:
             if cong.giu_dang(ngay, dang, k, che_do, chung.iso(gio), sha):
                 cong.cap_nhat_dang(ngay, dang, k, che_do, neu_trang_thai="dang_dang", trang_thai="bo", loi=ly)
@@ -176,7 +178,7 @@ def pha_chuan_bi(a, cong, thu_muc, kenh_chon=None):
     man, nc = r
     if not kiem_gia(a, cong, nc):
         return 3
-    kenh_chon = [k for k in (kenh_chon or KENH) if k != "tiktok"]   # TikTok chi lam o pha cong khai
+    kenh_chon = [k for k in (kenh_chon or KENH) if k not in ("tiktok", "x")]   # TikTok va X chi lam o pha cong khai
     if any(k in ("ig", "threads") for k in kenh_chon):
         goc = os.environ.get("PAGES_URL") or "https://{}.github.io/{}".format(*manifest.REPO.split("/"))
         u_video, u_bia = site.url_cong_khai(goc, a.ngay, a.dang, man)
@@ -253,6 +255,28 @@ def _tiktok_zernio(kenh, nc, dich, cong):
     return "da_dang", ket
 
 
+def _x_buffer(kenh, nc, cong):
+    """Dang X qua Buffer. Giu quyen nguyen tu TRUOC moi goi mang; Buffer khong co idempotency nen loi nao sau do cung khong dang lai."""
+    if not cong.giu_dang(nc.ngay, nc.dang, kenh, nc.che_do, chung.iso(nc.gio_dang), nc.manifest_sha):
+        chung.log("x: da co dong cho khung nay - khong gui lai")
+        return "bo_qua", {}
+    try:
+        ket = x.cong_khai(nc)
+    except LoiDang as e:
+        _ghi_loi(cong, nc, kenh, e)
+        raise
+    except Exception as e:   # loi bat ngo sau khi co the da goi Buffer: khong chac
+        err = LoiDang(f"{type(e).__name__}: {chung.cat(e, 300)}", khong_ro=True)
+        _ghi_loi(cong, nc, kenh, err)
+        raise err from None
+    try:
+        _doi(cong, nc, kenh, "dang_dang", trang_thai="da_dang", id_bai=ket.get("id_bai"), link=ket.get("link"),
+             gio_cong_khai=chung.iso(chung.bay_gio()))
+    except LoiCong as e:
+        raise LoiDang(f"X DA dang cong khai ({ket.get('link') or ket.get('id_bai')}) nhung ghi so loi: {e}", khong_ro=True) from None
+    return "da_dang", ket
+
+
 def cong_khai_kenh(kenh, nc, dich, cong, dong, cac_dong=()):
     """-> ('bo_qua'|'da_dang', ket). Nem LoiDang neu loi. Thu tu cong: gio -> manifest_sha -> dich.json -> giu quyen so-va-dat."""
     if nc.che_do == "that" and chung.bay_gio() < nc.gio_dang - SOM_TOI_DA:
@@ -260,6 +284,17 @@ def cong_khai_kenh(kenh, nc, dich, cong, dong, cac_dong=()):
     if nc.che_do == "that" and chung.bay_gio() > nc.gio_dang + TRE_TOI_DA:
         # Sol soi cuoi P1 (11/10): cong chi chan dang SOM -> ban cua ngay truoc (hoac dispatch tre) van cong khai duoc.
         raise LoiDang(f"qua gio dang ({chung.iso(nc.gio_dang)}) hon {int(TRE_TOI_DA.total_seconds() // 60)} phut - khong cong khai ban cu")
+    if kenh == "x":
+        # X (Buffer): khong co pha chuan bi, chi chay o che_do that; cung rang buoc manifest nhu TikTok
+        for r in cac_dong:
+            if r.get("manifest_sha") and r["manifest_sha"] != nc.manifest_sha:
+                raise LoiDang("manifest.json khac voi luc chuan bi (sha khac) - khong gui X")
+        if nc.che_do != "that":
+            chung.log("x: che do thu - khong cong khai")
+            return "bo_qua", {}
+        if not x.co_khoa():
+            raise LoiDang("X: thieu BUFFER_KHOA")
+        return _x_buffer(kenh, nc, cong)
     if kenh == "tiktok":
         # TikTok khong co pha chuan bi: ap dung cung rang buoc manifest voi cac kenh da chuan bi
         for r in cac_dong:
@@ -366,7 +401,8 @@ def pha_kiem_gio(a, cong):
     bay = chung.bay_gio()
     dong = {r["kenh"]: r for r in cong.doc_dang(a.ngay, a.ngay, a.che_do) if r.get("dang") == a.dang}
     van, chua_toi = [], 0
-    for kenh in KENH:
+    xet = [k for k in KENH if k != "x" or a.che_do == "that"]   # X chi co o che do that
+    for kenh in xet:
         r = dong.get(kenh)
         if bay < _gio_dong(r or {}, mac_dinh) + TRE_KIEM_GIO:
             chua_toi += 1
@@ -380,7 +416,7 @@ def pha_kiem_gio(a, cong):
         xong = tt == "da_dang" or (a.che_do == "thu" and kenh != "tiktok" and tt == "chuan_bi_xong")
         if not xong:
             van.append(f"{TEN[kenh]}: trang thai '{tt}' - {r.get('loi') or 'khong co ly do ghi so'}")
-    if chua_toi == len(KENH):
+    if chua_toi == len(xet):
         chung.log("kiem-gio: chua toi han (gio dang + 15 phut)")
         return 0
     if van:
