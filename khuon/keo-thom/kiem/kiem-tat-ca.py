@@ -192,9 +192,10 @@ if not SOM:   # can video da dung - KIEM SOM bo qua (bo kiem cuoi van chay)
     ghi('Whisper tung cau: ban ghep nghe khong kem giong goc',rv>=rg-0.05 and not xau,f"{len(cau)} cau; khop kich ban: giong goc {rg:.2f}, ban ghep {rv:.2f}"+(f"; cau kem: {xau}" if xau else ''),'A2')
 
 
+# (Keo v10: mo con doc SAO cua cau mo tinh huong; gioi con doc CAU KET LUAN)
 # 5d) D3 (B2) — nghe GIONG SACH (G16, khong phai ban ghep: CI 11/10 Whisper nghe nhac+tieng dong thanh «ANM RETURNAL DIGITAL DELUX…») tung doan, so GIA TRI theo VAI TRO: mo (ten, % giam, vung A) · gia (goc ROI con) · gioi (DIEM SAO dung gia tri + tu khoa the loai/dac diem/phan them) · dap (cap vung -> chenh lech) · han (gio + buoi + ngay).
 #     Ky vong tinh lai tu keo.json (cung luat lam tron voi loi_chu.py). % / vung chi doi o doan ma LOI co doc. 3 ban chung luong tieng -> chung 1 lan Whisper (cache theo bam PCM).
-from loi_chu import ten_noi,lam_tron_diem
+from loi_chu import ten_noi,lam_tron_diem,ket_luan,KET_LUAN_ALL
 _GT=KEO.get('gioi_thieu') or {}; _gd=_GT.get('diem')    # (D3 tu chua du: tinh lai o day de khoi nay chay doc lap trong test)
 KBD={x['k']:x['loi'] for x in json.load(open(B/'kich-ban.json'))['doan']}
 cs={}
@@ -204,9 +205,15 @@ for k in ('mo','gia','gioi','dap','han'):
 heard,NGHE_BC=NS.nghe_doan(G16,cs,nghe_kiem,B/'kiem',rev=(os.environ.get('WHISPER_REV') or mo_hinh.REV_GHIM)+'|'+mo_hinh.ten_nghe_kiem())
 heard_s,_bc_s=NS.nghe_doan(G16,cs,nghe,B/'kiem',rev=os.environ.get('WHISPER_REV') or mo_hinh.REV_GHIM)   # small: CHI cho TEN game (Opus 11/10)
 _ma=[x['ma'] for x in _V[:3]]; _round=lambda v,q:max(1,int(v/q+0.5))*q
-_ky={'mo':dict(ten=[ten_noi(_G['ten'])],phan_tram=[_G['giam']],vung=[_ma[0]]),
+# Keo v10 A: cau mo tinh huong — kieu do kich-ban.py ghi (kich-ban.json.doan[mo].kieu); MOI SO trong cau mo (diem sao · % giam; v10 Opus 12/10: cau mo KHONG doc tien nen khong kiem tien) tinh LAI tu keo.json va so theo GIA TRI. Khong co `kieu` (kich-ban cu / cum cam than) -> chi ten + % + vung.
+_kieu_mo=next((x.get('kieu') for x in json.load(open(B/'kich-ban.json'))['doan'] if x.get('k')=='mo'),None)
+_ky_mo=dict(ten=[ten_noi(_G['ten'])],phan_tram=[_G['giam']],vung=[_ma[0]])
+if _kieu_mo in ('so_gia_sao','so_sao') and _gd: _ky_mo['sao']=[lam_tron_diem(_gd['tb'])]
+elif _kieu_mo in ('so_gia_sao','so_sao'): _ky_mo['sao']=[-1]    # kieu nhac sao ma keo.json khong co diem -> chac chan sai: ep TRUOT
+_KL=ket_luan(_gd)     # Keo v10 B: cau ket luan cuoi doan gioi (tu khoa BAT BUOC; hai cau con lai CAM)
+_ky={'mo':_ky_mo,
      'gia':dict(tien=[_round(KEO['goc_vnd'],100000),_round(KEO['con_vnd'],1000)],tien_thu_tu=[_round(KEO['goc_vnd'],100000),_round(KEO['con_vnd'],1000)]),
-     'gioi':dict(diem=[lam_tron_diem(_gd['tb'])] if _gd else [],tu_khoa=NS.tu_khoa_gioi(_GT)),
+     'gioi':dict(diem=[lam_tron_diem(_gd['tb'])] if _gd else [],tu_khoa=NS.tu_khoa_gioi(_GT,ket_luan=(_KL,[x for x in KET_LUAN_ALL if x!=_KL]))),
      'dap':dict(tien_tat=[_round(_V[1]['vnd']-_V[0]['vnd'],10000),_round(_V[2]['vnd']-_V[0]['vnd'],10000)],vung=_ma,cap=[(_ma[1],_round(_V[1]['vnd']-_V[0]['vnd'],10000)),(_ma[2],_round(_V[2]['vnd']-_V[0]['vnd'],10000))],chu_the=_ma[0],tien=[_round(_V[1]['vnd']-_V[0]['vnd'],10000),_round(_V[2]['vnd']-_V[0]['vnd'],10000)]),
      'han':dict(han=NS.han_ky_vong(_h,_nd))}
 _sai=[]; TEN_BO=None
