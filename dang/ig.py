@@ -24,7 +24,7 @@ def chuan_bi(tk, nc, luu):
         raise chung.LoiDang("thieu URL cong khai cua video/bia (GitHub Pages)")
     c = meta.goi(G, "POST", f"/{tk['ig_user_id']}/media", token=tk["page_token"],
                  tham_so={"media_type": "REELS", "video_url": nc.url_video, "cover_url": nc.url_bia,
-                          "caption": nc.caption_dai(2200), "share_to_feed": "true"})
+                          "caption": nc.caption_ig(2200), "share_to_feed": "true"})
     cid = str(c.get("id") or "")
     if not cid:
         raise chung.LoiDang("IG khong tra container id")

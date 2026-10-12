@@ -268,11 +268,11 @@ class X(unittest.TestCase):
         self.nc.loi_dang = {"tieu_de": "Game X giam 40%", "mo_ta": "Mo ta. Hết giảm 21:59 ngày 21/10 giờ Việt Nam. Het.\n\nXem: https://sangame.com.vn/game-x.html",
                             "hashtag": ["#A", "#B"], "link": "https://sangame.com.vn/"}
         s = x.text_x(self.nc)
-        self.assertEqual(s, "Game X giam 40%\nHết giảm 21:59 ngày 21/10 giờ Việt Nam.\nhttps://sangame.com.vn/game-x.html\n#A #B")
+        self.assertEqual(s, "Game X giam 40%\nHết giảm 21:59 ngày 21/10 giờ Việt Nam.\nhttps://sangame.com.vn/game-x.html\n#PlayStation #PS5")
 
     def test_text_khong_co_link_trong_mo_ta_dung_link_dang(self):
         self.nc.loi_dang = {"tieu_de": "T", "mo_ta": "Mo ta.", "hashtag": [], "link": "https://sangame.com.vn/"}
-        self.assertEqual(x.text_x(self.nc), "T\nhttps://sangame.com.vn/")
+        self.assertEqual(x.text_x(self.nc), "T\nhttps://sangame.com.vn/\n#PlayStation #PS5")
 
     def test_text_bo_han_roi_hashtag_khi_chat(self):
         # tieu de ~ 200 trong so: du cho link + vai tag nhung khong du cau han
@@ -283,12 +283,12 @@ class X(unittest.TestCase):
         self.assertNotIn("Hết giảm", s)
         self.assertLessEqual(x.do_dai_x(s), 280)
         self.assertIn("https://sangame.com.vn/g.html", s)
-        self.assertIn("#SănGame", s)
+        self.assertIn("#PlayStation", s)
         # chat hon nua: hashtag bi bot tu cuoi
         self.nc.loi_dang["tieu_de"] = "a" * 240
         s = x.text_x(self.nc)
         self.assertLessEqual(x.do_dai_x(s), 280)
-        self.assertNotIn("#GiảmGiá", s)
+        self.assertNotIn("#PS5", s)
         self.assertIn("a" * 240, s)
 
     def test_tieu_de_cuc_dai_cat_co_dau_ba_cham(self):

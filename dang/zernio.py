@@ -127,7 +127,7 @@ def _xet(post, ma):
 
 
 def tao_bai(khoa, nc, acc, url_video):
-    body = {"content": nc.caption_dai(2200), "mediaItems": [{"type": "video", "url": url_video}],
+    body = {"content": nc.caption_tiktok(), "mediaItems": [{"type": "video", "url": url_video}],
             "platforms": [{"platform": "tiktok", "accountId": acc}],
             "tiktokSettings": {"privacy_level": PUBLIC, "allow_comment": True, "allow_duet": True, "allow_stitch": True,
                                "content_preview_confirmed": True, "express_consent_given": True},

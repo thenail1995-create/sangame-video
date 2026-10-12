@@ -3,6 +3,7 @@ import datetime as dt
 import hashlib
 import re
 import sys
+import unicodedata
 import time
 
 VN = dt.timezone(dt.timedelta(hours=7))
@@ -93,6 +94,49 @@ def sha256_tep(duong) -> str:
     return h.hexdigest()
 
 
+GIO_HET_SANG = 10
+TIKTOK_TOI_DA = 150
+TRAN_HASHTAG = {"ig": 5, "tiktok": 3, "youtube": 3, "x": 2, "fb": 3}
+_BO_CO_DINH = ["#PlayStation", "#PS5", "#SănGame", "#GiảmGiá"]
+_RE_BAN_TIN_SANG = re.compile(r"Bản tin sáng")
+_RE_SANG_NAY = re.compile(r"(?i)\bsáng nay\b")
+_RE_URL = re.compile(r"\s*:?\s*https?://\S+")
+_RE_REN_NHAT = re.compile(r"rẻ nhất (.+?),\s*(\d{1,3}(?:\.\d{3})+)đ")
+
+
+def _cat_chu(s, n):
+    s = (s or "").strip()
+    if len(s) <= n:
+        return s
+    return s[:max(n - 1, 0)].rstrip() + "…"
+
+
+def bo_url(s):
+    """Bo URL; 'Tra gia ...: https://...' thanh 'Tra gia ...'."""
+    return re.sub(r"[ \t]+\n", "\n", _RE_URL.sub("", s or "")).strip()
+
+
+def hashtag_game(ten):
+    """'NINJA GAIDEN 2 Black' -> '#NinjaGaiden2Black' (khong dau, CamelCase, than <= 25 ky tu); rong -> ''."""
+    ten = re.split(r"\s*(?::|\s-\s|–)\s*", (ten or "").strip())[0]
+    ten = unicodedata.normalize("NFD", ten.replace("Đ", "D").replace("đ", "d"))
+    ten = "".join(c for c in ten if unicodedata.category(c) != "Mn")
+    ten = re.sub(r"['’`]", "", ten)   # Marvel's -> Marvels, khong tach thanh Marvel + S
+    tu = []
+    for w in re.findall(r"[A-Za-z0-9]+", ten):
+        if w.isupper() and len(w) > 3:
+            w = w.capitalize()
+        tu.append(w[0].upper() + w[1:])
+    than = "".join(tu)[:25]
+    return "#" + than if than else ""
+
+
+def bo_hashtag(ten, tran):
+    """[tag game, #PlayStation, #PS5, #SanGame, #GiamGia] cat theo tran tung nen tang."""
+    tag = hashtag_game(ten)
+    return (([tag] if tag else []) + _BO_CO_DINH)[:tran]
+
+
 class NguCanh:
     """Moi thu mot lan dang can biet. url_video/url_bia: URL cong khai tren GitHub Pages (IG/Threads)."""
 
@@ -111,9 +155,65 @@ class NguCanh:
         return " ".join(self.loi_dang.get("hashtag") or [])
 
     def caption_dai(self, toi_da=2200):
-        """FB / IG: tieu de, mo ta, link, hashtag."""
+        """Ban cu (tieu de + mo ta + link + hashtag cua manifest). Con giu cho tuong thich; cac nen tang dung caption_* rieng."""
         ld = self.loi_dang
         phan = [ld.get("tieu_de", ""), ld.get("mo_ta", ""), ld.get("link", ""), self._hashtag()]
+        return "\n\n".join(p for p in phan if p)[:toi_da]
+
+    # ---- caption rieng tung nen tang (05-ke-hoach-caption-nen-tang) ----
+    def gio_cong_khai(self):
+        """Gio cong khai thuc te: tre hon gio du kien thi lay bay_gio; chuan bi som (container IG) thi lay gio du kien."""
+        return max(bay_gio(), self.gio_dang)
+
+    def _nhan(self, s):
+        """Sau 10:00 VN thi 'Ban tin sang'/'sang nay' doi thanh 'hom nay'."""
+        if self.gio_cong_khai().astimezone(VN).hour < GIO_HET_SANG:
+            return s
+        return _RE_SANG_NAY.sub("hôm nay", _RE_BAN_TIN_SANG.sub("Bản tin hôm nay", s))
+
+    def ten_game(self):
+        return ten_game_tu_loi_dang(self.dang, self.loi_dang)
+
+    def hook(self):
+        return self._nhan(hook_tu_loi_dang(self.dang, self.loi_dang))
+
+    def hashtags(self, nen_tang):
+        return bo_hashtag(self.ten_game(), TRAN_HASHTAG[nen_tang])
+
+    def _than(self):
+        return [self._nhan(c) for c in than_ngan(self.dang, self.loi_dang)]
+
+    def caption_tiktok(self):
+        """<= 150 ky tu: hook + 3 hashtag, KHONG URL."""
+        tags = " ".join(self.hashtags("tiktok"))
+        hook = _cat_chu(self.hook(), TIKTOK_TOI_DA - len(tags) - 1)
+        return f"{hook}\n{tags}".strip()
+
+    def tieu_de_youtube(self):
+        return _cat_chu(self.hook(), 100)
+
+    def mo_ta_youtube(self):
+        """Hashtag co tag game o dau mo ta (3 hashtag dau hien canh tieu de), KHONG URL, #Shorts o cuoi."""
+        tags = self.hashtags("youtube")
+        thanh = [bo_url(self._nhan(self.loi_dang.get("mo_ta", "")))]
+        s = "\n\n".join(p for p in (" ".join(tags), *thanh) if p)
+        if "#shorts" not in s.lower():
+            s += "\n\n#Shorts"
+        return s[:4900]
+
+    def caption_ig(self, toi_da=2200):
+        """hook + 1-2 cau + 'Link o bio' + <= 5 hashtag, khong URL."""
+        phan = [self.hook(), " ".join(self._than()), "Link ở bio.", " ".join(self.hashtags("ig"))]
+        return "\n\n".join(p for p in phan if p)[:toi_da]
+
+    def caption_fb(self, toi_da=2200):
+        """Dong dau la hook, giu mo ta day du + URL (FB bam duoc), <= 3 hashtag."""
+        ld = self.loi_dang
+        mo_ta = self._nhan(ld.get("mo_ta", ""))
+        link = ld.get("link", "")
+        if link and link in mo_ta:
+            link = ""
+        phan = [self.hook(), mo_ta, link, " ".join(self.hashtags("fb"))]
         return "\n\n".join(p for p in phan if p)[:toi_da]
 
     def text_ngan(self, toi_da=500):
@@ -127,10 +227,59 @@ class NguCanh:
                 dong_tag = thu
         return (s + "\n" + dong_tag).strip() if dong_tag else s
 
-    def mo_ta_youtube(self):
-        ld = self.loi_dang
-        phan = [ld.get("mo_ta", ""), ld.get("link", ""), self._hashtag()]
-        s = "\n\n".join(p for p in phan if p)
-        if "#shorts" not in s.lower():
-            s += "\n#Shorts"
-        return s[:4900]
+
+def _gia_so(chuoi):
+    return int(chuoi.replace(".", ""))
+
+
+def _ren_nhat(mo_ta):
+    """Trong cac dong 'rẻ nhất <game>, <gia>đ ...' (Tin nhanh) -> (game, gia_chuoi) re nhat, hoac None."""
+    ung = [(m.group(1).strip(), m.group(2)) for m in _RE_REN_NHAT.finditer(mo_ta or "")]
+    return min(ung, key=lambda t: _gia_so(t[1])) if ung else None
+
+
+def ten_game_tu_loi_dang(dang, ld):
+    """Tin nhanh: game re nhat; Keo: phan truoc ' giam N%' cua tieu de; Top 5: khong co (None)."""
+    if dang.startswith("tin-nhanh"):
+        r = _ren_nhat(ld.get("mo_ta"))
+        return r[0] if r else None
+    if dang.startswith("keo-thom"):
+        m = re.match(r"^(.+?)\s+giảm\s+\d+%", ld.get("tieu_de") or "")
+        return m.group(1).strip() if m else None
+    return None
+
+
+def hook_tu_loi_dang(dang, ld):
+    """Dong 1 = ten game + con so chinh, chi dung du lieu co san trong manifest; khong dung duoc thi quay ve tieu_de."""
+    td = (ld.get("tieu_de") or "").strip()
+    if dang.startswith("tin-nhanh"):
+        r = _ren_nhat(ld.get("mo_ta"))
+        if r:
+            n = len(re.findall(r"(?m)^\d+\.\s", ld.get("mo_ta") or ""))
+            tin = f"{n} tin" if n else "tin"
+            return f"{r[0]} chỉ còn {r[1]}đ — {tin} giảm giá PS hôm nay"
+    elif dang.startswith("top5"):
+        m = re.search(r"dưới\s+(\d{1,3}(?:\.\d{3})+)đ", td)
+        if m:
+            return f"Top 5 game PS dưới {m.group(1)}đ hôm nay"
+    return td
+
+
+def than_ngan(dang, ld):
+    """1-2 cau cho Instagram, lay tu mo_ta (khong URL, khong lap hook)."""
+    mo_ta = bo_url(ld.get("mo_ta") or "")
+    dong = [d.strip() for d in mo_ta.split("\n") if d.strip()]
+    if dang.startswith("tin-nhanh"):
+        return [d for d in dong if "rẻ nhất" in d][:2]
+    if dang.startswith("top5"):
+        c = []
+        hang1 = next((d for d in dong if re.match(r"^1\.\s", d)), None)
+        if hang1:
+            c.append("Rẻ nhất: " + re.sub(r"^1\.\s*", "", hang1) + ".")
+        sm = re.search(r"Deal sớm nhất hết lúc [^.]*?\(giờ VN\)\.", mo_ta)
+        if sm:
+            c.append(sm.group(0))
+        return c[:2]
+    cau = [x.strip() for x in re.split(r"(?<=[.!?])\s+", mo_ta.replace("\n", " ")) if x.strip()]
+    cau = [x for x in cau[1:] if not x.startswith(("Giá quy đổi", "Xem giá", "Tra giá"))]
+    return cau[:2]
