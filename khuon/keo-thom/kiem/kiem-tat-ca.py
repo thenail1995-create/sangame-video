@@ -71,7 +71,8 @@ _V=KEO['vung']; _G=KEO['game']; _cs=lambda s:re.sub(r'\s+',' ',str(s or '')).str
 _VH={'US':'MỸ','HK':'HỒNG KÔNG','SG':'SINGAPORE','TH':'THÁI LAN','ID':'INDONESIA'}
 _so=f"{int(KEO.get('so_ky',1)):03d}"
 _ten=_G['ten'].replace('®','').replace('™','').replace("'",'’')
-exp={'bia.issue':f"SỐ {_so} · THÁNG {_nd.month:02d} · {_nd.year}",'bia.sao':f"{_G['giam']}%",'bia.chip':f"PS STORE · {_VH[_V[0]['ma']]}",
+exp={'bia.issue':f"SỐ {_so} · THÁNG {_nd.month:02d} · {_nd.year}",'bia.sao':f"{_G['giam']}%",'bia.chip':(('PS STORE · ' if len(_VH[_V[0]['ma']])<=2 else '')+_VH[_V[0]['ma']]),   # 12/10: khop full.html chip1 (ten vung dai bo tien to, #56)
+     
      'the.goc':_d(KEO['goc_vnd']),'the.con':_k(int(round(KEO['con_vnd']/1000)))+'.000đ','the.tk':_d(KEO['goc_vnd']-KEO['con_vnd']),'the.vung':f"CÒN LẠI · STORE {_VH[_V[0]['ma']]}",
      'bang.g':[_d(x['vnd']) for x in _V[:3]],'bang.n':[_VH[x['ma']] for x in _V[:3]],
      'bang.pill':['✓ RẺ NHẤT','+'+_d(_V[1]['vnd']-_V[0]['vnd']),'+'+_d(_V[2]['vnd']-_V[0]['vnd'])],'bang.tit':f"Giá ngày {_dl.day:02d}/{_dl.month:02d} · đổi ra đồng",
