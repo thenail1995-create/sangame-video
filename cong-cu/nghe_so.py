@@ -212,9 +212,11 @@ def doc_han(van_ban):
         else: continue
         ngay=None; x=_w(T,j) if _lien(T,j) else None
         if x=='nay': ngay='nay'
-        elif x=='ngày':
+        elif x in ('ngày','này'):
+            # 'này' = bi danh CO CHU DICH cua 'ngày' CHI trong mau '<giờ> <buổi> này <số> (tháng|kháng) <số>' (12/10: turbo nghe giong
+            # 'mười giờ đêm ngày 21 tháng 10' thanh 'đêm này 21 tháng 10' - run 38210460267). 'này mai/kia' KHONG nhan; van so GIA TRI ngay+thang.
             y=_w(T,j+1) if _lien(T,j+1) else None
-            if y in ('mai','kia'): ngay=y
+            if y in ('mai','kia') and x=='ngày': ngay=y
             else:
                 r=_so(T,j+1) if _lien(T,j+1) else None
                 if r and _w(T,r[2]) in THANG_NGAY and _lien(T,r[2]):
