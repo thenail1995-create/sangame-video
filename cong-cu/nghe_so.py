@@ -118,7 +118,8 @@ def _tien_tu(T,i,r):
     if x in DONG:
         j+=1
         return int(round(v)),j        # 'đồng/đ' GIỮ NGUYÊN giá trị (167 đồng = 167 đ, không phải 167.000; Sol vòng 2b #4)
-    if x in NON_TIEN_SAU: return None
+    # 13/10 (Keo v10 thu, run 38281225953): Whisper nghe 'Từ hơn tám trăm nghìn… giờ còn có' thanh '800.000 giờ còn có' -> so NHOM NGHIN (>=1000) khong the la gio
+    if x in NON_TIEN_SAU and not (x=='giờ' and hang=='nhom' and v>=1000): return None
     if i>0 and not T[i][2] and _w(T,i-1) in NON_TIEN_TRUOC: return None
     if hang=='nhom': return v,j
     if hang=='thap': return None
