@@ -40,4 +40,13 @@ class T(unittest.TestCase):
         self.assertTrue(cl.trong_khoang_sap_het(H+N2,H))             # bien tren: dung 4 ngay
         self.assertTrue(cl.trong_khoang_sap_het(H+N2//2,H))
         self.assertFalse(cl.trong_khoang_sap_het(H-1,H)); self.assertFalse(cl.trong_khoang_sap_het(H+N2+1,H))
+class LocNoiBatTruocKhiCat(unittest.TestCase):    # Sol P1: nguon 15 game, 7 chua noi bat; cat 10 roi loc chi con 2, loc truoc roi cat con 7
+    def test_loc_truoc_khi_cat(self):
+        ds=[f'g{i}' for i in range(15)]; chua={'g1','g3','g4','g8','g10','g12','g14'}; trung=lambda h:None if h in chua else 'da noi bat'
+        cu=[h for h in ds[:10] if not trung(h)]; # cach cu: chi con cac game chua noi bat nam TRONG 10 dau
+        self.assertEqual(sorted(cu),['g1','g3','g4','g8'])
+        moi,bo=cl.loc_noi_bat_truoc_khi_cat(ds,trung,10)
+        self.assertEqual(moi,['g1','g3','g4','g8','g10','g12','g14']); self.assertEqual(len(bo),8)
+    def test_cat_sau_loc(self):
+        moi,_=cl.loc_noi_bat_truoc_khi_cat([f'g{i}' for i in range(30)],lambda h:'x' if h in ('g0','g1') else None,10); self.assertEqual(moi,[f'g{i}' for i in range(2,12)])
 if __name__=='__main__': unittest.main()
