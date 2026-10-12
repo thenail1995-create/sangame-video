@@ -232,3 +232,16 @@ def ghep_them(muc):
     if n==2: return [('',t[0],''),('và',t[1],'.')]
     if n==3: return [('',t[0],','),('',t[1],''),('và',t[2],'.')]
     return [('',t[0],''),('với',t[1],','),('',t[2],''),('và',t[3],'.')]
+
+# ---------- CUM MO (12/10): cum cam than DUNG TRUOC ten game cua doan `mo`; 3 khung Keo trong ngay khong doc cung 1 cum.
+# Cau mo van la «<cum> <ten> đang giảm <x> phần trăm trên PS Store <vung> nè!» — kiem-tat-ca.py (D3) tim chu `đang` DAU TIEN cua doan `mo` de cat ten game
+# => cum mo KHONG DUOC chua tu `đang`. Moi cum co dung 1 tu `em` (full.html giat nhe o khoa `em`: M.mo.em) -> kich-ban.py gan khoa `em` cho tu do.
+CUM_MO=['Ê anh em!!','Anh em ơi!!','Khoan lướt đã anh em!!','Tin vui nè anh em!!','Hàng ngon nè anh em!!','Chú ý nè anh em!!','Nghe này anh em!!','Dừng tay chút anh em!!']
+KHUNG_KEO={'keo-thom-2':0,'keo-thom':1,'keo-thom-3':2}   # thu tu theo gio dang trong ngay (15:00 · 20:00 · 22:00)
+def cum_mo(ngay_dang,dang):
+    """Chon cum mo theo (ngay, khung): chi so = (3*so_ngay + thu_tu_khung) % len(CUM_MO). len=8 va buoc 3 nguyen to cung nhau =>
+    (a) 3 khung cung ngay ra 3 cum KHAC nhau; (b) moi khung KHAC cum cua chinh khung do hom truoc (chi so lech 3 mod 8); (c) khong khung nao lap cum trong 2 ngay lien tiep.
+    Khong biet khung (thieu DANG / khung la) hoac khong co ngay -> 'Ê anh em!!' (hanh vi cu)."""
+    if dang not in KHUNG_KEO or not ngay_dang: return CUM_MO[0]
+    n=datetime.date.fromisoformat(str(ngay_dang)[:10]).toordinal()
+    return CUM_MO[(3*n+KHUNG_KEO[dang])%len(CUM_MO)]

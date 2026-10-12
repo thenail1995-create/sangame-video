@@ -6,7 +6,8 @@
 # them doan `gioi` (the loai + dac diem · diem sao · phan them cua ban dac biet) lay 100% tu keo.json.gioi_thieu (chon-keo.py ← trang PS Store); `dap` thanh cau so vung KHONG hoi-dap.
 import datetime,json,pathlib,sys
 T=pathlib.Path(__file__).resolve().parent; sys.path.insert(0,str(T))
-from loi_chu import so_chu,nghin,noi_goc,noi_chenh,noi_han,ten_noi,VUNG,ghep_them
+import os
+from loi_chu import so_chu,nghin,noi_goc,noi_chenh,noi_han,ten_noi,VUNG,ghep_them,cum_mo
 KEO=json.load(open(sys.argv[1] if len(sys.argv)>1 else T/'keo.json'))
 VN=datetime.timezone(datetime.timedelta(hours=7))
 class Doan:
@@ -48,7 +49,12 @@ def doan_gioi(gt):
             d.noi(cum,f'i{i+1}',sau=dau)
     return d
 if not (GT.get('the_loai') or GT.get('dac_diem') or GT.get('diem') or GT.get('ban')): raise SystemExit('gioi_thieu rong — khong dung cau doan mo')
-DS=[Doan('mo').the('excited').noi('Ê anh').noi('em!!','em').noi(ten,'ten').noi('đang').noi('giảm','giam').noi(giam).noi('phần trăm trên').noi('PS','ps').noi('Store').noi(A,'vung').noi('nè!'),
+def mo_dau(d):
+    """Cum cam than dau doan `mo` (loi_chu.cum_mo, theo ngay + khung env DANG); tu `em` giu khoa 'em' (full.html giat nhe o do). KHONG chua `đang`."""
+    for w in cum_mo(KEO.get('ngay_dang'),os.environ.get('DANG')).split():
+        d.noi(w,'em' if w.lower().strip('!?.,…')=='em' else None)
+    return d
+DS=[mo_dau(Doan('mo').the('excited')).noi(ten,'ten').noi('đang').noi('giảm','giam').noi(giam).noi('phần trăm trên').noi('PS','ps').noi('Store').noi(A,'vung').noi('nè!'),
     Doan('gia').the('gasps').noi('Từ '+tt).noi(cum,'g1','g2',sau='…').the('whispers').noi('giờ','gio').noi('còn có…').the('excited').noi(nghin(KEO['con_vnd'])+' thôi!','gia','thoi'),
     doan_gioi(GT),
     Doan('dap').noi('Store').noi(A,'a2').noi('đang').noi('rẻ','re1').noi('nhất,').noi('rẻ','rb').noi('hơn').noi(B,'b2').noi(chB+',','chb').noi('rẻ','re2').noi('hơn').noi(C,'c2').noi(chC+'.','chc'),

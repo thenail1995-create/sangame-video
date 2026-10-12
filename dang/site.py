@@ -31,7 +31,7 @@ def _danh_sach_tag(repo, tu, den, che_do="that"):
         raise manifest.LoiManifest(f"liet ke Release: HTTP {r.status}")
     ra = []
     for rel in r.json():
-        m = re.fullmatch(r"%s-(\d{4}-\d{2}-\d{2})-(tin-nhanh|top5|keo-thom)" % ("thu" if che_do == "thu" else "v"),
+        m = re.fullmatch(r"%s-(\d{4}-\d{2}-\d{2})-(tin-nhanh|top5|keo-thom-2|keo-thom-3|keo-thom)" % ("thu" if che_do == "thu" else "v"),
                          str(rel.get("tag_name", "")))
         if m and tu <= m.group(1) <= den:
             ra.append((m.group(1), m.group(2)))

@@ -32,7 +32,11 @@ import media_xau
 import importlib.util
 _sp=importlib.util.spec_from_file_location('sangame_gia_trang',str(T.parent.parent/'cong-cu'/'gia_trang.py')); GT=importlib.util.module_from_spec(_sp); _sp.loader.exec_module(GT)   # doc gia/han/media dung pid (dung chung voi Top 5 va dang/gia.py); nap theo duong dan de khong them cong-cu vao sys.path
 GIAM_MIN=40; HANG_TOI_DA=300; SO_NGAY_LAP=14; CHENH_MIN=20000; CHENH_PCT=0.04; DUNG_SAI_GIA=0.02
-GIO_DANG=datetime.datetime.combine(NGAY,datetime.time(20,0),VN); HAN_TOI_THIEU=GIO_DANG+datetime.timedelta(days=1)
+# 12/10: 3 khung Keo (keo-thom-2 15:00 · keo-thom 20:00 · keo-thom-3 22:00) dung chung khuon nay; DANG/GIO_DANG tu env (mac dinh = khung goc keo-thom 20:00)
+DANG=os.environ.get('DANG') or 'keo-thom'
+_GIO_KHUNG={'keo-thom-2':'15:00','keo-thom':'20:00','keo-thom-3':'22:00'}
+_gio=os.environ.get('GIO_DANG') or _GIO_KHUNG.get(DANG,'20:00')
+GIO_DANG=datetime.datetime.combine(NGAY,datetime.time(int(_gio.split(':')[0]),int(_gio.split(':')[1])),VN); HAN_TOI_THIEU=GIO_DANG+datetime.timedelta(days=1)
 LOC={ma:v[3] for ma,v in VUNG.items()}
 KQ=pathlib.Path(A.ra).resolve().parent/'ket-qua-chon.json'
 NHAT_KY=[]   # ung vien bi loai + ly do (ghi vao ket-qua-chon.json)
@@ -52,16 +56,16 @@ def lich_su():
     if A.lich_su:
         j=json.load(open(A.lich_su)); ds=[x for x in j.get('da_dang',[]) if 0<=(NGAY-datetime.date.fromisoformat(x['ngay'])).days<SO_NGAY_LAP]
         return dict(so_ky=int(j.get('so_ky',len(j.get('da_dang',[]))+1)),pid={p for x in ds for p in x.get('pid',[])},goc={t._ten_goc(x['ten']) for x in ds if x.get('ten')},
-                    co_hom_nay=any(x['ngay']==NGAY.isoformat() for x in j.get('da_dang',[])))
+                    co_hom_nay=any(x['ngay']==NGAY.isoformat() and (x.get('dang') or 'keo-thom')==DANG for x in j.get('da_dang',[])))   # moi khung Keo co 1 Release rieng; fixture khong ghi `dang` = khung goc
     r=subprocess.run(['gh','release','list','-R',A.repo_phat_hanh,'--limit','200','--json','tagName'],capture_output=True,text=True)
     if r.returncode: thoat(5,'KHONG doc duoc lich su Release (gh): '+r.stderr.strip()[:200]+' — dung de khong chon lap')
     tags=[x['tagName'] for x in json.loads(r.stdout or '[]')]; ks=[]
     for tg in tags:
-        m=re.fullmatch(r'v-(\d{4}-\d{2}-\d{2})-keo-thom',tg)
+        m=re.fullmatch(r'v-(\d{4}-\d{2}-\d{2})-keo-thom(?:-\d+)?',tg)   # MOI khung Keo (lich su chung de khong lap game)
         if m: ks.append((m.group(1),tg))
     pid=set(); goc=set(); hom_nay=False
     for ng,tg in ks:
-        if ng==NGAY.isoformat(): hom_nay=True
+        if tg==f'v-{NGAY.isoformat()}-{DANG}': hom_nay=True   # chi DUNG tag cua khung dang chay
         if not (0<=(NGAY-datetime.date.fromisoformat(ng)).days<SO_NGAY_LAP): continue
         m=subprocess.run(['gh','release','download',tg,'-R',A.repo_phat_hanh,'-p','manifest.json','-O','-'],capture_output=True,text=True)
         if m.returncode: thoat(5,f'KHONG tai duoc manifest cua {tg}: {m.stderr.strip()[:200]}')

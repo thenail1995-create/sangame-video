@@ -12,7 +12,7 @@ if la_chung; then
   # LIVE=1 (workflow tu dong, cung quy uoc voi Top 5): chon keo + loi (chuan-bi.sh) va thu giong (cong-cu/giong.py) neu chua co. LIVE khac => dau vao co san (fixture/thu tay).
   if [ "${LIVE:-0}" = 1 ]; then
     if [ ! -f keo.json ] || [ ! -f kich-ban.json ]; then bash "$M/chuan-bi.sh"; moc "chon keo + loi"; fi
-    if [ ! -f dau-vao/giong.mp3 ]; then mkdir -p dau-vao; "${PY[@]}" "$ROOT/cong-cu/giong.py" giong --loi-file loi.txt --ra dau-vao/giong.mp3 --du-an san-game --dang keo-thom; moc "giong"; fi
+    if [ ! -f dau-vao/giong.mp3 ]; then mkdir -p dau-vao; "${PY[@]}" "$ROOT/cong-cu/giong.py" giong --loi-file loi.txt --ra dau-vao/giong.mp3 --du-an san-game --dang "${DANG:-keo-thom}"; moc "giong"; fi
   fi
   for f in keo.json kich-ban.json dau-vao/giong.mp3; do [ -f "$f" ] || { echo "THIEU $f"; exit 2; }; done
   if [ -z "${HOI_QUY:-}" ]; then

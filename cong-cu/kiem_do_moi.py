@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """B5': du lieu gia 6 vung cua repo rieng tu da CO NGAY HOM NAY (gio VN) chua? Neu roi -> lay data_sha = commit moi nhat cua checkout.
-  python3 cong-cu/kiem_do_moi.py <thu-muc-checkout-kenh-game-du-lieu> [--ngay YYYY-MM-DD] [--dang top5|keo-thom|tin-nhanh] [--lan-cuoi] [--github-output]
+  python3 cong-cu/kiem_do_moi.py <thu-muc-checkout-kenh-game-du-lieu> [--ngay YYYY-MM-DD] [--dang top5|keo-thom|keo-thom-2|keo-thom-3|tin-nhanh] [--lan-cuoi] [--github-output]
 Dieu kien 'moi' (ca bon phai dung):
   - du-lieu/bang-gia.json  cap_nhat >= ngay, so_mon_giu_lai co DU 6 vung (SG HK IN ID US TH) moi vung > 0 mon
   - du-lieu/trang-game.json cap_nhat >= ngay ;  du-lieu/gia-the.json ngay >= ngay
@@ -12,7 +12,7 @@ ROOT=pathlib.Path(__file__).resolve().parent.parent
 VUNG=['SG','HK','IN','ID','US','TH']
 VN=datetime.timezone(datetime.timedelta(hours=7),'Asia/Ho_Chi_Minh')   # VN khong co gio mua he => +07 co dinh tuong duong Asia/Ho_Chi_Minh
 TRUONG_MOC_FEED='cap_nhat'   # moc thoi gian rieng trong moi giam-gia-en-<vung>.json (ISO, co Z/offset hoac chi ngay)
-TEN_DANG={'top5':'Top 5','keo-thom':'Keo thom','tin-nhanh':'Tin nhanh'}
+TEN_DANG={'top5':'Top 5','keo-thom':'Keo thom','keo-thom-2':'Keo thom (khung 15:00)','keo-thom-3':'Keo thom (khung 22:00)','tin-nhanh':'Tin nhanh'}
 def hom_nay_vn(): return datetime.datetime.now(VN).date().isoformat()
 def ngay_vn(v):
     """Moc thoi gian (chuoi) -> ngay VN (date) hoac None. Chi ngay (YYYY-MM-DD) = ngay VN; co gio: doi sang Asia/Ho_Chi_Minh roi lay ngay (khong cat chuoi)."""

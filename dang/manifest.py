@@ -13,7 +13,7 @@ TAI_SAN_CHO_PHEP = {
     "video-tiktok.mp4", "video-reels.mp4", "video-shorts.mp4",
     "bia-tiktok.jpg", "bia-reels.jpg", "bia-shorts.jpg", "manifest.json",
 }
-DANG_HOP_LE = ("tin-nhanh", "top5", "keo-thom")
+DANG_HOP_LE = ("tin-nhanh", "top5", "keo-thom", "keo-thom-2", "keo-thom-3")
 BAN = ("tiktok", "reels", "shorts")
 
 
