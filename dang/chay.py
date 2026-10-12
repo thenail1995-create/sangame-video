@@ -11,7 +11,7 @@ import sys
 import tempfile
 import types
 
-from . import chung, fb, gia, ig, manifest, ntfy, site, threads, tiktok, yt
+from . import chung, fb, gia, ig, manifest, ntfy, site, threads, tiktok, yt, zernio
 from .chung import LoiDang
 from .so import Cong, LoiCong
 
@@ -204,6 +204,55 @@ SOM_TOI_DA = dt.timedelta(minutes=1)
 TRE_TOI_DA = dt.timedelta(minutes=90)   # gia/han da kiem cho gio dang + 2 h; tre hon 90 phut = khung cu, bo
 
 
+def _tiktok_hop_thu(kenh, nc, cong, tk):
+    """Duong cu: upload vao hop thu TikTok (Hao tu bam dang). Da giu_dang truoc khi goi."""
+    try:
+        ket = tiktok.hop_thu(tk, nc)
+    except LoiDang as e:
+        _ghi_loi(cong, nc, kenh, e)
+        raise
+    try:
+        _doi(cong, nc, kenh, "dang_dang", trang_thai="da_dang", id_tai=ket["id_tai"], id_bai=ket["id_bai"],
+             gio_cong_khai=chung.iso(chung.bay_gio()))
+    except LoiCong as e:
+        raise LoiDang(f"TikTok da vao hop thu (publish_id {ket['id_tai']}) nhung ghi so loi: {e}", khong_ro=True) from None
+    return "da_dang", ket
+
+
+def _tiktok_zernio(kenh, nc, dich, cong):
+    """Dang cong khai qua Zernio. Giu quyen nguyen tu TRUOC moi goi mang. Thua 'chua tao bai' -> du phong hop thu;
+    khong_ro -> ghi khong_ro va dung (khong du phong, khong dang lai)."""
+    if not cong.giu_dang(nc.ngay, nc.dang, kenh, nc.che_do, chung.iso(nc.gio_dang), nc.manifest_sha):
+        chung.log("tiktok: da co dong cho khung nay - khong gui lai")
+        return "bo_qua", {}
+    try:
+        ket = zernio.cong_khai(nc)
+    except LoiDang as e:
+        if getattr(e, "khong_ro", False):
+            _ghi_loi(cong, nc, kenh, e)
+            raise
+        chung.log_loi(f"tiktok: Zernio chua dang duoc, chuyen du phong hop thu: {e}")
+        ntfy.loi(f"TikTok: Zernio loi {nc.dang} {nc.ngay} - dung hop thu", f"{e}", uu_tien=3)
+        try:
+            tk = tai_token(cong, kenh)
+            kiem_danh_tinh(kenh, tk, nc, dich)
+            tk = tai_token(cong, kenh)
+        except LoiDang as e2:
+            _ghi_loi(cong, nc, kenh, e2)
+            raise
+        return _tiktok_hop_thu(kenh, nc, cong, tk)
+    except Exception as e:   # loi bat ngo sau khi co the da goi Zernio: khong chac
+        err = LoiDang(f"{type(e).__name__}: {chung.cat(e, 300)}", khong_ro=True)
+        _ghi_loi(cong, nc, kenh, err)
+        raise err from None
+    try:
+        _doi(cong, nc, kenh, "dang_dang", trang_thai="da_dang", id_tai=ket["id_tai"], id_bai=ket["id_bai"],
+             link=ket.get("link"), gio_cong_khai=chung.iso(chung.bay_gio()))
+    except LoiCong as e:
+        raise LoiDang(f"TikTok DA dang cong khai qua Zernio ({ket.get('link') or ket['id_bai']}) nhung ghi so loi: {e}", khong_ro=True) from None
+    return "da_dang", ket
+
+
 def cong_khai_kenh(kenh, nc, dich, cong, dong, cac_dong=()):
     """-> ('bo_qua'|'da_dang', ket). Nem LoiDang neu loi. Thu tu cong: gio -> manifest_sha -> dich.json -> giu quyen so-va-dat."""
     if nc.che_do == "that" and chung.bay_gio() < nc.gio_dang - SOM_TOI_DA:
@@ -216,23 +265,15 @@ def cong_khai_kenh(kenh, nc, dich, cong, dong, cac_dong=()):
         for r in cac_dong:
             if r.get("manifest_sha") and r["manifest_sha"] != nc.manifest_sha:
                 raise LoiDang("manifest.json khac voi luc chuan bi (sha khac) - khong gui TikTok")
+        if zernio.co_khoa() and nc.che_do == "that":   # Zernio dang CONG KHAI that -> che do thu KHONG bao gio di duong nay (vao hop thu nhu cu)
+            return _tiktok_zernio(kenh, nc, dich, cong)
         tk = tai_token(cong, kenh)
         kiem_danh_tinh(kenh, tk, nc, dich)
         tk = tai_token(cong, kenh)  # lam_moi trong danh_tinh co the da doi token
         if not cong.giu_dang(nc.ngay, nc.dang, kenh, nc.che_do, chung.iso(nc.gio_dang), nc.manifest_sha):
             chung.log("tiktok: da co dong cho khung nay - khong gui lai")
             return "bo_qua", {}
-        try:
-            ket = tiktok.hop_thu(tk, nc)
-        except LoiDang as e:
-            _ghi_loi(cong, nc, kenh, e)
-            raise
-        try:
-            _doi(cong, nc, kenh, "dang_dang", trang_thai="da_dang", id_tai=ket["id_tai"], id_bai=ket["id_bai"],
-                 gio_cong_khai=chung.iso(chung.bay_gio()))
-        except LoiCong as e:
-            raise LoiDang(f"TikTok da vao hop thu (publish_id {ket['id_tai']}) nhung ghi so loi: {e}", khong_ro=True) from None
-        return "da_dang", ket
+        return _tiktok_hop_thu(kenh, nc, cong, tk)
     if nc.che_do == "thu":
         chung.log(f"{kenh}: che do thu - khong cong khai")
         return "bo_qua", {}
@@ -291,7 +332,10 @@ def pha_cong_khai(a, cong, thu_muc):
             kq, ket = cong_khai_kenh(kenh, nc, dich, cong, dong_theo_kenh.get(kenh), cac_dong)
             if kq == "da_dang":
                 if kenh == "tiktok":
-                    tin.append("TikTok: video da vao hop thu - bam thong bao TikTok de dang")
+                    if ket.get("kieu") == "zernio":
+                        tin.append(f"TikTok: da dang cong khai {ket.get('link') or ket.get('id_bai')}")
+                    else:
+                        tin.append("TikTok: video da vao hop thu - bam thong bao TikTok de dang")
                 else:
                     tin.append(f"{TEN[kenh]}: {ket.get('link') or ket.get('id_bai') or 'da dang'}")
                 if ket.get("canh_bao"):

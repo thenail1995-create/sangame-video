@@ -218,6 +218,7 @@ jobs:
       - name: Cong khai
         env:
           SG_CONG_KHOA: ${{ secrets.SG_CONG_KHOA }}
+          ZERNIO_KHOA: ${{ secrets.ZERNIO_KHOA }}
           NTFY_TIN: ${{ secrets.NTFY_TIN }}
           NTFY_BAO_LOI: ${{ secrets.NTFY_BAO_LOI }}
           GITHUB_TOKEN: ${{ github.token }}
