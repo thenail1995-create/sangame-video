@@ -40,6 +40,9 @@ class DocTien(unittest.TestCase):
             self.assertIn(v,ns.doc_diem_cham(s),s)
         for s in ('chấm 4.5 sao, phiên bản 4.4','4,4 trên 10 sao','phiên bản 4.4','giảm 45 trên 5 sao'):
             self.assertNotIn(4.4,ns.doc_diem_cham(s),s); self.assertNotIn(45.0,ns.doc_diem_cham(s),s)
+    def test_tien_nhom_nghin_truoc_gio_con(self):   # CI 13/10 run 38281225953: '800.000 giờ còn có' la TIEN
+        self.assertEqual([v for v,_,_ in ns.doc_tien('Từ hơn 800.000 giờ còn có 336.000 thôi.')],[800000,336000])
+        self.assertEqual([v for v,_,_ in ns.doc_tien('hết giảm trước 2 giờ chiều')],[])
     def test_diem_tren_nghe_sai_chien_sau(self):   # CI that 12/10 (run 38242333660): 'chấm 4,5 trên năm sao' -> Whisper 'châm 4,5 chiến năm sau'
         self.assertIn(4.5,ns.doc_diem_cham('Gìm hành động người chưa châm 4,5 chiến năm sau'))
         self.assertIn(4.4,ns.doc_diem_cham('bốn phẩy bốn chiến năm sao'))
