@@ -169,7 +169,7 @@ class NguCanh:
         """Sau 10:00 VN thi 'Ban tin sang'/'sang nay' doi thanh 'hom nay'."""
         if self.gio_cong_khai().astimezone(VN).hour < GIO_HET_SANG:
             return s
-        return _RE_SANG_NAY.sub("hôm nay", _RE_BAN_TIN_SANG.sub("Bản tin hôm nay", s))
+        return _RE_SANG_NAY.sub("hôm nay", _RE_BAN_TIN_SANG.sub("Bản tin", s))
 
     def ten_game(self):
         return ten_game_tu_loi_dang(self.dang, self.loi_dang)

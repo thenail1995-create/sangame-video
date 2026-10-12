@@ -200,7 +200,7 @@ class NhanSang(unittest.TestCase):
         for g in (10, 14, 22):
             for s in (nc("tin-nhanh", gio=g).caption_fb(), nc("tin-nhanh", gio=g).mo_ta_youtube()):
                 self.assertNotIn("sáng", s)
-                self.assertIn("Bản tin hôm nay", s)
+                self.assertIn("Bản tin Săn Game", s)
 
     def test_dung_gio_cong_khai_thuc_te_khong_phai_gio_du_kien(self):
         c = nc("tin-nhanh", gio=7)     # du kien 07:30 nhung that su dang luc 14:00
