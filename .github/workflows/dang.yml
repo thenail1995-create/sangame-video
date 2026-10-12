@@ -24,6 +24,10 @@ on:
         required: true
         type: choice
         options: [thu, that]
+      gio_bu:
+        description: "DANG BU (de trong khi chay theo lich): HH:MM gio VN moi trong CUNG ngay - thay gio cua manifest cho chot som/tre + kiem gia"
+        required: false
+        type: string
 permissions: {}
 concurrency:
   # Moi pha 1 nhom; queue: max de dispatch moi KHONG thay the luot cong-khai dang cho (mac dinh chi giu 1 pending va huy cai cu)
@@ -41,10 +45,12 @@ jobs:
           NGAY: ${{ inputs.ngay }}
           DANG: ${{ inputs.dang }}
           CHE_DO: ${{ inputs.che_do }}
+          DANG_BU_GIO: ${{ inputs.gio_bu }}
         run: |
           set -euo pipefail
           NGAY="${NGAY:-$(TZ=Asia/Ho_Chi_Minh date +%F)}"; [[ "$NGAY" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "ngay sai dinh dang"; exit 1; }
           [[ "$DANG" =~ ^(tin-nhanh|top5|keo-thom)$ ]] || { echo "dang sai"; exit 1; }
+          [[ -z "$DANG_BU_GIO" || "$DANG_BU_GIO" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]] || { echo "gio_bu sai (HH:MM)"; exit 1; }
           [[ "$CHE_DO" =~ ^(thu|that)$ ]] || { echo "che_do sai"; exit 1; }
 
   # Kiem manifest + sha256 moi tai san + gia/han TRUOC khi cong khai bat ky thu gi (ke ca Pages). Sai -> bo khung + ntfy.
@@ -72,6 +78,7 @@ jobs:
           NGAY: ${{ inputs.ngay }}
           DANG: ${{ inputs.dang }}
           CHE_DO: ${{ inputs.che_do }}
+          DANG_BU_GIO: ${{ inputs.gio_bu }}
         run: python -m dang.chay --pha kiem --dang "$DANG" --ngay "${NGAY:-$(TZ=Asia/Ho_Chi_Minh date +%F)}" --che-do "$CHE_DO"
 
   # Mot job duy nhat dung site + deploy; MOT nhom chung cho ca repo, xep hang (queue: max) de khong lan nhau
@@ -107,6 +114,7 @@ jobs:
           NGAY: ${{ inputs.ngay }}
           DANG: ${{ inputs.dang }}
           CHE_DO: ${{ inputs.che_do }}
+          DANG_BU_GIO: ${{ inputs.gio_bu }}
         run: python -m dang.site --ra _site --ngay "${NGAY:-$(TZ=Asia/Ho_Chi_Minh date +%F)}" --dang "$DANG" --che-do "$CHE_DO"
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
@@ -157,6 +165,7 @@ jobs:
           NGAY: ${{ inputs.ngay }}
           DANG: ${{ inputs.dang }}
           CHE_DO: ${{ inputs.che_do }}
+          DANG_BU_GIO: ${{ inputs.gio_bu }}
         run: python -m dang.chay --pha chuan-bi --kenh fb,youtube --dang "$DANG" --ngay "${NGAY:-$(TZ=Asia/Ho_Chi_Minh date +%F)}" --che-do "$CHE_DO"
 
   # IG + Threads: can URL cong khai tren Pages
@@ -185,6 +194,7 @@ jobs:
           NGAY: ${{ inputs.ngay }}
           DANG: ${{ inputs.dang }}
           CHE_DO: ${{ inputs.che_do }}
+          DANG_BU_GIO: ${{ inputs.gio_bu }}
         run: python -m dang.chay --pha chuan-bi --kenh ig,threads --dang "$DANG" --ngay "${NGAY:-$(TZ=Asia/Ho_Chi_Minh date +%F)}" --che-do "$CHE_DO"
 
   cong-khai:
@@ -215,4 +225,5 @@ jobs:
           NGAY: ${{ inputs.ngay }}
           DANG: ${{ inputs.dang }}
           CHE_DO: ${{ inputs.che_do }}
+          DANG_BU_GIO: ${{ inputs.gio_bu }}
         run: python -m dang.chay --pha cong-khai --dang "$DANG" --ngay "${NGAY:-$(TZ=Asia/Ho_Chi_Minh date +%F)}" --che-do "$CHE_DO"

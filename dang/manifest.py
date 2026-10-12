@@ -1,5 +1,6 @@
 """Tai Release v-<ngay>-<dang> va kiem manifest theo HOP-DONG.md muc 1-2. Sai bat ky dieu gi -> LoiManifest (khong dang)."""
 import datetime as dt
+import re
 import json
 import os
 import pathlib
@@ -137,4 +138,13 @@ def kiem(man, thu_muc, ngay, dang, che_do, ban_can=BAN):
 
 
 def gio_dang(man) -> dt.datetime:
-    return dt.datetime.fromisoformat(man["gio_dang"])
+    """Gio dang cua khung. DANG BU (Hao 12/10 "phai sua roi dang"): env DANG_BU_GIO=HH:MM (gio VN, CUNG ngay dang cua manifest) thay gio
+    trong manifest cho moi chot gio (som/tre 90 phut, kiem lai gia/han = gio moi + 2 h). Rong -> gio cua manifest."""
+    g = dt.datetime.fromisoformat(man["gio_dang"])
+    bu = (os.environ.get("DANG_BU_GIO") or "").strip()
+    if not bu:
+        return g
+    m = re.fullmatch(r"([01]\d|2[0-3]):([0-5]\d)", bu)
+    if not m:
+        raise LoiManifest(f"DANG_BU_GIO sai dinh dang HH:MM: {bu!r}")
+    return g.replace(hour=int(m.group(1)), minute=int(m.group(2)), second=0, microsecond=0)
