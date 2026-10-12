@@ -5,6 +5,7 @@ Gia + han doc tu KHOI GIA CUA DUNG PID trong cache JSON cua trang (cong-cu/gia_t
 import importlib.util
 import pathlib
 import re
+import time
 
 from . import http
 
@@ -20,6 +21,42 @@ DEM_SAU_GIO_DANG = 2 * 3600
 LECH_HAN_MS = 60 * 1000   # cho lech lam tron toi 1 phut
 
 
+SO_LAN_TAI = 3           # 12/10: Sony tra trang bat thuong 1 lan -> bo ca khung Tin nhanh. Tai lai toi da 3 lan moi ket luan.
+CHO_GIUA_LAN = 20        # giay
+
+
+def _tai_khoi(loc, pid, so_lan=None, cho=None):
+    """-> (khoi, None) hoac (None, ly_do). Tai lai khi HTTP loi/timeout/khong co khoi gia dung pid; van fail-closed neu
+    ca so_lan deu hong. Ghi log do dai HTML + so lan xuat hien pid de chan doan lan sau."""
+    so_lan = SO_LAN_TAI if so_lan is None else so_lan
+    cho = CHO_GIUA_LAN if cho is None else cho
+    ly_do = "khong tai duoc"
+    for lan in range(1, so_lan + 1):
+        if lan > 1:
+            time.sleep(cho)
+        try:
+            r = http.gui("GET", f"https://store.playstation.com/{loc}/product/{pid}", headers={"User-Agent": UA},
+                         theo_chuyen_huong=True, timeout=30)
+        except http.LoiMang as e:
+            ly_do = f"khong cao duoc trang san pham ({e})"
+            print(f"kiem_lai {pid} {loc} lan {lan}/{so_lan}: {ly_do}", flush=True)
+            continue
+        if r.status != 200:
+            ly_do = f"trang san pham HTTP {r.status}, khong kiem lai duoc"
+            print(f"kiem_lai {pid} {loc} lan {lan}/{so_lan}: {ly_do}", flush=True)
+            continue
+        khoi = gia_trang.khoi_gia(r.text, pid)
+        if khoi is not None:
+            if lan > 1:
+                print(f"kiem_lai {pid} {loc}: dat o lan {lan}", flush=True)
+            return khoi, None
+        ly_do = "trang khong co khoi gia mua dut ro rang cua dung pid (doi cau truc trang, het ban hoac nhieu khoi gia khac nhau)"
+        html = r.text or ""
+        print(f"kiem_lai {pid} {loc} lan {lan}/{so_lan}: khong co khoi gia; html {len(html)} ky tu, pid xuat hien "
+              f"{html.count(pid)} lan, 'discountedPrice' {html.count('discountedPrice')} lan", flush=True)
+    return None, f"{ly_do} (sau {so_lan} lan tai)"
+
+
 def kiem_lai(muc, gio_dang):
     """-> (van_de, canh_bao). van_de khac rong = BO KHUNG. gio_dang: datetime co mui gio."""
     van_de, canh_bao = [], []
@@ -31,18 +68,9 @@ def kiem_lai(muc, gio_dang):
         if not pid or not loc or not re.fullmatch(r"[a-z]{2}-[a-z]{2}", loc) or not re.fullmatch(r"[A-Za-z0-9_\-]+", pid):
             van_de.append(f"{ten}: thieu/sai pid hoac loc trong kiem_lai")
             continue
-        try:
-            r = http.gui("GET", f"https://store.playstation.com/{loc}/product/{pid}", headers={"User-Agent": UA},
-                         theo_chuyen_huong=True, timeout=30)
-        except http.LoiMang as e:
-            van_de.append(f"{ten}: khong cao duoc trang san pham ({e})")
-            continue
-        if r.status != 200:
-            van_de.append(f"{ten}: trang san pham HTTP {r.status}, khong kiem lai duoc")
-            continue
-        khoi = gia_trang.khoi_gia(r.text, pid)
+        khoi, loi = _tai_khoi(loc, pid)
         if khoi is None:
-            van_de.append(f"{ten}: trang khong co khoi gia mua dut ro rang cua dung pid (doi cau truc trang, het ban hoac nhieu khoi gia khac nhau)")
+            van_de.append(f"{ten}: {loi}")
             continue
         end = khoi["endTime"]
         if not end:
