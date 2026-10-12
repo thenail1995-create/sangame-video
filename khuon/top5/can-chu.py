@@ -85,9 +85,48 @@ def cum_cau():
         for g,wi in zip(p,wgt):
             g['s']=t; t+=D*wi/tot; g['e']=t
     return [(cs*.01,ce*.01) for cs,ce in ranh],f'{P} cum, {P-1} ranh gioi chon theo so am tiet + khoang lang (ngan nhat {nho:.2f}s, lech du kien toi da {lech:.2f}s)'
-ranh,ghi_chu=cum_cau()
+# ===================== CACH 0 (12/10): NEO DOAN THEO WHISPER =====================
+# 12/10 Top 5 truot 2 lan (38199020803, 38200993748): cum_cau bo cuoc ('khoang lang dau cau ngan nhat 0,09 s') -> cach du phong cat sai doan
+# (h1 hut 1,5 s; lan 2 h1/h3 roi vao khoang lang -> Whisper bia 'subscribe La La School'). Whisper KHONG goi y van nghe dung TU DAU moi doan
+# ('Hạng 5', 'Và hạng 1', 'Còn 102 game'): ranh gioi DOAN = diem bat dau tu dau doan do Whisper nghe. Trong doan: chu chia theo am tiet tren
+# vung co tieng (bo khoang lang >= 150 ms). Chi dung khi neo DU moi ranh gioi doan theo dung thu tu; thieu -> cach cu.
+def _ch(t):
+    t=''.join(c for c in unicodedata.normalize('NFD',t.lower()) if unicodedata.category(c)!='Mn').replace('đ','d'); return re.sub(r'[^a-z0-9]','',t)
+SO_CHU={'mot','hai','ba','bon','nam','sau','bay','tam','chin','muoi','tram','nghin','ngan','le','linh','trieu','lam','tu','nhat','mươi'}
+def neo_doan():
+    ds=[]
+    for g in goc:
+        if not ds or ds[-1][0]!=g['doan']: ds.append((g['doan'],[]))
+        ds[-1][1].append(g)
+    wsn=[(_ch(w),a,b) for w,a,b in WS0]; tu=0; neo=[]
+    for k,(dk,ws) in enumerate(ds):
+        if k==0: continue
+        khoa=[t for t in (_ch(g['w']) for g in ws[:6]) if t and not t.isdigit() and t not in SO_CHU]
+        if not khoa: return None,f'doan {dk}: khong co tu khong-so de neo'
+        # ung vien = moi cho Whisper nghe dung tu dau; chon cho co NHIEU tu khong-so ke tiep khop nhat (hoa thi lay som nhat).
+        # Whisper small hay nghe ten game khac (Kombat->Combat) nen KHONG bat buoc khop het; 'còn' trong gia hang 1 thua 'Còn … game nữa dưới' cua doan ket.
+        ung=[j for j in range(tu,len(wsn)) if wsn[j][0]==khoa[0]]
+        if not ung: return None,f'doan {dk}: Whisper khong nghe thay tu dau «{khoa[0]}»'
+        diem=lambda j: sum(c in {x[0] for x in wsn[j+1:j+8]} for c in khoa[1:4])
+        j=max(ung,key=lambda j:(diem(j),-j))
+        neo.append(wsn[j][1]); tu=j+1
+    v=db>=nen-12; idx=np.where(v)[0]; v0,v1=idx[0]*.01,(idx[-1]+1)*.01
+    bien=[v0]+neo+[v1]
+    if any(b-a<0.3 for a,b in zip(bien,bien[1:])): return None,'doan ngan bat thuong (< 0,3 s) - neo nghi sai'
+    for (dk,ws),a,b in zip(ds,bien,bien[1:]):
+        # bo duoi lang cuoi doan: diem co tieng cuoi cung truoc ranh gioi
+        ka,kb=int(a*100),int(b*100); vv=np.where(v[ka:kb])[0]
+        if len(vv): b=min(b,(ka+vv[-1]+1)*.01+0.05)
+        wgt=[am_tiet(g['w']) for g in ws]; tot=sum(wgt); t=a; D=b-a
+        for g,wi in zip(ws,wgt): g['s']=t; t+=D*wi/tot; g['e']=t
+    return [(a,b) for a,b in zip(bien,bien[1:])],f"{len(ds)} doan neo tai "+' '.join(f'{x:.2f}' for x in neo)
+ranh,ghi_chu=neo_doan()
+if ranh: print('CAN CHU: cach NEO DOAN —',ghi_chu)
+else:
+    print('CAN CHU: khong neo duoc doan ->',ghi_chu,'-> thu cach cum cau')
+    ranh,ghi_chu=cum_cau()
 if ranh:
-    print('CAN CHU: cach cum cau —',ghi_chu); khop=len(goc)
+    print('CAN CHU:',ghi_chu); khop=len(goc)
 else:
     print('CAN CHU: KHONG tach duoc cum cau ->',ghi_chu,'-> dung cach du phong Whisper')
     # ===================== CACH DU PHONG: Whisper + bam nang luong =====================
