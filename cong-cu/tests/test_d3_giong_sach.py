@@ -115,6 +115,18 @@ class BiDanhThang(unittest.TestCase):
     def test_van_so_gia_tri(self):
         self.assertNotIn((23,10),NS.doc_ngay('ngày 22 kháng 10')); self.assertNotIn((22,11),NS.doc_ngay('ngày 22 kháng 10'))
 
+class BiDanhNgayNay(unittest.TestCase):   # 12/10 run 38210460267: turbo nghe 'đêm ngày 21 tháng 10' thanh 'đêm này 21 tháng 10'
+    KY=dict(gio24=22,buoi='đêm',ngay=(21,10))
+    def test_nay_truoc_so_thang_so_la_ngay(self):
+        self.assertEqual(NS.doc_han('Nhưng mà nhanh tay nha, hết giảm trước 10 giờ đêm này 21 tháng 10')[0]['ngay'],(21,10))
+        self.assertEqual(NS.doi_chieu('hết giảm trước 10 giờ đêm này 21 tháng 10',han=self.KY),[])
+    def test_van_truot_khi_sai_ngay_hoac_gio(self):
+        self.assertTrue(NS.doi_chieu('hết giảm trước 10 giờ đêm này 22 tháng 10',han=self.KY))
+        self.assertTrue(NS.doi_chieu('hết giảm trước 9 giờ đêm này 21 tháng 10',han=self.KY))
+    def test_nay_mai_khong_nhan_va_nay_khong_doi(self):
+        self.assertIsNone(NS.doc_han('hết giảm trước 10 giờ đêm này mai')[0]['ngay'])
+        self.assertEqual(NS.doc_han('hết giảm trước 10 giờ đêm nay')[0]['ngay'],'nay')
+
 class TenHaiBo(unittest.TestCase):        # Opus 11/10: TEN dat neu small HOAC turbo dat 0,40 + token phan biet khop trong chinh ban do; tien/%/vung chi turbo
     M='Returnal Digital Deluxe Edition'
     def test_turbo_sai_small_dat_thi_dat(self):
