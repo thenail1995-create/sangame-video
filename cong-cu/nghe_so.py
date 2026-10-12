@@ -449,8 +449,10 @@ def doc_diem_cham(van_ban):
     def so(x): return int(x) if x.isdigit() else _SO_CHU_BD.get(x)
     D=r'(\d\s*[.,]\s*\d|[a-z0-9]+\s+phay\s+[a-z0-9]+|[a-z0-9]+)'
     # '<diem> tren 5 sao' tu no da la menh de danh gia (thang 5 sao) -> khong can 'cham' (CI that 11/10: Whisper nghe 'người chơi chấm 4,5' thanh 'người chơi trên 4,5 trên 5 sao')
-    ms=list(re.finditer(r'(?<![a-z0-9])cham\s+(?:duoc\s+)?'+D+r'(?:\s*/\s*5|\s+tren\s+(?:5|nam)\s+sao|\s+sao)(?![a-z0-9])',t))
-    ms+=list(re.finditer(r'(?<![a-z0-9.,])'+D+r'\s+tren\s+(?:5|nam)\s+sao(?![a-z0-9])',t))
+    # 12/10 (Keo 20:00, run 38242333660): Whisper turbo nghe 'chấm 4,5 trên năm sao' thanh 'châm 4,5 chiến năm sau' -> chap nhan bien the nghe sai cua 'trên' / 'sao'
+    TREN=r'(?:tren|chien|chen|trien)'; SAO=r'(?:sao|sau|xao)'
+    ms=list(re.finditer(r'(?<![a-z0-9])cham\s+(?:duoc\s+)?'+D+r'(?:\s*/\s*5|\s+'+TREN+r'\s+(?:5|nam)\s+'+SAO+r'|\s+sao)(?![a-z0-9])',t))
+    ms+=list(re.finditer(r'(?<![a-z0-9.,])'+D+r'\s+'+TREN+r'\s+(?:5|nam)\s+'+SAO+r'(?![a-z0-9])',t))
     for m in ms:
         g=m.group(1); d=re.fullmatch(r'(\d)\s*[.,]\s*(\d)',g)
         if d: ra.append(int(d.group(1))+int(d.group(2))/10); continue
