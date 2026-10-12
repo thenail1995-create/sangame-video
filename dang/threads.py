@@ -62,6 +62,27 @@ def cong_khai(tk, nc, dong):
     return {"id_bai": mid, "link": link}
 
 
+def tao_container_chu(tk, text, anh=None, topic_tag=None, luu=None):
+    """Bai CHU RIENG (dang/threads_chu.py): container TEXT, hoac IMAGE neu co anh (URL cong khai). -> container id, da cho FINISHED.
+    Tham so theo tai lieu chinh chu (doc 12/10/2026) https://developers.facebook.com/docs/threads/posts :
+      media_type = TEXT | IMAGE | VIDEO ; text (<= 500 ky tu, dem theo byte UTF-8 cho emoji) ; image_url (bat buoc voi IMAGE, URL cong khai) ;
+      topic_tag (1-50 ky tu, khong dau cham / '&'; chi tag hop le dau tien cua bai co tac dung) ; nen cho ~30 giay truoc threads_publish.
+    Tao container CHUA dang gi len Threads -> loi o day la chac chan chua dang (khong_ro=False)."""
+    tham = {"media_type": "IMAGE" if anh else "TEXT", "text": text}
+    if anh:
+        tham["image_url"] = anh
+    if topic_tag:
+        tham["topic_tag"] = topic_tag
+    c = meta.goi(TH, "POST", f"/{tk['threads_user_id']}/threads", token=tk["token"], tham_so=tham)
+    cid = str(c.get("id") or "")
+    if not cid:
+        raise chung.LoiDang("Threads khong tra container id")
+    if luu:
+        luu(id_container=cid)
+    meta.cho_trang_thai(lambda: _status(tk, cid), {"FINISHED"}, {"ERROR", "EXPIRED"}, toi_da=30, ten="Threads container")
+    return cid
+
+
 def gia_han(tk, bay_gio):
     """GET /refresh_access_token (grant_type=th_refresh_token). Tra (token_moi, giay_het_han). Goi khi token >= 24 h tuoi."""
     j = meta.goi("https://graph.threads.net", "GET", "/refresh_access_token", co_tac_dung=False,

@@ -142,7 +142,7 @@ class TestBoKhung(Khung):
         self.assertEqual(self.cong.trang_thai("fb"), "chuan_bi_xong")
         self.man_kw = {"dat": False}
         self.assertEqual(self.chay("chuan-bi"), 3)
-        for k in ("fb", "ig", "threads", "youtube"):
+        for k in ("fb", "ig", "youtube"):
             self.assertEqual(self.cong.trang_thai(k), "bo")
         self.chay("cong-khai")
         self.assertEqual(self.kenh["fb"].ck, 0)
@@ -160,7 +160,7 @@ class TestGio(Khung):
         self.chay("chuan-bi")
         with mock.patch.object(chung, "bay_gio", lambda: g.GIO_DANG - dt.timedelta(minutes=25)):
             self.assertEqual(self.chay("cong-khai"), 1)
-        self.assertTrue(all(self.kenh[k].ck == 0 for k in ("fb", "ig", "threads", "youtube")))
+        self.assertTrue(all(self.kenh[k].ck == 0 for k in ("fb", "ig", "youtube")))
         self.assertEqual(self.kenh["tiktok"].hop, 0)
         self.assertEqual(self.cong.trang_thai("fb"), "chuan_bi_xong")
         with mock.patch.object(chung, "bay_gio", lambda: g.GIO_DANG - dt.timedelta(seconds=30)):
@@ -170,7 +170,7 @@ class TestGio(Khung):
         self.chay("chuan-bi")
         with mock.patch.object(chung, "bay_gio", lambda: g.GIO_DANG + dt.timedelta(days=1)):
             self.assertEqual(self.chay("cong-khai"), 1)
-        self.assertTrue(all(self.kenh[k].ck == 0 for k in ("fb", "ig", "threads", "youtube")))
+        self.assertTrue(all(self.kenh[k].ck == 0 for k in ("fb", "ig", "youtube")))
         self.assertEqual(self.kenh["tiktok"].hop, 0)
         with mock.patch.object(chung, "bay_gio", lambda: g.GIO_DANG + dt.timedelta(minutes=30)):
             self.assertEqual(self.chay("cong-khai"), 0)
@@ -202,7 +202,7 @@ class TestTaiSanDay(Khung):
         self.chay("chuan-bi")
         with mock.patch.object(chay.manifest, "tai_release", self._hong("bia-reels.jpg")):
             self.assertEqual(self.chay("cong-khai"), 3)
-        self.assertTrue(all(self.kenh[k].ck == 0 for k in ("fb", "ig", "threads", "youtube")))
+        self.assertTrue(all(self.kenh[k].ck == 0 for k in ("fb", "ig", "youtube")))
         self.assertEqual(self.kenh["tiktok"].hop, 0)
         self.assertEqual(self.cong.trang_thai("fb"), "bo")
 
@@ -479,7 +479,7 @@ class TestWorkflow(unittest.TestCase):
         job = lambda ten: re.search(rf"\n  {ten}:\n(.*?)(?=\n  [a-z-]+:\n|\Z)", y, re.S).group(1)
         self.assertNotIn("pages", re.search(r"needs:.*", job("chuan-bi-chung")).group(0))
         self.assertIn("--kenh fb,youtube", job("chuan-bi-chung"))
-        self.assertIn("--kenh ig,threads", job("chuan-bi-pages"))
+        self.assertIn("--kenh ig --dang", job("chuan-bi-pages"))   # 12/10: Threads het dang video
         self.assertRegex(job("chuan-bi-pages"), r"needs:.*pages")
         self.assertRegex(job("pages"), r"needs:.*kiem")      # deploy chi sau kiem noi dung
         self.assertIn("--pha kiem ", job("kiem"))

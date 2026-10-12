@@ -96,13 +96,13 @@ class Khung(unittest.TestCase):
 class TestChuanBiVaCongKhai(Khung):
     def test_luong_that_day_du(self):
         self.assertEqual(self.chay("chuan-bi"), 0)
-        for k in ("fb", "ig", "threads", "youtube"):
+        for k in ("fb", "ig", "youtube"):
             self.assertEqual(self.cong.trang_thai(k), "chuan_bi_xong")
             self.assertEqual(self.kenh[k].cb, 1)
         self.assertEqual(self.kenh["tiktok"].cb, 0)
         self.assertEqual(self.cong.dong[(NGAY, DANG, "ig", "that")]["id_container"], "ig-c")
         self.assertEqual(self.chay("cong-khai"), 0)
-        for k in ("fb", "ig", "threads", "youtube"):
+        for k in ("fb", "ig", "youtube"):
             self.assertEqual(self.cong.trang_thai(k), "da_dang")
             self.assertEqual(self.kenh[k].ck, 1)
             self.assertTrue(self.cong.dong[(NGAY, DANG, k, "that")]["gio_cong_khai"])
@@ -118,7 +118,7 @@ class TestChuanBiVaCongKhai(Khung):
         self.che_do = "thu"
         self.assertEqual(self.chay("chuan-bi"), 0)
         self.assertEqual(self.chay("cong-khai"), 0)
-        for k in ("fb", "ig", "threads", "youtube"):
+        for k in ("fb", "ig", "youtube"):
             self.assertEqual(self.kenh[k].ck, 0)
             self.assertEqual(self.cong.trang_thai(k, "thu"), "chuan_bi_xong")
         self.assertEqual(self.kenh["tiktok"].hop, 1)   # hop thu TikTok van thu
@@ -126,10 +126,10 @@ class TestChuanBiVaCongKhai(Khung):
     def test_giu_cho_lan_2_khong_dang_lai(self):
         self.chay("chuan-bi")
         self.chay("chuan-bi")
-        self.assertTrue(all(self.kenh[k].cb == 1 for k in ("fb", "ig", "threads", "youtube")))
+        self.assertTrue(all(self.kenh[k].cb == 1 for k in ("fb", "ig", "youtube")))
         self.chay("cong-khai")
         self.chay("cong-khai")
-        self.assertTrue(all(self.kenh[k].ck == 1 for k in ("fb", "ig", "threads", "youtube")))
+        self.assertTrue(all(self.kenh[k].ck == 1 for k in ("fb", "ig", "youtube")))
         self.assertEqual(self.kenh["tiktok"].hop, 1)
 
     def test_khong_ro_khong_dang_lai(self):
@@ -145,13 +145,13 @@ class TestChuanBiVaCongKhai(Khung):
         self.assertTrue(any("KHONG RO" in x[2] for x in self.ntfy if x[0] == "loi"))
 
     def test_loi_chuan_bi_la_that_bai_va_cho_thu_lai(self):
-        self.kenh["threads"].loi_cb = LoiDang("hong")
+        self.kenh["ig"].loi_cb = LoiDang("hong")   # 12/10: Threads het nam trong KENH -> doi sang ig
         self.assertEqual(self.chay("chuan-bi"), 1)
-        self.assertEqual(self.cong.trang_thai("threads"), "that_bai")
+        self.assertEqual(self.cong.trang_thai("ig"), "that_bai")
         self.assertEqual(self.cong.trang_thai("fb"), "chuan_bi_xong")
-        self.kenh["threads"].loi_cb = None
+        self.kenh["ig"].loi_cb = None
         self.chay("chuan-bi")
-        self.assertEqual(self.cong.trang_thai("threads"), "chuan_bi_xong")
+        self.assertEqual(self.cong.trang_thai("ig"), "chuan_bi_xong")
         self.assertEqual(self.kenh["fb"].cb, 1)
 
     def test_cong_khai_khi_chua_chuan_bi_thi_bao_loi_khong_dang(self):
@@ -201,12 +201,12 @@ class TestChuanBiVaCongKhai(Khung):
         self.assertEqual(self.cong.trang_thai("ig"), "bo")
         self.assertTrue(all(self.kenh[k].cb == 0 for k in self.kenh))
 
-    def test_url_cong_khai_hong_chi_ig_threads_dung(self):
+    def test_url_cong_khai_hong_chi_ig_dung(self):
         def hong(url, kieu="video/mp4", **k):
             raise LoiDang("404")
         with mock.patch.object(chay.site, "kiem_url", hong):
             self.assertEqual(self.chay("chuan-bi"), 1)
-        self.assertEqual(self.kenh["ig"].cb + self.kenh["threads"].cb, 0)
+        self.assertEqual(self.kenh["ig"].cb, 0)   # 12/10: chi con IG can URL cong khai
         self.assertEqual(self.cong.trang_thai("fb"), "chuan_bi_xong")
         self.assertEqual(self.cong.trang_thai("youtube"), "chuan_bi_xong")
 
@@ -220,13 +220,13 @@ class TestKiemGioVaGiaHan(Khung):
     def test_kiem_gio_bao_kenh_thieu(self):
         self.chay("chuan-bi")
         self.chay("cong-khai")
-        self.cong.dong[(NGAY, DANG, "threads", "that")]["trang_thai"] = "that_bai"
-        self.cong.dong[(NGAY, DANG, "threads", "that")]["loi"] = "container het han"
+        self.cong.dong[(NGAY, DANG, "youtube", "that")]["trang_thai"] = "that_bai"
+        self.cong.dong[(NGAY, DANG, "youtube", "that")]["loi"] = "container het han"
         del self.cong.dong[(NGAY, DANG, "ig", "that")]
         with mock.patch.object(chung, "bay_gio", lambda: g.GIO_DANG + dt.timedelta(minutes=16)):
             self.assertEqual(self.chay("kiem-gio"), 1)
         n = [x for x in self.ntfy if x[0] == "loi"][-1][2]
-        self.assertIn("Threads", n)
+        self.assertIn("YouTube", n)
         self.assertIn("container het han", n)
         self.assertIn("Instagram", n)
         self.assertNotIn("Facebook", n)
