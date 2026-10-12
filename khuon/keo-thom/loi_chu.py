@@ -58,9 +58,11 @@ NGOAI_LE_NOI={'Mortal Kombat 11':'Mortal Kombat mười một','Mafia: Definitiv
 # Ten giong AI (Minh Dang, eleven_v3) KHONG doc ro duoc -> chon-keo BO ung vien (12/10: 'Lies of P' -> Whisper turbo/small nghe 'Line Zoppy'/'live doc pi';
 # da thu 'Lies of Pi', 'Lai-do op Pi' van truot D3). Khoa = chu thuong, khop neu nam trong ten goc (moi phien ban). Them khi gap ten moi.
 TEN_KHO_DOC=('lies of p',)
+# Luat noi dung cua Hao (CLAUDE.md du an: 'KHONG dung hinh meo'): game ma nhan vat chinh la meo -> bo ung vien (12/10: Hello Kitty Island Adventure).
+TEN_BO_NOI_DUNG=('hello kitty',)
 def kho_doc(ten):
     g=' '+re.sub(r'\s+',' ',(ten or '').lower())+' '
-    return any(re.search(r'(?<![a-z0-9])'+re.escape(k)+r'(?![a-z0-9])',g) for k in TEN_KHO_DOC)
+    return any(re.search(r'(?<![a-z0-9])'+re.escape(k)+r'(?![a-z0-9])',g) for k in TEN_KHO_DOC+TEN_BO_NOI_DUNG)
 def ten_noi(t):
     """Ten de DOC: bo tien to so huu cach ('Marvel's Spider-Man 2' -> 'Spider-Man 2', nhu ban v8.3 da duyet), bo ':'."""
     g=gon_ten(t)

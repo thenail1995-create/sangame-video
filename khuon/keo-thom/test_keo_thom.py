@@ -175,3 +175,4 @@ class TenKhoDoc(unittest.TestCase):
         self.assertFalse(kho_doc('Lies of Pain'))
         self.assertFalse(kho_doc('Indiana Jones and the Great Circle'))
         self.assertFalse(kho_doc(None))
+        self.assertTrue(kho_doc('Hello Kitty Island Adventure'))   # luat khong hinh meo

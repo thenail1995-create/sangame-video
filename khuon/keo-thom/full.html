@@ -416,7 +416,7 @@ function datNoiDung(){
   $('title').innerHTML=(G.tien?esc(G.tien)+' ':'')+'<span class="hl" id="hl">'+esc(G.chinh)+'</span>';
   $('mini').textContent='SỐ '+so3+' · '+KEO.thang+'/'+KEO.nam;
   $('hdr6').children[0].textContent='Săn Game · Số '+so3;
-  $('chip1').innerHTML='<img src="'+V[0].co+'">PS STORE · '+esc(V[0].hien);
+  $('chip1').innerHTML='<img src="'+V[0].co+'">'+(V[0].hien.length<=2?'PS STORE · ':'')+esc(V[0].hien);   // 12/10: 'PS STORE · HỒNG KÔNG' chui duoi #sao (left 490) -> ten vung dai bo tien to
   document.querySelector('#rondeG textPath').textContent='KÈO THƠM • SĂN GAME • SỐ '+so3+' • ';
   $('saoIn').querySelector('b').innerHTML=G.giam+'<small>%</small>';
   $('saoNhoIn').querySelector('b').innerHTML=G.giam+'<small style="font-size:34px;vertical-align:18px">%</small>';
