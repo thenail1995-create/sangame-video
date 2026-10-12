@@ -110,7 +110,7 @@ def chuan_bi(tk, nc, luu):
     ket = {"id_tai": video_id}
     if nc.che_do == "thu":
         bia = _nap_bia(nc.tep("reels", "bia"))
-        f = _finish(tk, page, video_id, nc.caption_dai(), False)
+        f = _finish(tk, page, video_id, nc.caption_fb(), False)
         if f.get("success") is not True:
             raise chung.LoiDang("FB finish DRAFT khong thanh cong")
         ok, ly_do = _dat_bia(tk, video_id, bia)
@@ -135,7 +135,7 @@ def cong_khai(tk, nc, dong):
         video_id = _bat_dau_upload(tk, nc, page)
         nc.cong.cap_nhat_dang(nc.ngay, nc.dang, "fb", nc.che_do, id_tai=video_id)
     try:
-        f = _finish(tk, page, video_id, nc.caption_dai(), True)
+        f = _finish(tk, page, video_id, nc.caption_fb(), True)
         ok = f.get("success") is True
     except chung.LoiDang as e:
         if not e.khong_ro:

@@ -115,8 +115,8 @@ def tai_len(url_phien, du_lieu, tk, mime="video/mp4", toi_da_loi=5):
 def chuan_bi(tk, nc, luu):
     du_lieu = nc.tep("shorts").read_bytes()
     trang_thai = {"privacyStatus": "private", "selfDeclaredMadeForKids": False}
-    thong_tin = {"snippet": {"title": nc.loi_dang["tieu_de"][:100], "description": nc.mo_ta_youtube(),
-                        "categoryId": "20", "tags": [h.lstrip("#") for h in (nc.loi_dang.get("hashtag") or [])][:15]},
+    thong_tin = {"snippet": {"title": nc.tieu_de_youtube(), "description": nc.mo_ta_youtube(),
+                        "categoryId": "20", "tags": [h.lstrip("#") for h in nc.hashtags("ig")][:15]},
             "status": trang_thai}
     try:
         r = http.gui("POST", UPLOAD, timeout=60, params={"uploadType": "resumable", "part": "snippet,status"},
