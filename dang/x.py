@@ -82,7 +82,7 @@ def text_x(nc):
     """tieu_de + cau han + link game + hashtag, <= 280 theo do_dai_x. Thieu cho: bo cau han -> bot hashtag (tu cuoi) -> cat tieu de kem '…'."""
     ld = nc.loi_dang
     tieu_de, han, link = (ld.get("tieu_de") or "").strip(), _cau_han(ld.get("mo_ta")), _link_game(ld)
-    tags = nc.hashtags("x")   # <= 2: tag game + #PlayStation
+    tags = nc.hashtags("x", tieu_de, han)   # <= 2 tinh ca hashtag co san trong tieu de
     # thu tu bo: cau han truoc, roi hashtag (tu cuoi), cuoi cung cat tieu de
     ung_vien = [(han, len(tags))] + [("", n) for n in range(len(tags), -1, -1)]
     for h, n in ung_vien:

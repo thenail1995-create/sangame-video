@@ -217,5 +217,71 @@ class NhanSang(unittest.TestCase):
         self.assertIn("sáng nay", nc("keo-thom", gio=8, ld=ld).caption_fb())
 
 
+class SolSoi(unittest.TestCase):
+    def test_tieu_de_youtube_khong_rong(self):
+        for td in ("", "   ", "\n"):
+            ld = dict(LOI_DANG["keo-thom"], tieu_de=td)
+            c = nc("keo-thom", ld=ld)
+            self.assertEqual(c.tieu_de_youtube(), "Săn Game: tin giảm giá PlayStation hôm nay")
+            self.assertTrue(c.caption_tiktok().startswith("Săn Game: tin giảm giá"))
+        ld = dict(LOI_DANG["keo-thom"], tieu_de="https://sangame.com.vn/x")   # chi con URL
+        self.assertTrue(nc("keo-thom", ld=ld).tieu_de_youtube().strip())
+
+    def test_tran_hashtag_tinh_ca_hashtag_trong_tieu_de(self):
+        ld = dict(LOI_DANG["keo-thom"], tieu_de="#DRIVE Rally giảm 50%% ở PS Store Mỹ: còn 300.000đ #Racing")
+        c = nc("keo-thom", ld=ld)
+        for s, tran in ((c.caption_ig(), 5), (c.caption_tiktok(), 3), (c.mo_ta_youtube() + "\n" + c.tieu_de_youtube(), 3),
+                        (c.caption_fb(), 3), (x.text_x(c), 2)):
+            self.assertLessEqual(len(re.findall(r"#\w+", s)) - (1 if "#Shorts" in s else 0), tran, s)
+
+    def test_tag_trung_khong_them_lai(self):
+        ld = dict(LOI_DANG["keo-thom"], tieu_de="NINJA GAIDEN 2 Black giảm 60%% #playstation")
+        tags = nc("keo-thom", ld=ld).hashtags("ig", "NINJA GAIDEN 2 Black giảm 60%% #playstation")
+        self.assertNotIn("#PlayStation", tags)
+        self.assertEqual(len(tags), 4)
+
+    def test_tran_ve_0_khong_them_tag(self):
+        self.assertEqual(nc("top5").hashtags("x", "#A #B #C"), [])
+
+    def test_top5_re_nhat_la_game_gia_nho_nhat(self):
+        mo_ta = ("Top 5 game PlayStation bán chạy:\n1. Alpha - 290.000đ (-10%%, store Mỹ)\n2. Beta - 100.000đ (-80%%, store Mỹ)\n"
+                 "3. Gamma - 200.000đ (-50%%, store Mỹ)\n4. Delta - 150.000đ (-50%%, store Mỹ)\n5. Eps - 120.000đ (-50%%, store Mỹ)\n\n"
+                 "Deal sớm nhất hết lúc 21/10 21:59 (giờ VN).")
+        ld = dict(LOI_DANG["top5"], mo_ta=mo_ta)
+        c = nc("top5", ld=ld)
+        self.assertTrue(c._than()[0].startswith("Rẻ nhất: Beta - 100.000đ"), c._than())
+        self.assertNotIn("Alpha", c._than()[0])
+
+    def test_top5_khong_boc_duoc_gia_thi_dung_nhan_dung_dau(self):
+        ld = dict(LOI_DANG["top5"], mo_ta="Top 5:\n1. Alpha (giá chưa rõ)\n2. Beta - 100.000đ (-80%%)")
+        t = nc("top5", ld=ld)._than()[0]
+        self.assertTrue(t.startswith("Đứng đầu: Alpha"), t)
+        self.assertNotIn("Rẻ nhất", t)
+
+    def test_top5_manifest_that_re_nhat_van_la_mafia(self):
+        self.assertTrue(nc("top5")._than()[0].startswith("Rẻ nhất: Mafia III"))
+
+    def test_loc_url_tiktok_youtube_moi_dang(self):
+        bay = ("HTTP://SANGAME.COM.VN/a.html", "https://www.Sangame.com.vn/game-x.html?utm=1", "http://example.com/x", "www.sangame.com.vn/abc",
+               "sangame.com.vn/game-x.html", "sangame.com.vn", "Sangame.Com.VN/Game")
+        for u in bay:
+            ld = dict(LOI_DANG["keo-thom"], tieu_de=f"NINJA GAIDEN 2 Black giảm 60%% xem {u} nhé",
+                      mo_ta=f"NINJA GAIDEN 2 Black giảm 60%%. Xem giá ở 6 vùng PS Store: {u}.\nHoặc vào {u}, rất rẻ.")
+            c = nc("keo-thom", ld=ld)
+            for ten, v in (("tiktok", c.caption_tiktok()), ("yt_tt", c.tieu_de_youtube()), ("yt_mt", c.mo_ta_youtube()), ("ig", c.caption_ig())):
+                self.assertNotRegex(v, r"(?i)https?://|www\.|sangame\.com\.vn", (u, ten, v))
+        self.assertIn("web Săn Game (link ở bio)", nc("keo-thom").mo_ta_youtube())
+
+    def test_loc_url_giu_cau_tu_nhien(self):
+        self.assertEqual(chung.bo_url("Tra giá 6 vùng PS Store: https://sangame.com.vn/."),
+                         "Tra giá 6 vùng PS Store: web Săn Game (link ở bio).")
+        self.assertEqual(chung.bo_url("Xem tại sangame.com.vn/game-a.html, nhé"), "Xem tại web Săn Game (link ở bio), nhé")
+        self.assertEqual(chung.bo_url("khong co url"), "khong co url")
+        self.assertEqual(chung.bo_url("mail a@sangame.com.vn"), "mail a@sangame.com.vn")   # khong phai URL
+
+    def test_facebook_van_giu_url(self):
+        self.assertIn("https://sangame.com.vn/game-ninja-gaiden-2-black.html", nc("keo-thom").caption_fb())
+
+
 if __name__ == "__main__":
     unittest.main()
