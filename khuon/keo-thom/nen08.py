@@ -77,6 +77,19 @@ def lay(D,pool,tieu=0.6):
         if rest>=tieu: pool.append(dict(p,s0=p['s0']+d+0.3,len=rest))
         con=round(con-d,4)
     return out
+def cat_quanh(pool,xau_t,ban_kinh=0.6,tieu=0.6):
+    """12/10: KHONG bo ca doan trailer chua khung phang (trailer toi nhu Indiana Jones het doan) - chi cat [t-ban_kinh, t+ban_kinh]
+    quanh moi khung phang, giu 2 phan sang hai ben neu con >= tieu giay. xau_t = [(src, t)]."""
+    ra=[dict(p) for p in pool]
+    for src,t in xau_t:
+        moi=[]
+        for p in ra:
+            a,b=p['s0'],p['s0']+p['len']
+            if p['src']!=src or not (a-ban_kinh<=t<=b+ban_kinh): moi.append(p); continue
+            if t-ban_kinh-a>=tieu: moi.append(dict(p,s0=a,len=round(t-ban_kinh-a,3)))
+            if b-(t+ban_kinh)>=tieu: moi.append(dict(p,s0=round(t+ban_kinh,3),len=round(b-(t+ban_kinh),3)))
+        ra=moi
+    return ra
 def ke_hoach(H):
     """Tu dong: cac khe (theo moc canh trong neo.json) -> doan trailer. H = chieu cao mang net rong nhat (de do sang tren dung dai se dung)."""
     k=C; c3=C[3]; c4=C[4]+.25; c5=C[5]+.18
@@ -105,9 +118,9 @@ def ke_hoach(H):
     # 12/10 (Keo 15:00 run 38211238918): chi soi 1 khung GIUA doan -> canh toi phang o dau/cuoi doan lot vao nen, kiem cuoi bat (11,48 s 'mang mau phang').
     # Soi LAI tung mau da chon (dau/giua/cuoi); mau co khung phang -> bo doan trailer chua khung do, chon lai (toi da 4 vong).
     goc_pool=pool; xau_t=[]
-    for vong in range(4):
-        pool=[dict(p) for p in goc_pool if not any(x[0]==p['src'] and p['s0']-0.05<=x[1]<=p['s0']+p['len']+0.05 for x in xau_t)]
-        if sum(p['len'] for p in pool)<DAI+1: raise SystemExit('Sau khi bo doan co canh phang, trailer khong con du doan hop le — chon game khac')
+    for vong in range(8):
+        pool=cat_quanh(goc_pool,xau_t)
+        if sum(p['len'] for p in pool)<DAI+1: raise SystemExit('Sau khi bo canh phang, trailer khong con du doan hop le — chon game khac')
         ds={}
         for i in sorted(range(len(khe)),key=lambda i:-khe[i][1]):
             a,D=khe[i]
@@ -121,7 +134,7 @@ def ke_hoach(H):
                         moi.append((f,t)); print('  mau nen co canh phang',pathlib.Path(f).name,f'{t:.2f}s -> bo doan, chon lai'); break
         if not moi: break
         xau_t+=moi
-    else: raise SystemExit('Chon lai 4 vong van con mau nen co canh phang — can xem tay')
+    else: raise SystemExit('Chon lai 8 vong van con mau nen co canh phang — can xem tay')
     json.dump(dict(cuts=cuts,seg=[list(map(lambda v:v if not isinstance(v,pathlib.Path) else str(v),s)) for s in S]),open(KH,'w'),indent=1)
     return S
 if ND.exists():
