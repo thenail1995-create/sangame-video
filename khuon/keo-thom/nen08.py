@@ -102,11 +102,26 @@ def ke_hoach(H):
             else: sach.append(p)
     pool=sach
     if sum(p['len'] for p in pool)<DAI+1: raise SystemExit('Sau khi bo media xau (anh giu cho/man phang) trailer khong con du doan hop le — chon game khac')
-    ds={}
-    for i in sorted(range(len(khe)),key=lambda i:-khe[i][1]):
-        a,D=khe[i]
-        ds[i]=lay(D,pool)
-    S=[x for i in range(len(khe)) for x in ds[i]]
+    # 12/10 (Keo 15:00 run 38211238918): chi soi 1 khung GIUA doan -> canh toi phang o dau/cuoi doan lot vao nen, kiem cuoi bat (11,48 s 'mang mau phang').
+    # Soi LAI tung mau da chon (dau/giua/cuoi); mau co khung phang -> bo doan trailer chua khung do, chon lai (toi da 4 vong).
+    goc_pool=pool; xau_t=[]
+    for vong in range(4):
+        pool=[dict(p) for p in goc_pool if not any(x[0]==p['src'] and p['s0']-0.05<=x[1]<=p['s0']+p['len']+0.05 for x in xau_t)]
+        if sum(p['len'] for p in pool)<DAI+1: raise SystemExit('Sau khi bo doan co canh phang, trailer khong con du doan hop le — chon game khac')
+        ds={}
+        for i in sorted(range(len(khe)),key=lambda i:-khe[i][1]):
+            a,D=khe[i]
+            ds[i]=lay(D,pool)
+        S=[x for i in range(len(khe)) for x in ds[i]]
+        moi=[]
+        with tempfile.TemporaryDirectory() as td:
+            for f,s0,d,fz,xc,cr in S:
+                for t in sorted({round(s0+min(0.1,d/2),2),round(s0+d/2,2),round(s0+max(d-0.1,d/2),2)}):
+                    if media_xau.phang(media_xau.khung(f,t,os.path.join(td,'k.png'))):
+                        moi.append((f,t)); print('  mau nen co canh phang',pathlib.Path(f).name,f'{t:.2f}s -> bo doan, chon lai'); break
+        if not moi: break
+        xau_t+=moi
+    else: raise SystemExit('Chon lai 4 vong van con mau nen co canh phang — can xem tay')
     json.dump(dict(cuts=cuts,seg=[list(map(lambda v:v if not isinstance(v,pathlib.Path) else str(v),s)) for s in S]),open(KH,'w'),indent=1)
     return S
 if ND.exists():
