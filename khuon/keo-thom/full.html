@@ -236,15 +236,15 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:transparent;font
     <!-- bia sau -->
     <div id="hdr6" class="a nho"><span>Săn Game · Số 001</span><span>Trang 04 · Bìa sau</span></div>
     <div id="ke6" class="a ke" style="top:532px"></div>
-    <div id="b6a" class="a pf"><span id="x1">Tra</span> <span id="x2">giá</span> <span id="x3">mọi</span> <span id="x4">game</span></div>
-    <div id="b6b" class="a">ở 6 vùng PS Store</div>
+    <div id="b6a" class="a pf"><span id="x1">Theo</span> <span id="x2">dõi</span> <span id="x3">Săn</span> <span id="x4">Game</span></div>
+    <div id="b6b" class="a">để không lỡ kèo nào nha</div>
     <div id="chips" class="a">
       <div style="background:#C8372D"><b>SG</b></div><div style="background:#23948D"><b>HK</b></div><div style="background:#E3A82B;color:#1C1512"><b>IN</b></div>
       <div style="background:#1C1512"><b>ID</b></div><div style="background:#C8372D"><b>US</b></div><div style="background:#23948D"><b>TH</b></div>
     </div>
     <div id="url" class="a"><svg width="52" height="52" viewBox="0 0 52 52" style="flex:none"><path d="M6 26h32M24 11l15 15-15 15" stroke="#E3A82B" stroke-width="8" fill="none"/></svg><span class="chu"><span id="urlc"></span><span class="con" id="con"></span></span></div>
     <div id="logoW" class="a"><img src="logo.svg"></div>
-    <div id="b6c" class="a"><div class="k">Kèo thơm mỗi ngày</div><div class="d">Theo dõi kênh để không lỡ<br>đợt giảm giá nào</div></div>
+    <div id="b6c" class="a"><div class="k">Kèo thơm mỗi ngày</div><div class="d">Giảm giá game PlayStation<br>so giá nhiều vùng</div></div>
   </div>
 </div>
 
@@ -363,7 +363,9 @@ TA.bd=M.han.giam2-.06;               // bang lat so bat dau xao
 TA.so=KEO.han.hhmm.replace(':','');
 TA.goc=fmtK(GOC);                   // chu so dem luc bat dau (am08.py tim khung so bat dau doi)
 TA.chot=[0,1,2,3].map(function(i){return M.han.truoc+.05+.08*i});
-TA.url=M.ket.tra+.27; TA.chips=M.ket.tra+.47; TA.b6b=M.ket.tra+.57; TA.logo=M.ket.san+.24; TA.b6c=M.ket.san+.39;
+// v10 (12/10): doan `ket` = «Theo dõi Săn Game để không lỡ kèo nào nha!» — tieu de x1..x4 theo chu theo/doi/san/game; dong nghieng b6b vao cung chu `de`; ten kenh @sangamecomvn go tu chu `de` den gan chu `nha`
+TA.url=M.ket.theo+.27; TA.chips=M.ket.theo+.47; TA.b6b=M.ket.de-.05; TA.logo=M.ket.san+.24; TA.b6c=M.ket.san+.39;
+TA.kenhA=M.ket.de; TA.kenhB=M.ket.nha+.15;       // go chu @sangamecomvn: bat dau / het (am08.py doc so chu da hien tren khung)
 // moc kiem canh gioi thieu: SAU khi moi chu da hien xong (chu cuoi + 0,5 s) va truoc khi the bay di
 var gl=0; for(var an in KBM.gioi.neo)gl=Math.max(gl,M.gioi[an]);
 TA.moc=[C[1]-.16,TA.dut-.05,Math.min(Math.max(M.gioi.e+.02,gl+.5),TA.ra3-.05),C[4]-.2,M.han.e,DAI-.32].map(function(x){return Math.round(x*100)/100});   // 6 moc soi anh / so SSIM
@@ -511,14 +513,13 @@ function ve(t){
   if(bs){
     op($('hdr6'),p(t,C[5]+.35,.3));
     $('ke6').style.width=(768*eo(p(t,C[5]+.45,.4)))+'px';
-    var xs=[M.ket.tra,M.ket.gia,M.ket.moi,M.ket.game];
+    var xs=[M.ket.theo,M.ket.doi,M.ket.san,M.ket.game];
     for(var i=0;i<4;i++){var e=$('x'+(i+1)),q=p(t,xs[i]-.06,.3);op(e,q);tf(e,'translateY('+((1-eo5(q))*50)+'px)')}
     var q6=p(t,TA.b6b,.35); op($('b6b'),q6); $('b6b').style.clipPath='inset(0 '+(100-eo(q6)*100)+'% 0 0)';
     var ch=$('chips').children; for(var i=0;i<6;i++){var d=dau(t,TA.chips+i*.06,1.8);op(ch[i],d?1:0);if(d)tf(ch[i],'translateX('+d[1]*.4+'px) scale('+d[0]+') rotate('+[-3,2,-2,3,-1,2][i]+'deg)')}
     var u=p(t,TA.url,.3); op($('url'),u); tf($('url'),'translateY('+((1-eo5(u))*40)+'px)');
-    var s='';var a1=M.ket.san,a2=M.ket.cham1,a3=M.ket.vi;
-    var n1=Math.floor(cl((t-a1)/.42)*7),n2=Math.floor(cl((t-a2)/.24)*4),n3=Math.floor(cl((t-a3)/.2)*3);
-    s='sangame'.slice(0,n1)+'.com'.slice(0,n2)+'.vn'.slice(0,n3); $('urlc').textContent=s;
+    var KENH='@sangamecomvn',a1=TA.kenhA,a3=TA.kenhB;
+    var n1=Math.floor(cl((t-a1)/(a3-a1))*KENH.length); $('urlc').textContent=KENH.slice(0,n1);
     op($('con'),(Math.floor(t*2.4)%2===0||(t>=a1&&t<a3+.25))?1:0);
     var lg=dau(t,TA.logo,1.9); op($('logoW'),lg?1:0); if(lg)tf($('logoW'),'translateX('+lg[1]*.5+'px) scale('+lg[0]+') rotate(-6deg)');
     var b6=p(t,TA.b6c,.4); op($('b6c'),b6); tf($('b6c'),'translateX('+((1-eo5(b6))*60)+'px)');

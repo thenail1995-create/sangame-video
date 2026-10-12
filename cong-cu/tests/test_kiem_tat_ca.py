@@ -146,14 +146,15 @@ class D3TheoLuatKhuon(unittest.TestCase):      # Sol vong 2b #11/#12 o CAP SCRIP
     def test_top5_bo_cau_giam_gia_hoac_vung_thi_truot(self):
         for k,moi,dau in (('h2','Hạn 2, mô tù con bát 11 chỉ 136.000.','PHAN TRAM'),('h5','Hạng năm, still rising còn 112.000.','PHAN TRAM'),('h4','Hạng 4, ao last giảm 75% 133.000.','VUNG'),('h1','Và hãng 1, Mafia bản nắm lại 167.000.','VUNG')):
             r=self.top5(dict(self.H5,**{k:moi})); self.assertFalse(r[1],(k,r)); self.assertIn(dau,r[2],(k,r[2]))
-    def keo(self,heard):
+    def keo(self,heard,kieu=None):
         VN=datetime.timezone(datetime.timedelta(hours=7)); het=datetime.datetime(2026,10,22,13,59,tzinfo=VN)
         V=[dict(ma='US',vnd=560000),dict(ma='HK',vnd=1209000),dict(ma='SG',vnd=1319000)]
         KEO=dict(game=dict(ten='Returnal™ Digital Deluxe Edition',giam=75),goc_vnd=2240000,con_vnd=560000,vung=V,gioi_thieu=gioi_mau())
         sys.path.insert(0,str(ROOT/'khuon'/'keo-thom'))
-        try: return chay_d3('keo-thom','# 5d) D3 (B2)','# 5c) NEN',dict(KEO=KEO,_G=KEO['game'],_V=V,_h=het,_nd=datetime.date(2026,10,11),_kb=dict(doan=[dict(k=k,loi=v) for k,v in heard.items()])),heard,['mo','gia','gioi','dap','han'])[0]
+        try: return chay_d3('keo-thom','# 5d) D3 (B2)','# 5c) NEN',dict(KEO=KEO,_G=KEO['game'],_V=V,_h=het,_nd=datetime.date(2026,10,11),_kb=dict(doan=[dict(k=k,loi=v,**({'kieu':kieu} if (k=='mo' and kieu) else {})) for k,v in heard.items()])),heard,['mo','gia','gioi','dap','han'])[0]
         finally: sys.path.remove(str(ROOT/'khuon'/'keo-thom'))
-    HK={'mo':'Returno Digital Deluxe Edition đang giảm 75% trên PS to Mỹ nè.','gia':'Từ hơn 2 triệu 2 giờ còn có 560.000 thôi','gioi':'Game bắn súng roguelike, chết là chơi lại từ đầu, chơi chung online được, người chơi chấm 4.4 trên 5 sao. Bản Deluxe có thêm 2 vũ khí với vật phẩm dùng sớm, ảnh đại diện và nhạc phim.',
+    KL='Hợp với ai thích thể loại này.'      # Keo v10 B: gioi_mau diem 4,4 / 27.172 luot -> nhanh «hop voi ai thich»
+    HK={'mo':'Returno Digital Deluxe Edition đang giảm 75% trên PS to Mỹ nè.','gia':'Từ hơn 2 triệu 2 giờ còn có 560.000 thôi','gioi':'Game bắn súng roguelike, chết là chơi lại từ đầu, chơi chung online được, người chơi chấm 4.4 trên 5 sao. Bản Deluxe có thêm 2 vũ khí với vật phẩm dùng sớm, ảnh đại diện và nhạc phim. '+KL,
         'dap':'Store Mỹ đáng rẻ nhất, rẻ hơn Hồng Kông 650, rẻ hơn Sinh 706.','han':'Nhưng mà nhanh tay nha, hết giảm trước 2h chiều ngày 22 tháng 10, cha dám!'}
     def test_keo_cau_that_dat(self):
         r=self.keo(self.HK); self.assertTrue(r[1],r)
@@ -165,23 +166,48 @@ class D3TheoLuatKhuon(unittest.TestCase):      # Sol vong 2b #11/#12 o CAP SCRIP
                           ('dap','Store Mỹ đang đắt hơn Hồng Kông 650, rẻ hơn Sinh 706.','CHIEU SO SANH')):
             r=self.keo(dict(self.HK,**{k:moi})); self.assertFalse(r[1],(k,r)); self.assertIn(dau,r[2],(k,r[2]))
     def test_keo_gioi_diem_sai_hoac_thieu_phan_them_thi_truot(self):      # doan `gioi` (11/10): diem sao phai nghe DUNG 4,4 ('4.4' / '4,4' / 'bốn phẩy bốn' deu duoc); thieu phan them bat buoc -> truot
-        for ok in ('Game bắn súng roguelike, chơi chung online được, người chơi chấm 4,4 trên 5 sao. Bản Deluxe có thêm hai vũ khí với vật phẩm dùng sớm, ảnh đại diện và nhạc phim.',
-                   'Game bắn súng roguelike, chơi chung online được, người chơi chấm bốn phẩy bốn trên năm sao. Bản Delux có thêm 2 vũ khí với vật phẩm dùng sớm, ảnh đại diện và nhạc phim.'):
+        for ok in ('Game bắn súng roguelike, chơi chung online được, người chơi chấm 4,4 trên 5 sao. Bản Deluxe có thêm hai vũ khí với vật phẩm dùng sớm, ảnh đại diện và nhạc phim. '+self.KL,
+                   'Game bắn súng roguelike, chơi chung online được, người chơi chấm bốn phẩy bốn trên năm sao. Bản Delux có thêm 2 vũ khí với vật phẩm dùng sớm, ảnh đại diện và nhạc phim. '+self.KL):
             r=self.keo(dict(self.HK,gioi=ok)); self.assertTrue(r[1],r)
-        for k,moi,dau in (('gioi','Game bắn súng roguelike, chơi chung online được, người chơi chấm 4.5 trên 5 sao. Bản Deluxe có thêm 2 vũ khí với vật phẩm dùng sớm, ảnh đại diện và nhạc phim.','DIEM SAO'),
+        for k,moi,dau in (('gioi','Game bắn súng roguelike, chơi chung online được, người chơi chấm 4.5 trên 5 sao. Bản Deluxe có thêm 2 vũ khí với vật phẩm dùng sớm, ảnh đại diện và nhạc phim. '+self.KL,'DIEM SAO'),
                           ('gioi','Game bắn súng roguelike, chơi chung online được, người chơi chấm 4.4 trên 5 sao.','TU KHOA phan them'),
-                          ('gioi','Game bắn súng, người chơi chấm 4.4 trên 5 sao. Bản Deluxe có thêm 2 vũ khí với vật phẩm dùng sớm, ảnh đại diện và nhạc phim.','TU KHOA')):
+                          ('gioi','Game bắn súng, người chơi chấm 4.4 trên 5 sao. Bản Deluxe có thêm 2 vũ khí với vật phẩm dùng sớm, ảnh đại diện và nhạc phim. '+self.KL,'TU KHOA')):
             r=self.keo(dict(self.HK,**{k:moi})); self.assertFalse(r[1],(k,r)); self.assertIn(dau,r[2],(k,r[2]))
 
-    GOOD='Game bắn súng roguelike, chết là chơi lại từ đầu, chơi chung online được, người chơi chấm 4.4 trên 5 sao. Bản Deluxe có thêm 2 vũ khí với vật phẩm dùng sớm, ảnh đại diện và nhạc phim.'
+    GOOD='Game bắn súng roguelike, chết là chơi lại từ đầu, chơi chung online được, người chơi chấm 4.4 trên 5 sao. Bản Deluxe có thêm 2 vũ khí với vật phẩm dùng sớm, ảnh đại diện và nhạc phim. '+KL
     def test_p2_d3_so_luong_dung_som_che_do_edition_phu_dinh_thang_diem(self):      # Sol 11/10: moi bien the SAI phai TRUOT
         self.assertTrue(self.keo(dict(self.HK,gioi=self.GOOD))[1])
         for ten,moi,dau in (('so luong',self.GOOD.replace('2 vũ khí','9 vũ khí'),'SO LUONG'),('thieu dung som',self.GOOD.replace(' dùng sớm',''),'DUNG SOM'),
                             ('che do',self.GOOD.replace('chơi chung online được','chơi chung trên một máy'),'TU KHOA'),('edition',self.GOOD.replace('Bản Deluxe','Bản Standard'),'TU'),
-                            ('phu dinh','Game bắn súng roguelike, chơi chung online được, người chơi chấm 4.4 trên 5 sao. Bản Deluxe không có thêm vũ khí, vật phẩm, ảnh đại diện và nhạc phim.','PHU DINH'),
+                            ('phu dinh','Game bắn súng roguelike, chơi chung online được, người chơi chấm 4.4 trên 5 sao. Bản Deluxe không có thêm vũ khí, vật phẩm, ảnh đại diện và nhạc phim. '+self.KL,'PHU DINH'),
                             ('thang 10',self.GOOD.replace('trên 5 sao','trên 10 sao'),'DIEM SAO'),
                             ('phien ban',self.GOOD.replace('chấm 4.4 trên 5 sao','chấm 4.5 sao, phiên bản 4.4'),'DIEM SAO')):
             r=self.keo(dict(self.HK,gioi=moi)); self.assertFalse(r[1],(ten,r)); self.assertIn(dau,r[2],(ten,r[2]))
+    # ---- Keo v10 (12/10): cau mo tinh huong (tien / sao theo GIA TRI) + cau ket luan cuoi doan gioi ----
+    MO_VAL='Returno Digital Deluxe Edition đang giảm 75% trên PS to Mỹ nè.'
+    def test_v10_mo_so_gia_khong_doc_tien_nen_khong_kiem_tien(self):     # Opus 12/10: cau mo kieu 1 chi giu cum so sanh, KHONG doc so tien (gia con nam o doan `gia`)
+        cau='Chưa bằng một bữa lẩu cho bốn người, mà mua được game này nè. '
+        r=self.keo(dict(self.HK,mo=cau+self.MO_VAL),kieu='so_gia'); self.assertTrue(r[1],r)
+        r=self.keo(dict(self.HK,mo='Rẻ hơn một ly trà sữa, mà mua được game này nè. '+self.MO_VAL),kieu='so_gia'); self.assertTrue(r[1],r)
+        r=self.keo(dict(self.HK,mo=cau+self.MO_VAL)); self.assertTrue(r[1],r)      # kich-ban cu khong ghi `kieu`
+    def test_v10_mo_so_gia_sao_va_so_sao_doc_diem_dung_gia_tri(self):     # gioi_mau diem 4,4
+        g='Chưa bằng một bữa lẩu cho bốn người, mà mua được một game bốn phẩy bốn sao nè. '
+        r=self.keo(dict(self.HK,mo=g+self.MO_VAL),kieu='so_gia_sao'); self.assertTrue(r[1],r)
+        r=self.keo(dict(self.HK,mo=g.replace('bốn phẩy bốn','4,4')+self.MO_VAL),kieu='so_gia_sao'); self.assertTrue(r[1],r)
+        for ten,moi in (('sao sai',g.replace('bốn phẩy bốn','bốn phẩy tám')),('sao nguyen sai',g.replace('bốn phẩy bốn','năm')),('mat sao','Chưa bằng một bữa lẩu cho bốn người, mà mua được game này nè. ')):
+            r=self.keo(dict(self.HK,mo=moi+self.MO_VAL),kieu='so_gia_sao'); self.assertFalse(r[1],(ten,r)); self.assertIn('SAO (cau mo)',r[2],(ten,r[2]))
+        r=self.keo(dict(self.HK,mo='Game bốn phẩy bốn sao mà giờ giảm sâu nè. '+self.MO_VAL),kieu='so_sao'); self.assertTrue(r[1],r)
+        r=self.keo(dict(self.HK,mo='Game bốn phẩy chín sao mà giờ giảm sâu nè. '+self.MO_VAL),kieu='so_sao'); self.assertFalse(r[1],r); self.assertIn('SAO (cau mo)',r[2])
+    def test_v10_mo_giam_sau_phan_tram_trong_cau_mo_van_phai_dung(self):
+        r=self.keo(dict(self.HK,mo='Giảm bảy mươi lăm phần trăm, kèo này hiếm nha. '+self.MO_VAL),kieu='giam_sau'); self.assertTrue(r[1],r)
+        r=self.keo(dict(self.HK,mo='Giảm sáu mươi phần trăm, kèo này hiếm nha. Returno Digital Deluxe Edition đang giảm trên PS to Mỹ nè.'),kieu='giam_sau'); self.assertFalse(r[1],r); self.assertIn('PHAN TRAM',r[2])
+    def test_v10_ket_luan_bat_buoc_dung_nhanh_va_cam_nhanh_khac(self):
+        sau='Game bắn súng roguelike, chết là chơi lại từ đầu, chơi chung online được, người chơi chấm 4.4 trên 5 sao. Bản Deluxe có thêm 2 vũ khí với vật phẩm dùng sớm, ảnh đại diện và nhạc phim.'
+        r=self.keo(dict(self.HK,gioi=sau)); self.assertFalse(r[1],r); self.assertIn('hop voi ai thich the loai nay',r[2])            # thieu ket luan
+        r=self.keo(dict(self.HK,gioi=sau+' Hợp với ai thích thể loại nầy.')); self.assertTrue(r[1],r)                                   # Whisper sai dau thanh: van dat
+        for sai in ('Với giá này thì đáng mua.','Chỉ nên mua nếu bạn thật sự thích game này.'):
+            r=self.keo(dict(self.HK,gioi=sau+' '+self.KL+' '+sai)); self.assertFalse(r[1],(sai,r)); self.assertIn('TU CAM',r[2],(sai,r[2]))   # doc nham nhanh khac
+            r=self.keo(dict(self.HK,gioi=sau+' '+sai)); self.assertFalse(r[1],(sai,r))
     def test_p1_d1_khong_sap_khi_diem_ban_the_loai_none(self):      # khoi so sanh D1 THAT trong kiem-tat-ca.py
         src=KIEM('keo-thom').read_text(encoding='utf-8'); a=src.index("_cs=lambda"); b=src.index("\n",a); g=dict(re=__import__('re')); exec(src[a:b].split(';')[-1].strip() if False else src[a:b],g)
         i=src.index("nd=d.get('noiDung',{}); sai=[]"); j=src.index("if not okk: sai.append",i); j=src.index("\n",j)

@@ -125,9 +125,9 @@ for i in range(4): cu(chot(i)-SOM,'go',-6,400+110*i+(30 if i>1 else 0),f'o so {i
 cu(nhanh_nhat(C[5]-0.07,C[5]+0.58),'lat2',+1,540,'trang bia sau phu xuong (khung phu nhanh nhat)')
 for i in range(6): dap(f'chip{i}','dau',-5,182+126*i,f'o vung {i+1}')
 go=doi('url',lambda a,b:b>a)
-for j,t in enumerate(go): cu(t-SOM,'go' if j%2 else 'go2',-7,420,f'go chu thu {j+1} sangame.com.vn (khung chu hien)')
+for j,t in enumerate(go): cu(t-SOM,'go' if j%2 else 'go2',-7,420,f'go chu thu {j+1} @sangamecomvn (khung chu hien)')
 dap('logoW','dap',-6,240,'logo dan len')
-cu(max(go[-1]+0.03,M['ket']['en_e']+0.02),'chuong',0,700,'chuong may chu khi go xong .vn — sau chu "en" de khong de len giong')
+cu(max(go[-1]+0.03,M['ket']['nha_e']+0.02),'chuong',0,700,'chuong may chu khi go xong @sangamecomvn — sau chu "nha" de khong de len giong')
 
 # Thi nghiem (doi chung): BO="lat:4.0-4.6,gach:4.5-4.8" -> bo cac cu trong cua so do (khong dung khi dung that)
 import os

@@ -255,3 +255,63 @@ def cum_mo(ngay_dang,dang):
     if dang not in KHUNG_KEO or not ngay_dang: return CUM_MO[0]
     n=datetime.date.fromisoformat(str(ngay_dang)[:10]).toordinal()
     return CUM_MO[(3*n+KHUNG_KEO[dang])%len(CUM_MO)]
+
+# ================= KHUON KEO v10 (Hao chot 12/10/2026, ke-hoach-noi-dung/01-quyet-dinh-va-ke-hoach-keo-v10.md) =================
+# Quyet dinh nen tang: moi video phai TRA LOI cau nguoi xem hoi (mua o dau re nhat / co dang mua khong / ban nao) va MO bang cau TINH HUONG
+# (Facebook goc: "them thong tin moi hoac phan tich"; YouTube YPP "inauthentic"). Hai thay doi chu trong khung doan co dinh mo · gia · gioi · dap · han · ket:
+#   A. CAU MO TINH HUONG (thay cum cam than): 3 kieu xoay theo (ngay, khung) — so gia voi mon quen · so sao · giam sau; khong du dieu kien -> cum cam than cu (CUM_MO).
+#   B. CAU KET LUAN cuoi doan `gioi` (khong so moi), nhanh theo diem + so luot.
+#   C. doan `ket` doi thanh «Theo doi Săn Game de khong lo keo nao nha!» (kich-ban.py).
+# KHONG goi AI: moi cau la khuon co dinh + so lay tu keo.json. Moi so trong cau mo phai qua D3 (kiem-tat-ca.py 5d: tien / sao / phan tram, so theo GIA TRI).
+# Bang nguong so gia (con_vnd, DONG TIEN CON LAI): <= moc dau tien khop. > moc cuoi cung (600.000) -> khong dung kieu nay.
+# (v10, Opus duyet 12/10: cau mo KHONG doc so tien — gia con da nam o doan `gia`; chi giu cum so sanh, chon theo con_vnd.)
+BANG_SO_GIA=((45000,'Rẻ hơn một ly trà sữa'),(110000,'Chưa bằng một vé xem phim'),(600000,'Chưa bằng một bữa lẩu cho bốn người'))
+SAO_TOI_THIEU_SO_GIA=4.0      # kieu 1 chi nhac "mot game X sao" khi diem >= 4,0 (diem da lam tron 1 chu so, cung so voi cau gioi thieu)
+SAO_KIEU_SAO=4.5; LUOT_KIEU_SAO=200       # kieu 2: diem >= 4,5 va >= 200 luot
+GIAM_KIEU_GIAM_SAU=50                     # kieu 3: giam >= 50%
+KIEU_MO=('so_gia','so_sao','giam_sau')    # thu tu xoay; fallback: kieu uu tien -> 2 kieu con lai theo vong -> cum cam than (CUM_MO)
+def kieu_uu_tien(ngay_dang,dang):
+    """Kieu uu tien theo (ngay, khung) = (so_ngay + thu_tu_khung) % 3: 3 khung CUNG NGAY ra 3 kieu KHAC nhau; CUNG KHUNG hom sau sang kieu ke tiep (khac hom truoc).
+    Khong biet khung / khong co ngay -> None (hanh vi cu: cum cam than)."""
+    if dang not in KHUNG_KEO or not ngay_dang: return None
+    return (datetime.date.fromisoformat(str(ngay_dang)[:10]).toordinal()+KHUNG_KEO[dang])%3
+def _diem_lam_tron(diem):
+    """diem = gioi_thieu['diem'] (tb, so_luot) hoac None -> (r lam tron 1 chu so, so_luot) | (None,0)."""
+    if not diem or diem.get('tb') is None: return None,0
+    return lam_tron_diem(diem['tb']),int(diem.get('so_luot') or 0)
+def _hop_le_kieu(k,con_vnd,giam,diem):
+    r,luot=_diem_lam_tron(diem)
+    if k=='so_gia': return con_vnd is not None and 1000<=con_vnd<=BANG_SO_GIA[-1][0]
+    if k=='so_sao': return r is not None and r>=SAO_KIEU_SAO and luot>=LUOT_KIEU_SAO
+    if k=='giam_sau': return giam is not None and giam>=GIAM_KIEU_GIAM_SAU
+    return False
+def cau_mo(ngay_dang,dang,con_vnd,giam,diem):
+    """CAU MO doan `mo`, dung TRUOC ten game, KHONG chua tu `đang` (D3 5b cat ten game tai `đang` dau tien). -> dict(kieu, loi, ky_vong).
+    kieu: 'so_gia' (so sanh gia con voi mon quen, KHONG doc so tien) | 'so_gia_sao' (nhu tren + «mot game X sao») | 'so_sao' | 'giam_sau' | 'cum' (cum cam than CUM_MO, giu khoa `em`).
+    ky_vong = {'tien':[] (v10: cau mo khong doc tien), 'sao':[diem], 'phan_tram':[giam]} — cac so xuat hien trong cau mo (D3 doc theo GIA TRI)."""
+    r,_=_diem_lam_tron(diem); p=kieu_uu_tien(ngay_dang,dang)
+    if p is not None:
+        for k in [KIEU_MO[(p+i)%3] for i in range(3)]:
+            if not _hop_le_kieu(k,con_vnd,giam,diem): continue
+            if k=='so_gia':
+                ss=next(c for m,c in BANG_SO_GIA if con_vnd<=m); co_sao=r is not None and r>=SAO_TOI_THIEU_SO_GIA
+                cau=f"{ss}, mà mua được "+(f"một game {noi_diem(r)} sao" if co_sao else 'game này')+" nè."
+                kv={'tien':[],'sao':[r] if co_sao else [],'phan_tram':[]}
+                return dict(kieu='so_gia_sao' if co_sao else 'so_gia',loi=cau,ky_vong=kv)
+            if k=='so_sao': return dict(kieu='so_sao',loi=f"Game {noi_diem(r)} sao mà giờ giảm sâu nè.",ky_vong={'tien':[],'sao':[r],'phan_tram':[]})
+            return dict(kieu='giam_sau',loi=f"Giảm {so_chu(giam)} phần trăm, kèo này hiếm nha.",ky_vong={'tien':[],'sao':[],'phan_tram':[int(giam)]})
+    return dict(kieu='cum',loi=cum_mo(ngay_dang,dang),ky_vong={'tien':[],'sao':[],'phan_tram':[]})
+
+# ---------- CAU KET LUAN cuoi doan `gioi` (B). Tham so theo DIEM DA LAM TRON (nhu video noi) + so luot. Khong so moi.
+KET_LUAN_DANG_MUA='Với giá này thì đáng mua.'
+KET_LUAN_HOP='Hợp với ai thích thể loại này.'
+KET_LUAN_CAN_NHAC='Chỉ nên mua nếu bạn thật sự thích game này.'
+KET_LUAN_ALL=(KET_LUAN_DANG_MUA,KET_LUAN_HOP,KET_LUAN_CAN_NHAC)
+def ket_luan(diem):
+    """diem = gioi_thieu['diem'] hoac None. r>=4,5 va luot>=200 -> dang mua · 4,0<=r<4,5 va luot>=50 -> hop voi ai thich · con lai (r<4,0, luot<50, khong co diem) -> chi nen mua neu thich.
+    LUU Y: gioi_thieu_tu_trang bo `diem` khi luot < MIN_LUOT (200) nen nhanh luot 50..199 chi chay khi chon-keo ghi diem voi luot thap (hien chua)."""
+    r,luot=_diem_lam_tron(diem)
+    if r is None: return KET_LUAN_CAN_NHAC
+    if r>=4.5 and luot>=200: return KET_LUAN_DANG_MUA
+    if 4.0<=r<4.5 and luot>=50: return KET_LUAN_HOP
+    return KET_LUAN_CAN_NHAC

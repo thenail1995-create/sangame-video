@@ -301,4 +301,19 @@ class Vong2b(unittest.TestCase):        # Sol soi ban sua (vong 2b) - moi diem 1
         ok,sd,nd=ns.kiem_ngay('','',hoi_quy=True); self.assertTrue(ok); self.assertIn('hoi quy',sd); self.assertIsNone(nd)
         self.assertEqual(ns.ngay_tu_ddmm('10/10','Thứ Bảy',datetime.date(2026,10,12)),datetime.date(2026,10,10)); self.assertIsNone(ns.ngay_tu_ddmm('abc')); self.assertEqual(ns.ngay_tu_ddmm('31/12',None,datetime.date(2026,10,12)),datetime.date(2026,12,31))
 
+class DocSaoCauMoKeoV10(unittest.TestCase):
+    """Keo v10: diem sao nhac trong CAU MO («mot game bon phay tam sao»), khong co «cham ... tren 5 sao»; so theo gia tri."""
+    def test_doc_sao(self):
+        for s,v in (('mà mua được một game bốn phẩy tám sao nè',[4.8]),('Game 4,8 sao mà giờ giảm sâu nè',[4.8]),('một game bốn sao nè',[4.0]),('game 5 sao',[5.0]),('Game bốn phẩy năm sao',[4.5]),
+                    ('Game 4.5 sao',[4.5]),('không có sao',[]),('Giảm bảy mươi lăm phần trăm',[])):
+            self.assertEqual(sorted(set(ns.doc_sao(s))),v,s)
+    def test_doi_chieu_sao(self):
+        self.assertEqual(ns.doi_chieu('một game bốn phẩy tám sao nè',sao=[4.8]),[])
+        self.assertEqual(len(ns.doi_chieu('một game bốn phẩy chín sao nè',sao=[4.8])),1); self.assertIn('SAO (cau mo)',ns.doi_chieu('game này nè',sao=[4.8])[0])
+    def test_tu_khoa_gioi_ket_luan(self):
+        tk=ns.tu_khoa_gioi({},ket_luan=('Với giá này thì đáng mua.',['Hợp với ai thích thể loại này.','Chỉ nên mua nếu bạn thật sự thích game này.']))
+        self.assertEqual(ns.doi_chieu('Game hành động. Với giá này thì đáng mua.',tu_khoa=tk),[])
+        self.assertTrue(ns.doi_chieu('Game hành động.',tu_khoa=tk)); self.assertTrue(ns.doi_chieu('Game hành động. Với giá này thì đáng mua. Hợp với ai thích thể loại này.',tu_khoa=tk))
+        self.assertEqual(ns.tu_khoa_gioi({})['bat_buoc'],[])     # khong truyen ket_luan -> hanh vi cu
+
 if __name__=='__main__': unittest.main()

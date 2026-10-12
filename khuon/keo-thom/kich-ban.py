@@ -4,10 +4,12 @@
 # (cung chi so), full.html lay moc theo KHOA doan + ten moc (`moc(k)`), am08.py/nen08.py dung chung. Khong con chi so tuyet doi W(n) (v9).
 # 11/10 (Hao: "nen noi 1 chut ve game nay, hay do ra sao, ban deluxe la ban ntn; k can hoi them la mua o store khac co re hon khong"): bo doan hoi-dap `hoi`,
 # them doan `gioi` (the loai + dac diem · diem sao · phan them cua ban dac biet) lay 100% tu keo.json.gioi_thieu (chon-keo.py ← trang PS Store); `dap` thanh cau so vung KHONG hoi-dap.
+# v10 (12/10, Hao chot 01-quyet-dinh-va-ke-hoach-keo-v10.md): `mo` mo bang CAU TINH HUONG (loi_chu.cau_mo: so gia · so sao · giam sau; khong du dieu kien -> cum cam than cu); `gioi` them CAU KET LUAN cuoi
+# (loi_chu.ket_luan); `ket` = «Theo doi Săn Game de khong lo keo nao nha!» (thay cau tra gia). Khoa doan mo/gia/gioi/dap/han/ket giu nguyen. kich-ban.json.doan[mo].kieu = kieu cau mo (D3 doc de biet so nao phai nghe).
 import datetime,json,pathlib,sys
 T=pathlib.Path(__file__).resolve().parent; sys.path.insert(0,str(T))
 import os
-from loi_chu import so_chu,nghin,noi_goc,noi_chenh,noi_han,ten_noi,VUNG,ghep_them,cum_mo
+from loi_chu import so_chu,nghin,noi_goc,noi_chenh,noi_han,ten_noi,VUNG,ghep_them,cau_mo,ket_luan
 KEO=json.load(open(sys.argv[1] if len(sys.argv)>1 else T/'keo.json'))
 VN=datetime.timezone(datetime.timedelta(hours=7))
 class Doan:
@@ -47,20 +49,25 @@ def doan_gioi(gt):
         for i,(truoc,cum,dau) in enumerate(ghep_them(ban['them'])):
             if truoc: d.noi(truoc)
             d.noi(cum,f'i{i+1}',sau=dau)
+    d.noi(ket_luan(gt.get('diem')))    # v10 B: cau ket luan cuoi doan (khong so, khong khoa neo)
     return d
 if not (GT.get('the_loai') or GT.get('dac_diem') or GT.get('diem') or GT.get('ban')): raise SystemExit('gioi_thieu rong — khong dung cau doan mo')
 def mo_dau(d):
-    """Cum cam than dau doan `mo` (loi_chu.cum_mo, theo ngay + khung env DANG); tu `em` giu khoa 'em' (full.html giat nhe o do). KHONG chua `đang`."""
-    for w in cum_mo(KEO.get('ngay_dang'),os.environ.get('DANG')).split():
-        d.noi(w,'em' if w.lower().strip('!?.,…')=='em' else None)
+    """Cau mo doan `mo` (loi_chu.cau_mo, theo ngay + khung env DANG + du lieu keo.json). KHONG chua `đang`. Khoa `em` (full.html giat nhe o do): cum cam than cu giu o tu `em`;
+    cau tinh huong v10 khong co tu `em` nen gan khoa `em` cho TU THU HAI (cung nhip ~0,3-0,5 s sau tu dau nhu cum cu)."""
+    cm=cau_mo(KEO.get('ngay_dang'),os.environ.get('DANG'),KEO['con_vnd'],KEO['game']['giam'],GT.get('diem'))
+    ws=cm['loi'].split(); d.kieu=cm['kieu']
+    for i,w in enumerate(ws):
+        em=(w.lower().strip('!?.,…')=='em') if cm['kieu']=='cum' else (i==min(1,len(ws)-1))
+        d.noi(w,'em' if em else None)
     return d
 DS=[mo_dau(Doan('mo').the('excited')).noi(ten,'ten').noi('đang').noi('giảm','giam').noi(giam).noi('phần trăm trên').noi('PS','ps').noi('Store').noi(A,'vung').noi('nè!'),
     Doan('gia').the('gasps').noi('Từ '+tt).noi(cum,'g1','g2',sau='…').the('whispers').noi('giờ','gio').noi('còn có…').the('excited').noi(nghin(KEO['con_vnd'])+' thôi!','gia','thoi'),
     doan_gioi(GT),
     Doan('dap').noi('Store').noi(A,'a2').noi('đang').noi('rẻ','re1').noi('nhất,').noi('rẻ','rb').noi('hơn').noi(B,'b2').noi(chB+',','chb').noi('rẻ','re2').noi('hơn').noi(C,'c2').noi(chC+'.','chc'),
     Doan('han').the('serious').noi('Nhưng mà').noi('nhanh','nhanh').noi('tay','tay').noi('nha,','nha').noi('hết','het').noi('giảm','giam2').noi('trước','truoc').noi(han+'.'),
-    Doan('ket').the('excited').noi('Tra','tra').noi('giá','gia').noi('mọi','moi').noi('game','game').noi('ở').noi('Săn','san').noi('Game').noi('chấm','cham1').noi('com').noi('chấm').noi('vi','vi').noi('en!','en')]
+    Doan('ket').the('excited').noi('Theo','theo').noi('dõi','doi').noi('Săn','san').noi('Game','game').noi('để','de').noi('không').noi('lỡ').noi('kèo').noi('nào').noi('nha!','nha')]
 loi=' '.join(' '.join(d.van) for d in DS)
 (T/'loi.txt').write_text(loi,encoding='utf-8')
-json.dump(dict(doan=[dict(k=d.k,loi=' '.join(d.toks),neo=d.neo) for d in DS]),open(T/'kich-ban.json','w'),ensure_ascii=False,indent=1)
+json.dump(dict(doan=[dict(k=d.k,loi=' '.join(d.toks),neo=d.neo,**({'kieu':d.kieu} if hasattr(d,'kieu') else {})) for d in DS]),open(T/'kich-ban.json','w'),ensure_ascii=False,indent=1)
 print(loi); print(len(loi),'ky tu;',sum(len(d.toks) for d in DS),'tu')
