@@ -223,6 +223,9 @@ for k,ky in _ky.items():
     if k not in NS.KEO_PHAN_TRAM: ky.pop('phan_tram',None)
     if k not in NS.KEO_VUNG: ky.pop('vung',None); ky.pop('cap',None)
     _sai+=[f'{k} {x}' for x in NS.doi_chieu(heard[k],kiem_ten=False,**ky)]
+    if k=='mo' and _kieu_mo=='giam_sau':    # Keo v10 (Sol P1): cau mo kieu 3 doc phan tram -> MOI lan nghe phan tram trong doan mo phai = giam (75% ma cau mo doc 60% -> TRUOT)
+        _pt_sai=sorted({p for p,_ in NS.doc_phan_tram(heard[k]) if p!=_G['giam']})
+        if _pt_sai: _sai.append(f"mo PHAN TRAM LAN KHAC: nghe duoc {_pt_sai} ≠ giam {_G['giam']}% («{heard[k][:70]}»)")
     if k=='mo':
         _ok,TEN_BO,_ly=NS.ten_hai_bo(ky['ten'][0],{'turbo':heard[k],'small':heard_s.get(k)})
         if not _ok: _sai.append(f"mo TEN «{ky['ten'][0]}»: {_ly}")

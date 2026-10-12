@@ -201,6 +201,16 @@ class D3TheoLuatKhuon(unittest.TestCase):      # Sol vong 2b #11/#12 o CAP SCRIP
     def test_v10_mo_giam_sau_phan_tram_trong_cau_mo_van_phai_dung(self):
         r=self.keo(dict(self.HK,mo='Giảm bảy mươi lăm phần trăm, kèo này hiếm nha. '+self.MO_VAL),kieu='giam_sau'); self.assertTrue(r[1],r)
         r=self.keo(dict(self.HK,mo='Giảm sáu mươi phần trăm, kèo này hiếm nha. Returno Digital Deluxe Edition đang giảm trên PS to Mỹ nè.'),kieu='giam_sau'); self.assertFalse(r[1],r); self.assertIn('PHAN TRAM',r[2])
+    def test_v10_mo_giam_sau_moi_lan_phan_tram_phai_bang_giam(self):      # Sol P1: du lieu 75% ma cau mo doc 60% -> TRUOT, du doan sau co 75%
+        r=self.keo(dict(self.HK,mo='Giảm sáu mươi phần trăm, kèo này hiếm nha. '+self.MO_VAL),kieu='giam_sau'); self.assertFalse(r[1],r); self.assertIn('PHAN TRAM LAN KHAC',r[2])
+        r=self.keo(dict(self.HK,mo='Giảm 60%, kèo này hiếm nha. '+self.MO_VAL),kieu='giam_sau'); self.assertFalse(r[1],r); self.assertIn('PHAN TRAM LAN KHAC',r[2])
+        r=self.keo(dict(self.HK,mo='Giảm 75%, kèo này hiếm nha. '+self.MO_VAL),kieu='giam_sau'); self.assertTrue(r[1],r)
+        r=self.keo(dict(self.HK,mo='Game bốn phẩy bốn sao mà giờ giảm sâu nè. Returno Digital Deluxe Edition đang giảm 60% trên PS to Mỹ nè.'),kieu='so_sao'); self.assertFalse(r[1],r)    # 60% o cau chinh: truot nhu cu (khong co 75%)
+    def test_v10_ket_luan_phu_dinh_truot(self):      # Sol P1
+        sau='Game bắn súng roguelike, chết là chơi lại từ đầu, chơi chung online được, người chơi chấm 4.4 trên 5 sao. Bản Deluxe có thêm 2 vũ khí với vật phẩm dùng sớm, ảnh đại diện và nhạc phim. '
+        for moi in (sau+'Không hợp với ai thích thể loại này.',sau+'Chẳng hợp với ai thích thể loại này.'):
+            r=self.keo(dict(self.HK,gioi=moi)); self.assertFalse(r[1],r); self.assertIn('PHU DINH',r[2])
+        self.assertTrue(self.keo(dict(self.HK,gioi=sau+self.KL))[1])
     def test_v10_ket_luan_bat_buoc_dung_nhanh_va_cam_nhanh_khac(self):
         sau='Game bắn súng roguelike, chết là chơi lại từ đầu, chơi chung online được, người chơi chấm 4.4 trên 5 sao. Bản Deluxe có thêm 2 vũ khí với vật phẩm dùng sớm, ảnh đại diện và nhạc phim.'
         r=self.keo(dict(self.HK,gioi=sau)); self.assertFalse(r[1],r); self.assertIn('hop voi ai thich the loai nay',r[2])            # thieu ket luan
