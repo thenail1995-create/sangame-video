@@ -16,7 +16,8 @@ from .chung import LoiDang
 from .so import Cong, LoiCong
 
 GIO = {"tin-nhanh": "07:30", "top5": "12:00", "keo-thom-2": "15:00", "keo-thom": "20:00", "keo-thom-3": "22:00"}
-KENH = ("fb", "ig", "threads", "youtube", "tiktok", "x")   # x = Buffer, khong co token/danh tinh sg_token (khong nam trong MOD/KHOA_DICH)
+KENH = ("fb", "ig", "youtube", "tiktok", "x")   # x = Buffer, khong co token/danh tinh sg_token (khong nam trong MOD/KHOA_DICH)
+# 12/10/2026 (Hao chot): Threads THOI dang lai video; Threads chi con bai chu rieng (dang/threads_chu.py) + gia han token (pha_gia_han). MOD/KHOA_DICH/TEN van giu threads.
 MOD = {"fb": fb, "ig": ig, "threads": threads, "youtube": yt, "tiktok": tiktok}
 KHOA_DICH = {"fb": "page_id", "ig": "ig_user_id", "threads": "threads_user_id", "youtube": "channel_id", "tiktok": "open_id"}
 TEN = {"fb": "Facebook", "ig": "Instagram", "threads": "Threads", "youtube": "YouTube", "tiktok": "TikTok", "x": "X"}

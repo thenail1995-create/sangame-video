@@ -1,0 +1,65 @@
+name: Threads bai chu
+# 12/10/2026 (Hao chot): Threads thoi dang lai video; moi ngay 2 bai CHU viet rieng (dang/threads_chu.py).
+#   09:30 VN (02:30 UTC) = sang, chi chu, nguon manifest tin-nhanh
+#   17:00 VN (10:00 UTC) = chieu, co anh bia, nguon manifest keo-thom-2
+# Khong can DATA_DEPLOY_KEY (doc manifest Release). Token Threads o Supabase qua cong sg-cong.
+on:
+  schedule:
+    - cron: "30 2 * * *"
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+    inputs:
+      loai:
+        description: "sang hoac chieu"
+        required: true
+        type: choice
+        options: [sang, chieu]
+      ngay:
+        description: "Ngay DANG (gio VN) YYYY-MM-DD. De trong = hom nay gio VN"
+        required: false
+        type: string
+      che_do:
+        required: true
+        type: choice
+        options: [thu, that]
+permissions: {}
+concurrency:
+  group: threads-chu-${{ github.event.schedule == '30 2 * * *' && 'sang' || github.event.schedule == '0 10 * * *' && 'chieu' || inputs.loai }}
+  queue: max
+jobs:
+  dang:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+      - name: Dang bai chu Threads
+        env:
+          SG_CONG_KHOA: ${{ secrets.SG_CONG_KHOA }}
+          NTFY_TIN: ${{ secrets.NTFY_TIN }}
+          NTFY_BAO_LOI: ${{ secrets.NTFY_BAO_LOI }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          SCHEDULE: ${{ github.event.schedule }}
+          LOAI_IN: ${{ inputs.loai }}
+          NGAY: ${{ inputs.ngay }}
+          CHE_DO_IN: ${{ inputs.che_do }}
+        run: |
+          set -euo pipefail
+          case "$SCHEDULE" in
+            "30 2 * * *") LOAI=sang; CHE_DO=that ;;
+            "0 10 * * *") LOAI=chieu; CHE_DO=that ;;
+            *) LOAI="$LOAI_IN"; CHE_DO="$CHE_DO_IN" ;;
+          esac
+          NGAY="${NGAY:-$(TZ=Asia/Ho_Chi_Minh date +%F)}"
+          [[ "$NGAY" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "ngay sai dinh dang"; exit 1; }
+          [[ "$LOAI" =~ ^(sang|chieu)$ ]] || { echo "loai sai"; exit 1; }
+          [[ "$CHE_DO" =~ ^(thu|that)$ ]] || { echo "che_do sai"; exit 1; }
+          python -m dang.threads_chu --loai "$LOAI" --ngay "$NGAY" --che-do "$CHE_DO"

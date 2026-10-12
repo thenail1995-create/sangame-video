@@ -168,7 +168,7 @@ jobs:
           DANG_BU_GIO: ${{ inputs.gio_bu }}
         run: python -m dang.chay --pha chuan-bi --kenh fb,youtube --dang "$DANG" --ngay "${NGAY:-$(TZ=Asia/Ho_Chi_Minh date +%F)}" --che-do "$CHE_DO"
 
-  # IG + Threads: can URL cong khai tren Pages
+  # IG: can URL cong khai tren Pages (Threads het dang video tu 12/10 - xem threads-chu.yml)
   chuan-bi-pages:
     if: inputs.pha == 'chuan-bi'
     needs: [kiem, pages]
@@ -183,7 +183,7 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.13"
-      - name: Chuan bi IG + Threads
+      - name: Chuan bi IG
         env:
           SG_CONG_KHOA: ${{ secrets.SG_CONG_KHOA }}
           NTFY_TIN: ${{ secrets.NTFY_TIN }}
@@ -195,7 +195,7 @@ jobs:
           DANG: ${{ inputs.dang }}
           CHE_DO: ${{ inputs.che_do }}
           DANG_BU_GIO: ${{ inputs.gio_bu }}
-        run: python -m dang.chay --pha chuan-bi --kenh ig,threads --dang "$DANG" --ngay "${NGAY:-$(TZ=Asia/Ho_Chi_Minh date +%F)}" --che-do "$CHE_DO"
+        run: python -m dang.chay --pha chuan-bi --kenh ig --dang "$DANG" --ngay "${NGAY:-$(TZ=Asia/Ho_Chi_Minh date +%F)}" --che-do "$CHE_DO"
 
   cong-khai:
     if: inputs.pha == 'cong-khai'
