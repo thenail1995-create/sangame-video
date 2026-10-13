@@ -17,6 +17,7 @@ def doc_chenh(c):
     """Cau noi_chenh -> VND (dang test): 'năm chục', 'một trăm hai', 'một trăm rưỡi', 'một triệu ba', 'một triệu rưỡi', 'một triệu ba trăm mười nghìn'."""
     w=c.split()
     if 'chục' in w: return doc_so_chu(' '.join(w[:-1]))*10000
+    if w[-1]=='nghìn' and 'triệu' not in w: return doc_so_chu(' '.join(w[:-1]))*1000   # 13/10: duoi 100k doc day du 'chín mươi nghìn'
     if 'triệu' in w:
         i=w.index('triệu'); tr=doc_so_chu(' '.join(w[:i])); phan=w[i+1:]
         if not phan: return tr*1000000
@@ -34,7 +35,7 @@ class NoiChenh(unittest.TestCase):
     def test_phan_du_chan_tram_nghin_van_noi_tat(self):
         for v,c in ((1000000,'một triệu'),(1300000,'một triệu ba'),(1500000,'một triệu rưỡi'),(2000000,'hai triệu'),(2900000,'hai triệu chín')): self.assertEqual(lc.noi_chenh(v),c)
     def test_duoi_mot_trieu_khong_doi(self):
-        for v,c in ((50000,'năm chục'),(120000,'một trăm hai'),(150000,'một trăm rưỡi'),(300000,'ba trăm'),(110000,'một trăm mười')): self.assertEqual(lc.noi_chenh(v),c)
+        for v,c in ((50000,lc.nghin(50000)),(120000,'một trăm hai'),(150000,'một trăm rưỡi'),(300000,'ba trăm'),(110000,'một trăm mười')): self.assertEqual(lc.noi_chenh(v),c)
     def test_bang_10k_den_3_trieu_doc_nguoc_ra_dung_so(self):
         for v in range(10000,3000001,10000):
             c=lc.noi_chenh(v); self.assertEqual(doc_chenh(c),v,(v,c))

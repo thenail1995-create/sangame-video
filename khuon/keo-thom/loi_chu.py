@@ -32,7 +32,7 @@ def noi_goc(vnd):
 def noi_chenh(vnd):
     """Chenh lech tien noi mieng, lam tron CHUC nghin: 51.000 -> 'năm chục'; 120.000 -> 'một trăm hai'; 150.000 -> 'một trăm rưỡi'; 300.000 -> 'ba trăm'."""
     n=max(1,int(vnd/10000+0.5))
-    if n<10: return so_chu(n)+' chục'
+    if n<10: return nghin(n*10000)   # 13/10 Keo 22:00 (run 38405501278): 'chín chục' -> Whisper nghe '9 trụng' -> D3 9.000đ truot; doc day du 'chín mươi nghìn' (ro hon cho nguoi xem)
     if n>=100:   # tu 1 trieu tro len: phan du CHAN tram nghin noi tat ("mot trieu ba", "mot trieu ruoi"); phan du le -> doc DAY DU bang nghin() (Sol bcd #16)
         tr,r=divmod(n,100)
         if r%10: return nghin(n*10000)   # 1.310.000 -> 'một triệu ba trăm mười nghìn' (truoc day bi doc hut thanh 'một triệu')
