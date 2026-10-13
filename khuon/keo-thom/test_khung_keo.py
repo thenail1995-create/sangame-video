@@ -218,3 +218,107 @@ class KetLuanVaDoanKet(unittest.TestCase):
         doan,_=chay_kich_ban(ngay(0),'keo-thom'); neo=next(d for d in doan if d['k']=='ket')['neo']
         for m in re.findall(r"M\.ket\.(\w+)",h)+re.findall(r"M\['ket'\]\['(\w+)'\]",a):
             if m not in ('s','e'): self.assertIn(m[:-2] if m.endswith('_e') else m,neo,m)    # s / e = bat dau / het doan
+
+import importlib.util as _iu,types
+_spg=_iu.spec_from_file_location('gt_g3',str(T.parent.parent/'cong-cu'/'gia_trang.py')); GTMOD=_iu.module_from_spec(_spg); _spg.loader.exec_module(GTMOD)
+PID_SNIPER='UP4363-PPSA01685_00-SNIPERELITE500CE'
+def GTMOD_trang(ngon_ngu):
+    """Trang PS Store toi gian cua Sniper Elite 5 (gia + thong bao that, ngon ngu tuy chon)."""
+    cta={f'GameCTA:ADD_TO_CART:ADD_TO_CART:UP4363-PPSA01685_00-SNIPERELITE500CE-U001:OUTRIGHT':{'price':{'basePrice':'$59.99','discountedPrice':'$17.99','basePriceValue':5999,'discountedValue':1799,'currencyCode':'USD','endTime':'1792594740000'}}}
+    prod={f'Product:{PID_SNIPER}':{'id':PID_SNIPER,'screenLanguages':ngon_ngu,'descriptions':[{'type':'COMPATIBILITY_NOTICE','value':'PS\xa0Plus required for online play<br/>Online play optional<br/>Supports up to 16 online players with PS Plus'}]}}
+    return ''.join('<script id="env:x" type="application/json">'+json.dumps({'cache':c})+'</script>' for c in (cta,prod))
+
+
+# ================= BIET TRUOC KHI MUA (G3 13/10): cau chen cuoi `gioi` truoc ket luan; chon-keo lay trang vung re nhat =================
+BT_DU=dict(screenLanguages=['en','es','ja'],spokenLanguages=['en'],online='tuy_chon',can_plus_online=True,so_nguoi_online=16,mua_them=True)
+def chay_kich_ban_bt(ngay_dang,dang,bt,diem=None,ban=None,the_loai=True):
+    keo=dict(ngay_dang=ngay_dang,game=dict(ten='Sniper Elite 5',giam=70),goc_vnd=1650000,con_vnd=495000,vung=[dict(ma='US',vnd=495000),dict(ma='HK',vnd=560000),dict(ma='SG',vnd=640000)],
+             han=dict(endTime=int(datetime.datetime(2026,10,20,12,0,tzinfo=datetime.timezone.utc).timestamp()*1000)),
+             gioi_thieu=dict(the_loai=[dict(vi='bắn súng')] if the_loai else [],dac_diem=[],diem=diem,ban=ban),biet_truoc=bt)
+    if bt is None: keo.pop('biet_truoc')
+    with tempfile.TemporaryDirectory() as d:
+        d=pathlib.Path(d)
+        for f in ('kich-ban.py','loi_chu.py'): (d/f).write_text((T/f).read_text(encoding='utf-8'),encoding='utf-8')
+        (d/'keo.json').write_text(json.dumps(keo,ensure_ascii=False),encoding='utf-8')
+        env=dict(os.environ); env.pop('DANG',None)
+        if dang: env['DANG']=dang
+        r=subprocess.run([sys.executable,str(d/'kich-ban.py'),str(d/'keo.json')],capture_output=True,text=True,cwd=d,env=env)
+        if r.returncode: raise AssertionError(r.stderr[-800:]+r.stdout[-300:])
+        return json.load(open(d/'kich-ban.json'))['doan'],(d/'loi.txt').read_text(encoding='utf-8')
+class BietTruocLoi(unittest.TestCase):
+    def test_du_bang_chung_ra_ba_cau_ung_vien_thieu_thi_khong_cau(self):
+        self.assertEqual([c['kieu'] for c in lc.cac_cau_biet_truoc(BT_DU)],['phu_de','online','so_nguoi'])
+        for bt in (None,{},dict(screenLanguages=None,online=None,can_plus_online=None,so_nguoi_online=None)): self.assertEqual(lc.cac_cau_biet_truoc(bt),[],bt)
+        self.assertEqual(lc.cau_biet_truoc(None,ngay(0),'keo-thom'),[])
+    def test_phu_de_co_chua_va_khong_du_ngon_ngu(self):
+        self.assertEqual(lc.phu_de_viet(dict(screenLanguages=['vi','en'])),'co'); self.assertEqual(lc.phu_de_viet(dict(screenLanguages=['en'])),'chua'); self.assertEqual(lc.phu_de_viet(dict(screenLanguages=['en_US','ja'])),'chua')
+        self.assertIsNone(lc.phu_de_viet(dict(screenLanguages=['ja','ko']))); self.assertIsNone(lc.phu_de_viet(dict(screenLanguages=[]))); self.assertIsNone(lc.phu_de_viet(dict(screenLanguages=None)))   # khong co en -> khong noi «co tieng Anh»
+        self.assertEqual([c['loi'] for c in lc.cac_cau_biet_truoc(dict(screenLanguages=['vi']))],[lc.CAU_PHU_DE_CO]); self.assertEqual([c['loi'] for c in lc.cac_cau_biet_truoc(dict(screenLanguages=['en']))],[lc.CAU_PHU_DE_CHUA])
+    def test_online_chi_khi_du_bang_chung(self):
+        self.assertEqual(lc.che_do_online(BT_DU),'tuy_chon'); self.assertEqual(lc.che_do_online(dict(online='bat_buoc',can_plus_online=True)),'bat_buoc')
+        for bt in (dict(online='tuy_chon',can_plus_online=None),dict(online='tuy_chon',can_plus_online=False),dict(online='khong',can_plus_online=True),dict(online=None,can_plus_online=True),dict(can_plus_online=True)): self.assertIsNone(lc.che_do_online(bt),bt)
+        self.assertEqual([c['loi'] for c in lc.cac_cau_biet_truoc(dict(online='tuy_chon',can_plus_online=True))],[lc.CAU_ONLINE_TUY_CHON]); self.assertEqual([c['loi'] for c in lc.cac_cau_biet_truoc(dict(online='bat_buoc',can_plus_online=True))],[lc.CAU_ONLINE_BAT_BUOC])
+    def test_so_nguoi_chi_khi_tu_2_va_co_online(self):
+        for n,mong in ((16,16),(2,2),(1,None),(0,None),(None,None),(True,None),(100,None)): self.assertEqual(lc.so_nguoi_online(dict(BT_DU,so_nguoi_online=n)),mong,n)
+        self.assertIsNone(lc.so_nguoi_online(dict(BT_DU,can_plus_online=None)))    # khong ro online -> khong noi so nguoi
+        self.assertEqual([c['loi'] for c in lc.cac_cau_biet_truoc(BT_DU)][-1],'Chơi online được tối đa mười sáu người.')
+    def test_toi_da_2_cau_va_xoay_theo_ngay_khung(self):
+        da=set()
+        for i in range(0,60):
+            for k in KHUNG:
+                r=lc.cau_biet_truoc(BT_DU,ngay(i),k); self.assertEqual(len(r),2,(ngay(i),k)); self.assertEqual(len({c['kieu'] for c in r}),2); da.add(tuple(c['kieu'] for c in r))
+                self.assertEqual(r,lc.cau_biet_truoc(BT_DU,ngay(i),k))                       # tat dinh
+            self.assertEqual(len({tuple(c['kieu'] for c in lc.cau_biet_truoc(BT_DU,ngay(i),k)) for k in KHUNG}),3,ngay(i))       # 3 khung cung ngay ra 3 cap khac nhau (3 ung vien)
+        self.assertEqual(da,{('phu_de','online'),('online','so_nguoi'),('so_nguoi','phu_de')})
+        self.assertEqual(len(lc.cau_biet_truoc(dict(screenLanguages=['en']),ngay(0),'keo-thom')),1)
+        self.assertEqual([c['kieu'] for c in lc.cau_biet_truoc(BT_DU,ngay(0),None)],['phu_de','online'])      # khung la -> vi tri 0
+        hai=dict(screenLanguages=['en'],online='bat_buoc',can_plus_online=True)
+        self.assertEqual({tuple(c['kieu'] for c in lc.cau_biet_truoc(hai,ngay(i),'keo-thom')) for i in range(6)},{('phu_de','online'),('online','phu_de')})       # 2 ung vien: doi thu tu
+    def test_cau_khong_mang_phan_tram_vung_diem_sao_cho_d3(self):      # doan gioi khong doi chieu tien (doc_tien co the doc «mot minh ... PS» thanh 1.000d nhung D3 gioi khong co ky vong tien)
+        for c in (lc.CAU_PHU_DE_CO,lc.CAU_PHU_DE_CHUA,lc.CAU_ONLINE_TUY_CHON,lc.CAU_ONLINE_BAT_BUOC,'Chơi online được tối đa mười sáu người.'):
+            self.assertEqual(NS.doc_phan_tram(c),[],c); self.assertEqual(NS.doc_vung(c),[],c); self.assertEqual(NS.doc_diem_cham(c),[],c); self.assertEqual(NS.doc_sao(c),[],c)
+    def test_kich_ban_chen_cuoi_gioi_truoc_ket_luan_giu_6_khoa_va_neo(self):
+        goc,loi0=chay_kich_ban_bt(ngay(0),'keo-thom',None,diem=D(4.37,3000))
+        self.assertEqual([d['k'] for d in goc],['mo','gia','gioi','dap','han','ket'])
+        for dang in KHUNG+(None,):
+            doan,loi=chay_kich_ban_bt(ngay(0),dang,BT_DU,diem=D(4.37,3000))
+            self.assertEqual([d['k'] for d in doan],['mo','gia','gioi','dap','han','ket'])
+            g=next(d for d in doan if d['k']=='gioi'); g0=next(d for d in goc if d['k']=='gioi'); cau=lc.cau_biet_truoc(BT_DU,ngay(0),dang)
+            self.assertEqual(g['bt'],[c['kieu'] for c in cau]); self.assertTrue(g['loi'].endswith(' '.join(c['loi'] for c in cau)+' '+lc.KET_LUAN_HOP),g['loi'])    # cau moi NGAY TRUOC ket luan, ket luan van cuoi doan
+            for k,v in g0['neo'].items(): self.assertEqual(g['neo'][k],v,k)                                                                      # moi neo cu giu nguyen chi so
+            ws=g['loi'].split(); self.assertEqual(ws[g['neo']['bt1']],cau[0]['loi'].split()[0]); self.assertEqual(ws[g['neo']['bt2']],cau[1]['loi'].split()[0]); self.assertEqual(g['neo']['bt2'],g['neo']['bt1']+len(cau[0]['loi'].split()))
+            self.assertEqual(g['loi'].split()[:len(g0['loi'].split())-len(lc.KET_LUAN_HOP.split())],g0['loi'].split()[:-len(lc.KET_LUAN_HOP.split())])    # phan truoc khong doi
+            for d in doan:
+                if d['k']!='gioi': self.assertNotIn('bt',d); self.assertEqual(d['loi'],next(x for x in goc if x['k']==d['k'])['loi'],d['k']) if d['k'] in ('gia','dap','han','ket') else None
+    def test_thieu_bang_chung_thi_kich_ban_nhu_cu_khong_co_bt(self):
+        goc,loi0=chay_kich_ban_bt(ngay(0),'keo-thom',None,diem=D(4.37,3000))
+        for bt in (dict(online='tuy_chon',can_plus_online=None),dict(screenLanguages=None),{}):
+            doan,loi=chay_kich_ban_bt(ngay(0),'keo-thom',bt,diem=D(4.37,3000)); self.assertEqual(loi,loi0); g=next(d for d in doan if d['k']=='gioi'); self.assertNotIn('bt',g); self.assertNotIn('bt1',g['neo'])
+    def test_mot_cau_chi_neo_bt1(self):
+        doan,_=chay_kich_ban_bt(ngay(0),'keo-thom',dict(screenLanguages=['vi','en']),diem=D(4.5,500)); g=next(d for d in doan if d['k']=='gioi')
+        self.assertEqual(g['bt'],['phu_de']); self.assertIn('bt1',g['neo']); self.assertNotIn('bt2',g['neo']); self.assertTrue(g['loi'].endswith(lc.CAU_PHU_DE_CO+' '+lc.KET_LUAN_DANG_MUA))
+    def test_ky_vong_d3_tinh_lai_tu_keo_json_khong_tin_kich_ban(self):
+        self.assertEqual(lc.biet_truoc_ky_vong(BT_DU,['phu_de','online','so_nguoi']),[('phu_de','chua'),('ps_plus','tuy_chon'),('so_nguoi',16)])
+        self.assertEqual(lc.biet_truoc_ky_vong(dict(screenLanguages=['vi']),['phu_de']),[('phu_de','co')])
+        self.assertEqual(lc.biet_truoc_ky_vong({},['phu_de','online','so_nguoi','la']),[('phu_de',None),('ps_plus',None),('so_nguoi',None),('la',None)])    # kich-ban doc cau ma keo.json thieu -> None -> D3 truot
+        self.assertEqual(lc.biet_truoc_ky_vong(BT_DU,None),[])
+    def test_the_hinh_khop_cau_da_doc(self):
+        self.assertEqual(lc.the_biet_truoc(BT_DU,['phu_de','online','so_nguoi']),['PHỤ ĐỀ VIỆT ✗','ONLINE CẦN PS PLUS','TỐI ĐA 16 NGƯỜI ONLINE'])
+        self.assertEqual(lc.the_biet_truoc(dict(screenLanguages=['vi'],online='bat_buoc',can_plus_online=True),['online','phu_de']),['PHẢI ONLINE + PS PLUS','PHỤ ĐỀ VIỆT ✓'])
+        self.assertEqual(lc.the_biet_truoc({},['phu_de','x']),['?phu_de','?x']); self.assertEqual(lc.the_biet_truoc(BT_DU,None),[])
+    def test_full_html_co_the_theo_cau_da_doc_va_moc_bt(self):
+        h=(T/'full.html').read_text(encoding='utf-8')
+        for cu in ('id="gtT1"','id="gtT2"','id="gtT3"','function theBT()',"d.k==='gioi'",'GT.T[gi]',"G_['bt'+i]","'PHỤ ĐỀ VIỆT '","'ONLINE CẦN PS PLUS'","'PHẢI ONLINE + PS PLUS'","'TỐI ĐA '+X.so_nguoi_online+' NGƯỜI ONLINE'"): self.assertIn(cu,h,cu)
+        k=(T/'kiem'/'kiem-dom.cjs').read_text(encoding='utf-8')
+        for cu in ('"#gtT1"','gioi.the_bt','chongGT'): self.assertIn(cu,k,cu)
+        for ten in ('M.gioi.e','TA.ra3'): self.assertIn(ten,h)
+    def test_chon_keo_lay_biet_truoc_tu_vung_re_nhat_khong_bu(self):
+        src=(T/'chon-keo.py').read_text(encoding='utf-8')
+        a=src.index('def doc_trang('); b=src.index('def kiem_ung_vien('); GTm=types.SimpleNamespace(**{n:getattr(GTMOD,n) for n in ('khoi_gia','media','ps_plus_catalog','thong_tin_game','biet_truoc')})
+        g=dict(GT=GTm); exec(src[a:b],g)
+        from_us=GTMOD_trang(['en','es']); from_hk=GTMOD_trang(['vi','en','zh'])
+        us=g['doc_trang'](from_us,PID_SNIPER); hk=g['doc_trang'](from_hk,PID_SNIPER)
+        self.assertEqual(us['biet_truoc']['screenLanguages'],['en','es']); self.assertEqual(hk['biet_truoc']['screenLanguages'],['vi','en','zh'])    # moi trang giu ngon ngu cua CHINH no
+        i=src.index("tr[0]['biet_truoc']=dict("); dong=src[i:src.index('\n',i)]
+        self.assertIn("tr[0]['biet_truoc']",dong); self.assertIn("nguon=dict(loc=LOC[v3[0]['ma']],pid=v3[0]['id'])",dong); self.assertNotIn('tr[1]',dong); self.assertNotIn('tr[2]',dong)
+        self.assertIn("biet_truoc=tr[0]['biet_truoc'],han=dict(",src)

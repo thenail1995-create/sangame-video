@@ -78,11 +78,12 @@ exp={'bia.issue':f"SỐ {_so} · THÁNG {_nd.month:02d} · {_nd.year}",'bia.sao'
      'bang.pill':['✓ RẺ NHẤT','+'+_d(_V[1]['vnd']-_V[0]['vnd']),'+'+_d(_V[2]['vnd']-_V[0]['vnd'])],'bang.tit':f"Giá ngày {_dl.day:02d}/{_dl.month:02d} · đổi ra đồng",
      'phieu.so':f"{_h.hour:02d}{_h.minute:02d}",'phieu.ngay':f"ngày {_h.day:02d}/{_h.month:02d} · giờ Việt Nam"}
 # GIOI THIEU game (11/10): tinh LAI tu so lieu tho trong keo.json.gioi_thieu (diem trung binh, so luot) bang loi_chu — khong doc chuoi da dinh dang san
-from loi_chu import lam_tron_diem,hien_diem,hien_luot
+from loi_chu import lam_tron_diem,hien_diem,hien_luot,the_biet_truoc
 _GT=KEO.get('gioi_thieu') or {}; _gb=_GT.get('ban'); _gd=_GT.get('diem')
 exp.update({'gioi.the_loai':' · '.join(x['vi'].upper() for x in _GT.get('the_loai',[])) or None,'gioi.chip':[x['hien'] for x in _GT.get('dac_diem',[])[:2]],
             'gioi.diem':(hien_diem(lam_tron_diem(_gd['tb']))+'/5') if _gd else None,'gioi.luot':(hien_luot(_gd['so_luot'])+' lượt chấm') if _gd else None,
-            'gioi.ban':('BẢN '+_gb['ten_noi']+' CÓ THÊM').upper() if _gb else None,'gioi.them':[m['hien'] for m in (_gb or {}).get('them',[])[:4]]})
+            'gioi.ban':('BẢN '+_gb['ten_noi']+' CÓ THÊM').upper() if _gb else None,'gioi.them':[m['hien'] for m in (_gb or {}).get('them',[])[:4]],
+            'gioi.the_bt':the_biet_truoc(KEO.get('biet_truoc'),next((x.get('bt') for x in json.load(open(B/'kich-ban.json'))['doan'] if x.get('k')=='gioi'),None))})   # G3: the biet truoc = dung cac cau da doc
 nd=d.get('noiDung',{}); sai=[]
 for k,v in exp.items():
     got=nd.get(k)
@@ -92,6 +93,8 @@ for k,v in exp.items():
 _tg=_cs(nd.get('bia.title',''))
 if _G['ten'] and not all(w.lower() in _tg.lower() for w in re.findall(r"[\wÀ-ỹ-]+",_ten.replace('’',''))[-2:] ): sai.append(f"bia.title: hinh «{_tg}» khong chua ten «{_ten}»")
 _cat=d.get('catChu',[])
+_chong=d.get('chongGT',[])
+ghi('The biet truoc khong che / de len hang khac cua ho so game (ten the loai, chip, sao, ban, phan them) o moi moc (G3)',not _chong,f"{len(_chong)} cho de"+(f": {_chong[:3]}" if _chong else ''),'G3/Sol#14')
 ghi('B6 ngay dang (keo.json) = NGAY dang cua luot chay',_ok_ng,_so_ng,'B6')
 ghi('Chu (ten game, gia, vung, gio) khong tran / bi cat o moi moc dung yen (ten dai tu thu co)',not _cat,f"{len(_cat)} cho cat/tran"+(f": {_cat[:3]}" if _cat else ''),'H32')
 ghi('Ten game / giam % / gia / 3 vung / chenh lech / gio het giam tren hinh khop keo.json (D1)',not sai,f"{len(exp)+1} muc doi chieu, {len(sai)} lech"+(f": {sai[:3]}" if sai else ''),'D1')
@@ -204,7 +207,7 @@ if not SOM:   # can video da dung - KIEM SOM bo qua (bo kiem cuoi van chay)
 # (Keo v10: mo con doc SAO cua cau mo tinh huong; gioi con doc CAU KET LUAN)
 # 5d) D3 (B2) — nghe GIONG SACH (G16, khong phai ban ghep: CI 11/10 Whisper nghe nhac+tieng dong thanh «ANM RETURNAL DIGITAL DELUX…») tung doan, so GIA TRI theo VAI TRO: mo (ten, % giam, vung A) · gia (goc ROI con) · gioi (DIEM SAO dung gia tri + tu khoa the loai/dac diem/phan them) · dap (cap vung -> chenh lech) · han (gio + buoi + ngay).
 #     Ky vong tinh lai tu keo.json (cung luat lam tron voi loi_chu.py). % / vung chi doi o doan ma LOI co doc. 3 ban chung luong tieng -> chung 1 lan Whisper (cache theo bam PCM).
-from loi_chu import ten_noi,lam_tron_diem,ket_luan,KET_LUAN_ALL
+from loi_chu import ten_noi,lam_tron_diem,ket_luan,KET_LUAN_ALL,biet_truoc_ky_vong
 _GT=KEO.get('gioi_thieu') or {}; _gd=_GT.get('diem')    # (D3 tu chua du: tinh lai o day de khoi nay chay doc lap trong test)
 KBD={x['k']:x['loi'] for x in json.load(open(B/'kich-ban.json'))['doan']}
 cs={}
@@ -219,10 +222,12 @@ _kieu_mo=next((x.get('kieu') for x in json.load(open(B/'kich-ban.json'))['doan']
 _ky_mo=dict(ten=[ten_noi(_G['ten'])],phan_tram=[_G['giam']],vung=[_ma[0]])
 if _kieu_mo in ('so_gia_sao','so_sao') and _gd: _ky_mo['sao']=[lam_tron_diem(_gd['tb'])]
 elif _kieu_mo in ('so_gia_sao','so_sao'): _ky_mo['sao']=[-1]    # kieu nhac sao ma keo.json khong co diem -> chac chan sai: ep TRUOT
+# G3 (13/10) BIET TRUOC KHI MUA: kich-ban.json.doan[gioi].bt = cac kieu cau da doc ('phu_de' · 'online' · 'so_nguoi'); gia tri ky vong tinh LAI tu keo.json.biet_truoc (khong tin kich-ban.json): cau trai nghia (co/chua phu de VI, can/khong can PS Plus, sai so nguoi) -> TRUOT
+_bt_kieu=next((x.get('bt') for x in json.load(open(B/'kich-ban.json'))['doan'] if x.get('k')=='gioi'),None) or []
 _KL=ket_luan(_gd)     # Keo v10 B: cau ket luan cuoi doan gioi (tu khoa BAT BUOC; hai cau con lai CAM)
 _ky={'mo':_ky_mo,
      'gia':dict(tien=[_round(KEO['goc_vnd'],100000),_round(KEO['con_vnd'],1000)],tien_thu_tu=[_round(KEO['goc_vnd'],100000),_round(KEO['con_vnd'],1000)]),
-     'gioi':dict(diem=[lam_tron_diem(_gd['tb'])] if _gd else [],tu_khoa=NS.tu_khoa_gioi(_GT,ket_luan=(_KL,[x for x in KET_LUAN_ALL if x!=_KL]))),
+     'gioi':dict(diem=[lam_tron_diem(_gd['tb'])] if _gd else [],tu_khoa=NS.tu_khoa_gioi(_GT,ket_luan=(_KL,[x for x in KET_LUAN_ALL if x!=_KL])),biet_truoc=biet_truoc_ky_vong(KEO.get('biet_truoc'),_bt_kieu)),
      'dap':dict(tien_tat=[_round(_V[1]['vnd']-_V[0]['vnd'],10000),_round(_V[2]['vnd']-_V[0]['vnd'],10000)],vung=_ma,cap=[(_ma[1],_round(_V[1]['vnd']-_V[0]['vnd'],10000)),(_ma[2],_round(_V[2]['vnd']-_V[0]['vnd'],10000))],chu_the=_ma[0],tien=[_round(_V[1]['vnd']-_V[0]['vnd'],10000),_round(_V[2]['vnd']-_V[0]['vnd'],10000)]),
      'han':dict(han=NS.han_ky_vong(_h,_nd))}
 _sai=[]; TEN_BO=None
@@ -238,7 +243,7 @@ for k,ky in _ky.items():
     if k=='mo':
         _ok,TEN_BO,_ly=NS.ten_hai_bo(ky['ten'][0],{'turbo':heard[k],'small':heard_s.get(k)})
         if not _ok: _sai.append(f"mo TEN «{ky['ten'][0]}»: {_ly}")
-ghi('D3 giong sach: ten + % + vung + goc roi con + diem sao & tu khoa gioi thieu + cap vung-chenh + han khop keo.json (theo vai tro)',not _sai,f"{len(cs)} doan; ten dat boi {TEN_BO}; pcm {NGHE_BC['pcm_sha256'][:12]} (nghe moi {NGHE_BC['nghe_moi']}, dung lai {NGHE_BC['dung_lai']})"+(f"; SAI: {_sai}" if _sai else ''),'D3')
+ghi('D3 giong sach: ten + % + vung + goc roi con + diem sao & tu khoa gioi thieu & menh de biet truoc (phu de VI / can PS Plus / so nguoi) + cap vung-chenh + han khop keo.json (theo vai tro)',not _sai,f"{len(cs)} doan; ten dat boi {TEN_BO}; pcm {NGHE_BC['pcm_sha256'][:12]} (nghe moi {NGHE_BC['nghe_moi']}, dung lai {NGHE_BC['dung_lai']})"+(f"; SAI: {_sai}" if _sai else ''),'D3')
 
 
 # 5c) NEN trailer khong co anh giu cho / man phang: OCR + mang mau phang tren khung nen (khong co chu cua khuon) o 6 moc dung yen

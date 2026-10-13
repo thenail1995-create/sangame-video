@@ -107,3 +107,46 @@ class PsPlusCatalog(unittest.TestCase):   # Opus 11/10: Keo thom loai game co tr
         self.assertFalse(GT.ps_plus_catalog(trang(self.up(PID+'XX')),PID)); self.assertFalse(GT.ps_plus_catalog(None,PID))
     def test_nut_ea_access_khong_tinh(self):
         self.assertFalse(GT.ps_plus_catalog(trang({f'GameCTA:UPSELL_EA_ACCESS_FREE:ADD_TO_CART:{PID}-H001:X':{'price':gia('Included',0)}}),PID))
+
+
+# ---- G3 (13/10) biet_truoc: fixture = TRANG THAT Sniper Elite 5 Complete Edition (en-us, 13/10/2026) cat con CHU toi thieu (khong anh/trailer Sony): cung khoa/cau truc, cung chuoi thong bao (co NBSP trong «PS Plus»)
+SNIPER='UP4363-PPSA01685_00-SNIPERELITE500CE'; SP02='UP4363-PPSA01685_00-SNIPERELITE5SP02'
+THONG_BAO_THAT='PS\xa0Plus required for online play<br/>Supports up to 16 online players with PS Plus<br/>In-game purchases optional<br/>Online play optional<br/>Vibration function and trigger effect supported (DualSense wireless controller)<br/>1 players'
+NGON_NGU_THAT=['es','zh','fr','ja','ru','de','pl','it','pt_BR','en','ko','ch','pt']
+def sp(pid,**kw): return {f'Product:{pid}':dict(id=pid,**kw)}
+def mo_ta(tp,v): return dict(type=tp,subType='NONE',value=v)
+def trang_that(**kw):
+    return trang(sp(SNIPER,descriptions=[mo_ta('LEGAL','To play this game on PS5...'),mo_ta('LONG','Sniper Elite 5 Complete Edition includes the base game'),mo_ta('COMPATIBILITY_NOTICE',kw.get('tb',THONG_BAO_THAT))]),
+                 sp(SNIPER,screenLanguages=kw.get('sl',NGON_NGU_THAT),spokenLanguages=kw.get('sp',['en'])),
+                 # nhieu: san pham KHAC (season pass / goi y) co thong bao + ngon ngu khac; bang dich (khoa khac) chua cung chuoi
+                 sp(SP02,screenLanguages=['vi','en'],descriptions=[mo_ta('COMPATIBILITY_NOTICE','Online play required<br/>Supports up to 8 online players<br/>PS Plus required for online play')]),
+                 {'Translations:en-us':{'a':'Online play required','b':'PS Plus required for online play','c':'Supports up to 99 online players'}})
+class BietTruoc(unittest.TestCase):
+    def test_trang_that_sniper_elite_5(self):
+        r=GT.biet_truoc(trang_that(),SNIPER)
+        self.assertEqual((r['online'],r['can_plus_online'],r['so_nguoi_online'],r['mua_them']),('tuy_chon',True,16,True))
+        self.assertEqual(r['screenLanguages'],NGON_NGU_THAT); self.assertEqual(r['spokenLanguages'],['en']); self.assertNotIn('vi',r['screenLanguages'])
+    def test_chi_doc_dung_san_pham_khong_do_toan_html_va_bang_dich(self):
+        r=GT.biet_truoc(trang_that(),SP02); self.assertEqual((r['online'],r['so_nguoi_online'],r['screenLanguages']),('bat_buoc',8,['vi','en']))       # san pham khac -> gia tri cua CHINH no
+        r=GT.biet_truoc(trang_that(tb='Online play optional'),SNIPER); self.assertEqual((r['online'],r['can_plus_online'],r['so_nguoi_online']),('tuy_chon',None,None))   # bang dich / SP02 co 'PS Plus required' + '8 players' khong lan sang
+    def test_khoang_trang_dac_biet_va_ba_dang_br(self):
+        for tb in ('PS\u00a0Plus required for online play<br/>Online play optional','PS\u202fPlus  required for online play<BR>Online\u00a0play\u00a0optional','ps plus required for online play\nOnline play optional'):
+            r=GT.biet_truoc(trang_that(tb=tb),SNIPER); self.assertEqual((r['online'],r['can_plus_online']),('tuy_chon',True),tb)
+    def test_online_bat_buoc_va_khong_online(self):
+        r=GT.biet_truoc(trang_that(tb='Online play required<br/>PS Plus required for online play'),SNIPER); self.assertEqual((r['online'],r['can_plus_online']),('bat_buoc',True))
+        self.assertEqual(GT.biet_truoc(trang_that(tb='Online play not supported<br/>1 players'),SNIPER)['online'],'khong')
+    def test_phu_de_viet(self):
+        r=GT.biet_truoc(trang_that(sl=['vi','en','ja']),SNIPER); self.assertIn('vi',r['screenLanguages'])
+    def test_thieu_thi_none_khong_doan(self):
+        r=GT.biet_truoc(trang(sp(SNIPER,descriptions=[mo_ta('LONG','x')])),SNIPER)
+        self.assertEqual(r,dict(screenLanguages=None,spokenLanguages=None,online=None,can_plus_online=None,so_nguoi_online=None,mua_them=None))
+        r=GT.biet_truoc(trang_that(tb='In-game purchases optional<br/>1 players',sl=[]),SNIPER)
+        self.assertEqual((r['online'],r['can_plus_online'],r['so_nguoi_online'],r['screenLanguages'],r['mua_them']),(None,None,None,None,True))
+        for h,pid in ((trang_that(),'UP0000-NOPE_00-X'),('',SNIPER),(None,SNIPER),(trang_that(),'')): self.assertIsNone(GT.biet_truoc(h,pid)['online'])
+    def test_notice_loai_khac_khong_tinh_va_json_hong_khong_no(self):
+        h=trang(sp(SNIPER,descriptions=[mo_ta('LONG','Online play required<br/>PS Plus required for online play<br/>Supports up to 4 online players')]))+'<script id="env:x">{xau</script>'
+        r=GT.biet_truoc(h,SNIPER); self.assertEqual((r['online'],r['can_plus_online'],r['so_nguoi_online']),(None,None,None))
+    def test_hai_vung_khac_ngon_ngu_lay_dung_tung_trang(self):       # chon-keo lay trang cua vung re nhat, khong bu tu vung khac
+        us=GT.biet_truoc(trang_that(sl=['en','es']),SNIPER); hk=GT.biet_truoc(trang_that(sl=['vi','en','zh']),SNIPER)
+        self.assertNotIn('vi',us['screenLanguages']); self.assertIn('vi',hk['screenLanguages'])
+

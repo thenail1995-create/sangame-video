@@ -333,4 +333,50 @@ class DocSaoCauMoKeoV10(unittest.TestCase):
         self.assertTrue(ns.doi_chieu('Game hành động.',tu_khoa=tk)); self.assertTrue(ns.doi_chieu('Game hành động. Với giá này thì đáng mua. Hợp với ai thích thể loại này.',tu_khoa=tk))
         self.assertEqual(ns.tu_khoa_gioi({})['bat_buoc'],[])     # khong truyen ket_luan -> hanh vi cu
 
+class BietTruocMenhDe(unittest.TestCase):      # G3 13/10 (Sol #9 #10): menh de CO/KHONG theo nghia + so nguoi theo gia tri (chu lan so)
+    PD_CO='Game có phụ đề tiếng Việt.'; PD_CHUA='Game chưa có phụ đề tiếng Việt, có tiếng Anh.'
+    PL_TC='Chơi một mình không cần PS Plus, chơi online cần gói.'; PL_BB='Game cần mạng và gói PS Plus để chơi online.'
+    def test_doc_phu_de_viet(self):
+        for t,ds in ((self.PD_CO,['co']),(self.PD_CHUA,['chua']),('Game không có phụ đề tiếng Việt.',['chua']),('Game chẳng có phụ đề tiếng Việt',['chua']),('Game có phụ đề tiếng Việt, không có tiếng Nhật.',['co']),
+                     ('Game có phụ đề tiếng Anh.',[]),('Phụ đề tiếng Việt.',['khong_ro']),('Game cần PS Plus. Có phụ đề tiếng Việt',['co']),('Chơi một mình không cần PS Plus. Game có phụ đề tiếng Việt.',['co'])):
+            self.assertEqual(ns.doc_phu_de_viet(t),ds,t)
+    def test_phu_de_dao_nghia_truot(self):
+        self.assertEqual(ns.kiem_menh_de(self.PD_CO,'phu_de','co'),[]); self.assertEqual(ns.kiem_menh_de(self.PD_CHUA,'phu_de','chua'),[])
+        self.assertTrue(ns.kiem_menh_de(self.PD_CHUA,'phu_de','co'))         # du lieu CO, loi noi CHUA
+        self.assertTrue(any('DAO NGHIA' in x for x in ns.kiem_menh_de(self.PD_CHUA,'phu_de','co'))); self.assertTrue(any('DAO NGHIA' in x for x in ns.kiem_menh_de(self.PD_CO,'phu_de','chua')))
+        self.assertTrue(ns.kiem_menh_de(self.PD_CO,'phu_de','chua'))         # du lieu CHUA, loi noi CO
+        self.assertTrue(ns.kiem_menh_de('Game có tiếng Anh.','phu_de','co')); self.assertTrue(ns.kiem_menh_de('Game chưa có phụ đề tiếng Việt.','phu_de','chua'))   # thieu «co tieng Anh»
+        self.assertTrue(ns.kiem_menh_de(self.PD_CO,'phu_de',None))          # keo.json khong du du lieu ma loi van doc cau -> truot
+        self.assertEqual(ns.doi_chieu('Hành động. '+self.PD_CO,biet_truoc=[('phu_de','co')]),[]); self.assertTrue(ns.doi_chieu('Hành động. '+self.PD_CHUA,biet_truoc=[('phu_de','co')]))
+    def test_can_ps_plus_phan_biet_pham_vi_va_phu_dinh(self):
+        self.assertEqual(ns.doc_can_ps_plus(self.PL_TC),[('mot_minh',False),('online',True)])
+        self.assertEqual(ns.doc_can_ps_plus('Chơi một mình cần PS Plus, chơi online không cần gói.'),[('mot_minh',True),('online',False)])
+        self.assertEqual(ns.doc_can_ps_plus(self.PL_BB),[('online',True)])                                   # «can mang va goi PS Plus de choi online»: pham vi nhin ve sau
+        self.assertEqual(ns.doc_can_ps_plus('Chơi một mình không cần PS Plus chơi online cần gói'),[('mot_minh',False),('online',True)])   # Whisper bo dau phay
+    def test_ps_plus_tuy_chon_dao_nghia_truot(self):
+        self.assertEqual(ns.kiem_menh_de(self.PL_TC,'ps_plus','tuy_chon'),[])
+        for sai in ('Chơi một mình cần PS Plus, chơi online cần gói.','Chơi một mình không cần PS Plus, chơi online không cần gói.','Chơi một mình không cần PS Plus.','Chơi online cần gói.','Chơi một mình không cần, chơi online cần gói.'):
+            self.assertTrue(ns.kiem_menh_de(sai,'ps_plus','tuy_chon'),sai)
+        self.assertEqual(ns.kiem_menh_de('Chơi một mình không cần PS Plus. Chơi online cần PS Plus.','ps_plus','tuy_chon'),[])
+    def test_ps_plus_bat_buoc(self):
+        self.assertEqual(ns.kiem_menh_de(self.PL_BB,'ps_plus','bat_buoc'),[])
+        self.assertTrue(ns.kiem_menh_de(self.PL_TC,'ps_plus','bat_buoc'))                                      # nghe «mot minh khong can» trong khi game bat buoc online -> truot
+        self.assertTrue(ns.kiem_menh_de('Game không cần mạng, chơi online không cần PS Plus.','ps_plus','bat_buoc'))
+        self.assertTrue(ns.kiem_menh_de(self.PL_BB,'ps_plus',None)); self.assertTrue(ns.kiem_menh_de('Game cần mạng để chơi online.','ps_plus','bat_buoc'))   # thieu «PS Plus»
+    def test_doc_so_nguoi_chu_va_so(self):
+        for t,ds in (('Chơi online được tối đa mười sáu người.',[16]),('tối đa 16 người',[16]),('tối đa hai mươi người',[20]),('tối đa tám người',[8]),('tối đa mười người',[10]),('tối đa hai mươi bốn người',[24]),
+                     ('chơi một mình, tối đa bốn người',[4]),('chơi online với mười sáu bạn',[]),('mười sáu game',[])):
+            self.assertEqual(ns.doc_so_nguoi(t),ds,t)
+    def test_so_nguoi_theo_gia_tri(self):
+        c='Chơi online được tối đa mười sáu người.'
+        self.assertEqual(ns.kiem_menh_de(c,'so_nguoi',16),[]); self.assertEqual(ns.kiem_menh_de('Chơi online được tối đa 16 người.','so_nguoi',16),[])
+        for sai,gt_ in ((c,6),(c,60),('Chơi online được tối đa sáu người.',16),('Chơi online được tối đa 18 người.',16),('Chơi online được.',16),('Tối đa mười sáu người, hai mươi người.',16)):
+            self.assertTrue(ns.kiem_menh_de(sai,'so_nguoi',gt_),(sai,gt_))
+        self.assertTrue(ns.kiem_menh_de(c,'so_nguoi',None)); self.assertTrue(ns.kiem_menh_de(c,'so_nguoi',1))
+    def test_kieu_la_truot_va_doi_chieu_nhieu_menh_de(self):
+        self.assertTrue(ns.kiem_menh_de('x','la',1))
+        t='Hành động. '+self.PD_CHUA+' '+self.PL_TC+' Chơi online được tối đa mười sáu người.'
+        self.assertEqual(ns.doi_chieu(t,biet_truoc=[('phu_de','chua'),('ps_plus','tuy_chon'),('so_nguoi',16)]),[])
+        self.assertTrue(ns.doi_chieu(t.replace('chưa có','có'),biet_truoc=[('phu_de','chua'),('ps_plus','tuy_chon'),('so_nguoi',16)]))
+
 if __name__=='__main__': unittest.main()
