@@ -154,7 +154,7 @@ def soan_binh_chon(man, ngay):
     muc = (man or {}).get("kiem_lai") or []
     if muc and _deal_ok(muc[0]):
         deal = muc[0]
-        text = (f"{gon_ten(deal['ten'])} đứng đầu top bán chạy hôm nay, còn {tien(deal['gia_vnd'])} ở Store {VUNG[deal['loc']]}. "
+        text = (f"{gon_ten(deal['ten'])} đứng đầu danh sách Top 5 hôm nay, còn {tien(deal['gia_vnd'])} ở Store {VUNG[deal['loc']]}. "
                 f"Bạn sẽ làm gì?")
         return kiem_van(text), _poll(LUA_CHON_TOP1), [deal]
     text, poll = cau_co_dinh(ngay)
@@ -314,10 +314,17 @@ def chay_loai(a, cong=None, thu_muc=None, dich=None):
             if that:
                 ntfy.loi(f"Threads {a.loai} {a.ngay}: khong dang (thieu/sai Release)", str(e))
             return 3
+    except (AttributeError, KeyError, TypeError, ValueError) as e:   # manifest sai cau truc
+        chung.log_loi(f"threads_chu: manifest {dang_nguon} sai cau truc ({type(e).__name__}: {e})")
+        if not binh_chon:
+            if that:
+                ntfy.loi(f"Threads {a.loai} {a.ngay}: khong dang (manifest sai cau truc)", f"{type(e).__name__}: {e}")
+            return 3
+        man = sha = None
     poll = None
     if binh_chon:
         text, poll, muc, man, sha = _binh_chon_kiem_gia(man, sha, a.ngay)
-        anh = None   # poll chi gan duoc vao bai TEXT
+        ung_vien = [None]   # poll chi gan duoc vao bai TEXT
     else:
         try:
             text, muc = (soan_sang if a.loai == "sang" else soan_chieu)(man, a.ngay)
@@ -344,9 +351,11 @@ def chay_loai(a, cong=None, thu_muc=None, dich=None):
                 chung.log_loi(f"threads_chu: bo cau chenh Mỹ: {'; '.join(v2)}")
                 text, muc = soan_chieu(man, a.ngay, so_my=False)
         if a.loai == "chieu":
-            anh = url_anh(man, a.ngay, dang_nguon)
+            ung_vien = [url_anh(man, a.ngay, dang_nguon), None]
         else:   # sang: bia PS Store cua DUNG game re nhat duoc nhac; khong lay duoc -> bia Release tin-nhanh; Pages hong -> chi chu
-            anh = anh_ps_game(muc[0]) or url_anh(man, a.ngay, dang_nguon)
+            ung_vien = [anh_ps_game(muc[0]), url_anh(man, a.ngay, dang_nguon), None]
+        ung_vien = list(dict.fromkeys(u for u in ung_vien if u)) + [None]   # bo ung vien rong/trung, luon con "chi chu" o cuoi
+    anh = ung_vien[0]
     if not that:
         print(f"=== BAI THREADS {a.loai} {a.ngay} (nguon {dang_nguon} · so {dang_bai}) ===\n{text}\n"
               f"{'--- POLL ' + ' | '.join(poll.values()) + chr(10) if poll else ''}--- {len(text)} ky tu · topic_tag={TOPIC_TAG} · "
@@ -367,16 +376,21 @@ def chay_loai(a, cong=None, thu_muc=None, dich=None):
         except LoiCong as e:   # container chua publish -> khong nguy hiem, chi ghi log
             chung.log_loi(f"threads_chu: khong ghi duoc {kw}: {e}")
 
-    try:
-        cid = threads.tao_container_chu(tk, text, anh, TOPIC_TAG, luu, poll)
-        chung.ngu(CHO_TRUOC_PUBLISH)
-    except LoiDang as e:
-        chay._ghi_loi(cong, nc, "threads", e)
-        raise
-    except Exception as e:   # chua publish -> chac chan chua len Threads
-        err = LoiDang(f"{type(e).__name__}: {chung.cat(e, 300)}")
-        chay._ghi_loi(cong, nc, "threads", err)
-        raise err from None
+    cid = None
+    for i, u in enumerate(ung_vien):   # loi o BUOC TAO CONTAINER (chua publish) -> thu ung vien ke tiep (anh PS -> bia Release -> chi chu)
+        try:
+            cid = threads.tao_container_chu(tk, text, u, TOPIC_TAG, luu, poll)
+            chung.ngu(CHO_TRUOC_PUBLISH)
+            break
+        except Exception as e:   # chua publish -> chac chan chua len Threads
+            err = e if isinstance(e, LoiDang) else LoiDang(f"{type(e).__name__}: {chung.cat(e, 300)}")
+            if i + 1 < len(ung_vien):
+                chung.log_loi(f"threads_chu: container voi anh {u} loi ({err}) - thu ung vien ke tiep")
+                continue
+            chay._ghi_loi(cong, nc, "threads", err)
+            if err is e:
+                raise
+            raise err from None
     try:
         ket = threads.cong_khai(tk, nc, {"id_container": cid})
     except LoiDang as e:
