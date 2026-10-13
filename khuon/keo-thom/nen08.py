@@ -81,7 +81,7 @@ def lay(D,pool,tieu=0.6,a=0.0,dung=None,cach=CACH_LAP):
             if bac==0: tap=[q for q in pool if not q.get('lap')]
             elif bac==1: tap=[q for q in pool if q.get('lap')]
             else: tap=list(pool)
-            if bac<2: tap=[q for q in tap if q['len']>=tieu and not trung_canh(dung,q['src'],q['s0'],min(con,q['len']),t0,cach)]
+            if bac<2: tap=[q for q in tap if q['len']>=min(tieu,con-1e-6) and not trung_canh(dung,q['src'],q['s0'],min(con,q['len']),t0,cach)]
             c=[q for q in tap if q['len']>=con-1e-6]
             if c: p=min(c,key=lambda q:q['len']-con); break
             c=[q for q in tap if q['len']>=tieu]

@@ -56,3 +56,10 @@ class LapCanh(unittest.TestCase):
         with self.assertRaises(SystemExit): lay(5, [])
 
 if __name__ == '__main__': unittest.main()
+
+
+class SolVuaKhit(unittest.TestCase):
+    def test_manh_ngan_vua_khit_van_dung(self):   # Sol soi diff bt2: khe [5.5, 0.8], pool [5, .5, .5, .5, .9] -> ban cu xep duoc; ban moi tung SystemExit
+        pool=[P('a',0,5.0),P('b',0,0.5),P('c',0,0.5),P('d',0,0.5),P('e',0,0.9)]
+        ds,_=xep([(0.0,5.5),(5.5,0.8)],pool)
+        self.assertAlmostEqual(sum(x[2] for x in ds[0]),5.5,places=2); self.assertAlmostEqual(sum(x[2] for x in ds[1]),0.8,places=2)
