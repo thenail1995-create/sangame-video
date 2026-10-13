@@ -212,7 +212,11 @@ for r in range(1,6):
 _KMO=datetime.date.fromisoformat(CFG['ngay_iso']).toordinal()%3 if CFG.get('ngay_iso') else 0
 for k in ('mo','ket'):
     if k in heard:
-        if k=='mo' and _KMO==1: loi=NS.doi_chieu(heard[k],tien=[TR.nghin_so(TOP[0]['gia'])*1000],ten=[TR.ten_doc_cua(TOP[0])],kiem_ten=False)
+        if k=='mo' and _KMO==1:
+            loi=NS.doi_chieu(heard[k],tien=[TR.nghin_so(TOP[0]['gia'])*1000],ten=[TR.ten_doc_cua(TOP[0])],kiem_ten=False)
+            # Sol soi diff G2: kieu 1 BAT BUOC dung ten hang 1 (turbo HOAC small, nhu cac hang) - doc sai game / bo ten phai TRUOT
+            _ok,_bo,_ly=NS.ten_hai_bo(TR.ten_doc_cua(TOP[0]),{'turbo':heard[k],'small':heard_s.get(k)}); TEN_BO['mo']=_bo
+            if not _ok: loi.append(f"TEN hang 1 «{TR.ten_doc_cua(TOP[0])}»: {_ly}")
         else: loi=NS.doi_chieu(heard[k],tien=[CFG['muc']])
         sai+=[f'{k} {x}' for x in loi]
 ghi('D3 giong sach: ten (so phan/phien ban) + tien + phan tram + vung tung hang khop du lieu',not sai,f"5 hang; ten dat boi {TEN_BO}; pcm {bc['pcm_sha256'][:12]} (nghe moi {bc['nghe_moi']}, dung lai {bc['dung_lai']}); "+' | '.join(thu)+(f"; SAI: {sai}" if sai else ''),'D3')
