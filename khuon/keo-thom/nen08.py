@@ -27,7 +27,7 @@ def tai_trailer():
     if not fs:   # tai tu keo.json: phan giai cao nhat roi dai nhat (H21), toi da 2 ban
         keo=json.load(open(KHUON/'keo.json')); us=keo['game'].get('trailer') or []
         if not us: raise SystemExit('KHONG co trailer cho game nay (keo.json game.trailer rong)')
-        tt=sorted(((*thong(u),u) for u in us),key=lambda x:(-x[1],-x[2]))[:2]; TR.mkdir(parents=True,exist_ok=True)
+        tt=sorted(((*thong(u),u) for u in us),key=lambda x:(-x[1],-x[2]))[:4]; TR.mkdir(parents=True,exist_ok=True)   # 13/10: 2 -> 4 ban (Keo dai hon tu 'Biet truoc khi mua', run 38420310388 thieu canh sang)
         for w,h,d,u in tt:
             f=TR/(hashlib.sha1(u.encode()).hexdigest()[:16]+'.mp4')
             if not f.exists(): urllib.request.urlretrieve(u,f)
@@ -77,6 +77,17 @@ def lay(D,pool,tieu=0.6):
         if rest>=tieu: pool.append(dict(p,s0=p['s0']+d+0.3,len=rest))
         con=round(con-d,4)
     return out
+def du_canh(pool,can,ly):
+    """13/10 (run 38420310388: 35,8 s sang < 42,1 s can): thieu canh sang nhung con >= 60% -> DUNG LAI canh sang (ban sao, danh dau 'lap') thay vi bo khung.
+    Duoi 60% -> dung nhu cu (chon game khac). Tra pool du dai."""
+    tong=sum(p['len'] for p in pool)
+    if tong>=can: return pool
+    if not pool or tong<0.6*can: raise SystemExit(ly)
+    ra=list(pool); goc=sorted(pool,key=lambda p:-p['len']); i=0
+    while sum(p['len'] for p in ra)<can:
+        ra.append(dict(goc[i%len(goc)],lap=True)); i+=1
+    print(f'  LAP TRAILER: canh sang {tong:.1f}s < {can:.1f}s -> dung lai {i} doan (con >= 60%)')
+    return ra
 def cat_quanh(pool,xau_t,ban_kinh=0.6,tieu=0.6):
     """12/10: KHONG bo ca doan trailer chua khung phang (trailer toi nhu Indiana Jones het doan) - chi cat [t-ban_kinh, t+ban_kinh]
     quanh moi khung phang, giu 2 phan sang hai ben neu con >= tieu giay. xau_t = [(src, t)]."""
@@ -101,11 +112,11 @@ def ke_hoach(H):
     trs=tai_trailer(); pool=[]; cac=[]
     for chat in (True,False):
         pool=[]
-        for f,w,h,d in trs[:3]:
+        for f,w,h,d in trs[:5]:
             pool+=[dict(src=s,s0=a,len=l,y=y,cr=cr) for s,a,l,y,cr in phan_tich(f,w,h,d,H,chat)]
             if sum(p['len'] for p in pool)>=2.2*DAI: break
         if sum(p['len'] for p in pool)>=1.5*DAI: break
-    if sum(p['len'] for p in pool)<DAI+1: raise SystemExit(f'Trailer chi co {sum(p["len"] for p in pool):.1f}s doan sang, can >= {DAI+1:.1f}s')
+    pool=du_canh(pool,DAI+1,f'Trailer chi co {sum(p["len"] for p in pool):.1f}s doan sang, can >= {DAI+1:.1f}s')
     # chan anh giu cho / man phang (media_xau): moi doan trong pool lay 1 khung giua doan -> OCR + mang mau phang; xau thi bo doan
     sach=[]
     with tempfile.TemporaryDirectory() as td:
@@ -114,13 +125,13 @@ def ke_hoach(H):
             if ly: print('  bo doan',pathlib.Path(p['src']).name,f"{p['s0']:.1f}s:",ly)
             else: sach.append(p)
     pool=sach
-    if sum(p['len'] for p in pool)<DAI+1: raise SystemExit('Sau khi bo media xau (anh giu cho/man phang) trailer khong con du doan hop le — chon game khac')
+    pool=du_canh(pool,DAI+1,'Sau khi bo media xau (anh giu cho/man phang) trailer khong con du doan hop le — chon game khac')
     # 12/10 (Keo 15:00 run 38211238918): chi soi 1 khung GIUA doan -> canh toi phang o dau/cuoi doan lot vao nen, kiem cuoi bat (11,48 s 'mang mau phang').
     # Soi LAI tung mau da chon (dau/giua/cuoi); mau co khung phang -> bo doan trailer chua khung do, chon lai (toi da 4 vong).
     goc_pool=pool; xau_t=[]
     for vong in range(8):
         pool=cat_quanh(goc_pool,xau_t)
-        if sum(p['len'] for p in pool)<DAI+1: raise SystemExit('Sau khi bo canh phang, trailer khong con du doan hop le — chon game khac')
+        pool=du_canh(pool,DAI+1,'Sau khi bo canh phang, trailer khong con du doan hop le — chon game khac')
         ds={}
         for i in sorted(range(len(khe)),key=lambda i:-khe[i][1]):
             a,D=khe[i]
