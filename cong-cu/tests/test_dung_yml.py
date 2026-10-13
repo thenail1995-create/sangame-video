@@ -185,8 +185,11 @@ class DungNhanhMatrix(unittest.TestCase):
 
     def test_giu_luat_an_toan(self):
         for j in ('chung', 'ban', 'gom'):
-            khoi = khoi_job(j); self.assertIn('runs-on: ubuntu-24.04', khoi)
+            khoi = khoi_job(j)
+            # máy GitHub, hoặc (chung/ban) máy chọn qua input `may` — chỉ 2 giá trị: ubuntu-24.04 | ubicloud-standard-8 (thử đo 13/10)
+            self.assertTrue('runs-on: ubuntu-24.04' in khoi or "runs-on: ${{ github.event.inputs.may || 'ubuntu-24.04' }}" in khoi, j)
             for m in re.finditer(r'uses: ([\w./-]+)@([^\s]+)', khoi): self.assertRegex(m.group(2), r'^[0-9a-f]{40}$', f'{j}: {m.group(0)} chua ghim SHA')
+        self.assertIn('options: [ubuntu-24.04, ubicloud-standard-8]', Y)
         self.assertIn('thieu secret GOI_KHOA', khoi_job('ban')); self.assertIn("os.environ['LIVE']=='1'", khoi_job('phat-hanh'))
 
     def test_cache_ghim(self):    # Playwright theo package-lock, uv theo uv.lock, apt .deb theo tuan; npm qua setup-node
