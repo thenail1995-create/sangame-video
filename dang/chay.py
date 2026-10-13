@@ -397,7 +397,31 @@ def _gio_dong(r, mac_dinh):
         return mac_dinh
 
 
+def bu_link_tiktok(cong, ngay, che_do):
+    """13/10: Zernio tra link TikTok cham (luc dang xong platformPostUrl con rong) -> so ghi link rong.
+    Moi lan kiem-gio hoi lai cac dong TikTok da_dang thieu link cua hom qua + hom nay. KHONG bao gio nem; tra so dong da bu."""
+    khoa = os.environ.get("ZERNIO_KHOA", "").strip()
+    if not khoa:
+        return 0
+    so = 0
+    try:
+        chung.dang_ky_bi_mat(khoa)
+        d = dt.date.fromisoformat(ngay)
+        dong = cong.doc_dang((d - dt.timedelta(days=1)).isoformat(), ngay, che_do)
+        for r in dong:
+            if r.get("kenh") != "tiktok" or r.get("trang_thai") != "da_dang" or r.get("link") or not r.get("id_bai"):
+                continue
+            link = zernio.lay_link(khoa, r["id_bai"])
+            if link and cong.cap_nhat_dang(r["ngay"], r["dang"], "tiktok", che_do, neu_trang_thai="da_dang", link=link):
+                so += 1
+                chung.log(f"kiem-gio: bu link TikTok {r['ngay']} {r['dang']}: {link}")
+    except Exception as e:
+        chung.log_loi(f"kiem-gio: bu link TikTok loi ({type(e).__name__}) - bo qua")
+    return so
+
+
 def pha_kiem_gio(a, cong):
+    bu_link_tiktok(cong, a.ngay, a.che_do)
     mac_dinh = gio_dang_mac_dinh(a.ngay, a.dang)
     bay = chung.bay_gio()
     dong = {r["kenh"]: r for r in cong.doc_dang(a.ngay, a.ngay, a.che_do) if r.get("dang") == a.dang}

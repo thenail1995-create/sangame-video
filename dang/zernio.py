@@ -179,6 +179,21 @@ def hoi_den_xong(khoa, post_id):
     raise chung.LoiDang(f"Zernio: het 10 phut cho bai {post_id} van chua published - khong ro", khong_ro=True)
 
 
+def lay_link(khoa, post_id):
+    """GET /posts/{id} -> platformPostUrl khi bai da published, nguoc lai None. KHONG nem (dung de bu link cho so)."""
+    try:
+        r = http.gui("GET", f"{GOC}/posts/{post_id}", headers=_hdr(khoa), timeout=30)
+        if r.status != 200:
+            return None
+        j = r.json()
+        post = j.get("post") if isinstance(j.get("post"), dict) else j
+        if str(post.get("status") or "").lower() != "published":
+            return None
+        return _ket_qua(post).get("link") or None
+    except Exception:
+        return None
+
+
 def cong_khai(nc):
     """Dang cong khai len TikTok. Tra {"id_tai","id_bai","link","kieu"}. Xem quy uoc loi o dau file."""
     khoa = os.environ.get("ZERNIO_KHOA", "").strip()
