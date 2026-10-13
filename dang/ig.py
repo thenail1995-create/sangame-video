@@ -3,7 +3,7 @@ Container REELS: video_url + cover_url PHAI la URL cong khai truc tiep (GitHub P
 Chi media_publish o pha cong_khai cua che_do=that.
 # CHUA KIEM: cover_url va share_to_feed tren REELS - https://developers.facebook.com/docs/instagram-platform/instagram-api-with-facebook-login/content-publishing
 """
-from . import chung, meta
+from . import chung, meta, ntfy
 
 G = "https://graph.facebook.com/v26.0"
 
@@ -22,9 +22,21 @@ def _status(tk, container):
 def chuan_bi(tk, nc, luu):
     if not nc.url_video or not nc.url_bia:
         raise chung.LoiDang("thieu URL cong khai cua video/bia (GitHub Pages)")
-    c = meta.goi(G, "POST", f"/{tk['ig_user_id']}/media", token=tk["page_token"],
-                 tham_so={"media_type": "REELS", "video_url": nc.url_video, "cover_url": nc.url_bia,
-                          "caption": nc.caption_ig(2200), "share_to_feed": "true"})
+    tham = {"media_type": "REELS", "video_url": nc.url_video, "cover_url": nc.url_bia,
+            "caption": nc.caption_ig(2200), "share_to_feed": "true"}
+    if chung.CO_GIONG_AI:
+        tham["is_ai_generated"] = "true"   # Meta changelog 22/06/2026: dat khi tao container
+    duong = f"/{tk['ig_user_id']}/media"
+    try:
+        c = meta.goi(G, "POST", duong, token=tk["page_token"], tham_so=tham)
+    except chung.LoiDang as e:
+        # Chi khi Meta TU CHOI rieng truong nhan AI (400 + nhac is_ai_generated): thu lai khong co, bao Hao. Loi quyen/mang: khong.
+        if not (chung.CO_GIONG_AI and e.ma_http == 400 and "is_ai_generated" in (e.thong_diep or "")):
+            raise
+        chung.log_loi(f"ig: Meta tu choi is_ai_generated, dang khong co nhan AI: {e}")
+        ntfy.loi(f"IG mất nhãn AI {nc.dang} {nc.ngay}", f"Meta từ chối is_ai_generated, bài vẫn đăng nhưng KHÔNG có nhãn AI: {e}", uu_tien=3)
+        tham.pop("is_ai_generated")
+        c = meta.goi(G, "POST", duong, token=tk["page_token"], tham_so=tham)
     cid = str(c.get("id") or "")
     if not cid:
         raise chung.LoiDang("IG khong tra container id")

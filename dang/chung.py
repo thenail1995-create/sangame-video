@@ -69,9 +69,11 @@ def log_loi(*a):
 class LoiDang(Exception):
     """Loi khi dang. khong_ro=True: da goi nen tang co tac dung phu ma khong chac ket qua -> KHONG tu thu lai."""
 
-    def __init__(self, ly_do, khong_ro=False):
+    def __init__(self, ly_do, khong_ro=False, ma_http=None, thong_diep=None):
         super().__init__(che(ly_do))
         self.khong_ro = khong_ro
+        self.ma_http = ma_http                                   # HTTP status cua nen tang (neu co)
+        self.thong_diep = che(thong_diep) if thong_diep else None  # thong diep loi goc da che bi mat
 
 
 def bay_gio() -> dt.datetime:
@@ -94,6 +96,9 @@ def sha256_tep(duong) -> str:
     return h.hexdigest()
 
 
+# 13/10: video Sang Game dung giong doc AI -> khai bao nhan "noi dung do AI tao" tren moi nen tang. Tat = khong co, khong dong nhan.
+CO_GIONG_AI = True
+DONG_NHAN_AI = "Video dùng giọng đọc AI."
 GIO_HET_SANG = 10
 TIKTOK_TOI_DA = 150
 TRAN_HASHTAG = {"ig": 5, "tiktok": 3, "youtube": 3, "x": 2, "fb": 3}
@@ -247,8 +252,15 @@ class NguCanh:
         if link and link in mo_ta:
             link = ""
         hook = self.hook()
-        phan = [hook, mo_ta, link, " ".join(self.hashtags("fb", hook, mo_ta))]
-        return "\n\n".join(p for p in phan if p)[:toi_da]
+        tags = " ".join(self.hashtags("fb", hook, mo_ta))
+        nhan = DONG_NHAN_AI if CO_GIONG_AI else ""
+        phan = [hook, mo_ta, link, tags]
+        # dong nhan o CUOI: cat noi dung truoc, khong cat nhan
+        ben = "\n\n".join(p for p in phan if p)
+        if not nhan:
+            return ben[:toi_da]
+        con = toi_da - len(nhan) - 2
+        return ben[:max(con, 0)].rstrip() + "\n\n" + nhan
 
     def text_ngan(self, toi_da=500):
         """Threads: toi da 500 ky tu - tieu de + link, roi them hashtag nao con vua."""

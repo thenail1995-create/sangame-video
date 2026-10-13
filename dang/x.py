@@ -84,17 +84,19 @@ def text_x(nc):
     tieu_de, han, link = (ld.get("tieu_de") or "").strip(), _cau_han(ld.get("mo_ta")), _link_game(ld)
     tags = nc.hashtags("x", tieu_de, han)   # <= 2 tinh ca hashtag co san trong tieu de
     # thu tu bo: cau han truoc, roi hashtag (tu cuoi), cuoi cung cat tieu de
+    # dong nhan AI o cuoi: DANH CHO truoc (tinh vao tran), noi dung bi cat chu nhan thi khong
+    duoi = ("\n" + chung.DONG_NHAN_AI) if chung.CO_GIONG_AI else ""
     ung_vien = [(han, len(tags))] + [("", n) for n in range(len(tags), -1, -1)]
     for h, n in ung_vien:
-        s = _ghep(tieu_de, h, link, tags[:n])
+        s = _ghep(tieu_de, h, link, tags[:n]) + duoi
         if do_dai_x(s) <= TRAN_X:
             return s
     # van qua dai: cat tieu de
-    con = TRAN_X - do_dai_x(_ghep("", "", link, []) + "\n")
+    con = TRAN_X - do_dai_x(_ghep("", "", link, []) + "\n" + duoi)
     cat = tieu_de
     while cat and do_dai_x(cat + "…") > con:
         cat = cat[:-1]
-    return _ghep(cat.rstrip() + "…", "", link, [])
+    return _ghep(cat.rstrip() + "…", "", link, []) + duoi
 
 
 # ---------------------------------------------------------------- video

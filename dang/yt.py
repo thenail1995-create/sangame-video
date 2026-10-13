@@ -112,9 +112,14 @@ def tai_len(url_phien, du_lieu, tk, mime="video/mp4", toi_da_loi=5):
         raise chung.LoiDang(f"YouTube tai len that bai: HTTP {r.status} {chung.cat(r.json())}", khong_ro=True)
 
 
+def trang_thai_ai():
+    """containsSyntheticMedia phai co o CA insert lan update (update ghi de toan phan status)."""
+    return {"containsSyntheticMedia": True} if chung.CO_GIONG_AI else {}
+
+
 def chuan_bi(tk, nc, luu):
     du_lieu = nc.tep("shorts").read_bytes()
-    trang_thai = {"privacyStatus": "private", "selfDeclaredMadeForKids": False}
+    trang_thai = {"privacyStatus": "private", "selfDeclaredMadeForKids": False, **trang_thai_ai()}
     thong_tin = {"snippet": {"title": nc.tieu_de_youtube(), "description": nc.mo_ta_youtube(),
                         "categoryId": "20", "tags": [h.lstrip("#") for h in nc.hashtags("ig")][:15]},
             "status": trang_thai}
@@ -158,7 +163,7 @@ def cong_khai(tk, nc, dong):
     ket = {"id_bai": vid, "link": f"https://www.youtube.com/shorts/{vid}"}
     if _privacy(tk, vid) == "public":
         return ket
-    body = {"id": vid, "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False}}
+    body = {"id": vid, "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False, **trang_thai_ai()}}
     try:
         r = http.gui("PUT", f"{API}/videos", headers=_hdr(tk), params={"part": "status"}, json_body=body, timeout=30)
         ok = r.status == 200
