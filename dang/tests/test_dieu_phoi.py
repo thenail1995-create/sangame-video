@@ -112,7 +112,8 @@ class TestChuanBiVaCongKhai(Khung):
         self.assertEqual(len(tin), 1)
         self.assertIn("https://x/fb", tin[0][2])
         self.assertIn("hop thu", tin[0][2])
-        self.assertEqual([x for x in self.ntfy if x[0] == "loi"], [])
+        # duy nhat 1 ntfy loi: nhac bat nhan AI khi TikTok vao hop thu (khong co co video_made_with_ai)
+        self.assertEqual([x[1] for x in self.ntfy if x[0] == "loi"], ["TikTok hộp thư: nhớ bật nhãn AI top5 2026-10-12"])
 
     def test_che_do_thu_khong_publish(self):
         self.che_do = "thu"

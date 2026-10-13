@@ -15,12 +15,12 @@ def goi(base, method, duong, *, token=None, tham_so=None, co_tac_dung=False, tim
         raise chung.LoiDang(str(e), khong_ro=co_tac_dung) from None
     j = r.json()
     if r.status >= 500 or (not j and r.status >= 300):
-        raise chung.LoiDang(f"{method} {duong}: HTTP {r.status}", khong_ro=co_tac_dung)
+        raise chung.LoiDang(f"{method} {duong}: HTTP {r.status}", khong_ro=co_tac_dung, ma_http=r.status)
     if isinstance(j, dict) and "error" in j:
         e = j["error"] if isinstance(j["error"], dict) else {"message": j["error"]}
         tam_thoi = bool(e.get("is_transient")) or e.get("code") in (1, 2)
         raise chung.LoiDang(f"{method} {duong}: {e.get('message')} (code {e.get('code')})",
-                            khong_ro=co_tac_dung and tam_thoi)
+                            khong_ro=co_tac_dung and tam_thoi, ma_http=r.status, thong_diep=str(e.get("message") or ""))
     return j
 
 

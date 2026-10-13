@@ -214,6 +214,9 @@ def _tiktok_hop_thu(kenh, nc, cong, tk):
     except LoiDang as e:
         _ghi_loi(cong, nc, kenh, e)
         raise
+    if chung.CO_GIONG_AI:   # duong hop thu khong co co video_made_with_ai: nhac Hao bat tay, KHONG ghi la da gan nhan
+        ntfy.loi(f"TikTok hộp thư: nhớ bật nhãn AI {nc.dang} {nc.ngay}",
+                 "Video vào hộp thư TikTok chưa gắn nhãn nội dung do AI tạo. Bật nhãn AI khi bấm đăng từ hộp thư.", uu_tien=4)
     try:
         _doi(cong, nc, kenh, "dang_dang", trang_thai="da_dang", id_tai=ket["id_tai"], id_bai=ket["id_bai"],
              gio_cong_khai=chung.iso(chung.bay_gio()))

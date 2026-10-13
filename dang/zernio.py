@@ -130,7 +130,8 @@ def tao_bai(khoa, nc, acc, url_video):
     body = {"content": nc.caption_tiktok(), "mediaItems": [{"type": "video", "url": url_video}],
             "platforms": [{"platform": "tiktok", "accountId": acc}],
             "tiktokSettings": {"privacy_level": PUBLIC, "allow_comment": True, "allow_duet": True, "allow_stitch": True,
-                               "content_preview_confirmed": True, "express_consent_given": True},
+                               "content_preview_confirmed": True, "express_consent_given": True,
+                               **({"video_made_with_ai": True} if chung.CO_GIONG_AI else {})},
             "publishNow": True}
     hdr = _hdr(khoa, **{"Idempotency-Key": khoa_lap(nc)})
     r, loi_cuoi = None, ""
