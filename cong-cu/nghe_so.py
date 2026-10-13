@@ -503,6 +503,85 @@ def co_so_luong(nghe,so,tu):
     """'<so> [1 tu] <tu>' (so = chu so hoac chu): 'hai vu khi' / '2 vu khi'."""
     t=' '.join(_tach_bd(bo_dau(nfc(nghe)))); n=_SO_TEN[so] if 0<=so<10 else str(so)
     return bool(re.search(r'(?<![a-z0-9])(?:%d|%s)\s+(?:[a-z]+\s+)?%s'%(so,n,re.escape(tu)),t))
+# ---------------------------------------------------------------- BIET TRUOC KHI MUA (G3 13/10): menh de CO/KHONG theo nghia, khong chi co tu
+# Sol soi: kiem 'co tu "tieng Viet" / "PS Plus"' khong phan biet cau thuan va phu dinh ("co phu de tieng Viet" vs "chua co phu de tieng Viet"; "khong can PS Plus" vs "can PS Plus") -> cau doi nghia van DAT.
+# Moi ham doc GIA TRI menh de tu ban Whisper, nguoi goi (kiem_menh_de) so voi gia tri ky vong.
+def doc_phu_de_viet(van_ban):
+    """Moi cum «phu de tieng Viet» trong ban nghe -> 'co' (co chu `co` trong cung menh de, KHONG co chu phu dinh) | 'chua' (co chu phu dinh khong/chua/chang/ko truoc cum trong cung menh de) | 'khong_ro'.
+    Menh de = doan giua hai dau cau (. , ; ! ? …). -> [str]."""
+    ra=[]
+    for mdd in re.split(r"[.,;:!?…\n]+",nfc(van_ban)):
+        tk=_tach_bd(bo_dau(mdd))
+        for i in range(len(tk)-2):
+            if tk[i]=='phu' and tk[i+1]=='de' and 'viet' in tk[i+2:i+4]:
+                truoc=tk[:i]
+                if any(w in _PHU_DINH_TU for w in truoc): ra.append('chua')
+                elif 'co' in truoc: ra.append('co')
+                else: ra.append('khong_ro')
+    return ra
+def doc_can_ps_plus(van_ban):
+    """Moi chu `can` trong ban nghe -> (pham_vi, can): pham_vi 'mot_minh' (sau «mot minh») | 'online' (sau «online») | None; neu chua co pham vi thi nhin toi 8 tu: «can mang va goi PS Plus de choi online» -> 'online'.
+    can = False khi ngay truoc `can` la khong/chua/chang/ko («khong can PS Plus»). -> [(pham_vi, bool)]."""
+    tk=_tach_bd(bo_dau(nfc(van_ban))); ra=[]; sc=None
+    def la_online(i): return tk[i] in ('online','onlai','onlain') or (tk[i]=='on' and i+1<len(tk) and tk[i+1] in ('line','lai','lain'))
+    def la_mot_minh(i): return tk[i]=='mot' and i+1<len(tk) and tk[i+1]=='minh'
+    for i,w in enumerate(tk):
+        if la_mot_minh(i): sc='mot_minh'
+        elif la_online(i): sc='online'
+        elif w=='can':
+            neg=i>0 and tk[i-1] in _PHU_DINH_TU; c=sc
+            if c is None:
+                for k in range(i+1,min(len(tk),i+9)):
+                    if la_online(k): c='online'; break
+                    if la_mot_minh(k): c='mot_minh'; break
+            ra.append((c,not neg))
+    return ra
+def doc_so_nguoi(van_ban):
+    """So dung truoc chu `nguoi` ('muoi sau nguoi' / '16 nguoi' / 'hai muoi nguoi') theo GIA TRI, ca chu lan chu so (0..999). -> [int]."""
+    T=_tach(van_ban); ra=[]; i=0
+    while i<len(T):
+        r=_so(T,i)
+        if r is None: i+=1; continue
+        g,_t,j,_h=r
+        if isinstance(g,int) and _w(T,j) in ('người','nguoi') and _lien(T,j): ra.append(g)
+        i=max(j,i+1)
+    return ra
+def kiem_menh_de(nghe,kieu,gia_tri):
+    """Kiem MOT menh de 'biet truoc' trong ban nghe `nghe`. -> list loi (rong = dat).
+      ('phu_de','co')       : doc 'co phu de tieng Viet' va KHONG doc 'chua co ...'
+      ('phu_de','chua')     : doc 'chua co phu de tieng Viet' + 'tieng Anh' va KHONG doc ban co phu de
+      ('ps_plus','tuy_chon'): «mot minh KHONG can PS Plus» VA «online CAN» (+ nhac PS Plus); dao nghia -> truot
+      ('ps_plus','bat_buoc'): «online CAN» + PS Plus; «mot minh khong can» / «online khong can» -> truot
+      ('so_nguoi',N)        : doc dung N nguoi (theo gia tri), khong doc so khac.
+    gia_tri None (keo.json thieu du lieu ma kich-ban van doc cau) -> loi."""
+    loi=[]; cat=f"«{str(nghe)[:90]}»"
+    if kieu=='phu_de':
+        d=doc_phu_de_viet(nghe)
+        if gia_tri not in ('co','chua'): return [f'BIET TRUOC phu de: keo.json khong du du lieu ({gia_tri}) ma loi van doc cau nay {cat}']
+        if gia_tri=='co':
+            if 'co' not in d: loi.append(f'BIET TRUOC phu de: mong «co phu de tieng Viet», nghe duoc {d or "khong co"} {cat}')
+            if 'chua' in d: loi.append(f'BIET TRUOC phu de DAO NGHIA: nghe «chua co phu de tieng Viet» trong khi du lieu CO {cat}')
+        else:
+            if 'chua' not in d: loi.append(f'BIET TRUOC phu de: mong «chua co phu de tieng Viet», nghe duoc {d or "khong co"} {cat}')
+            if 'co' in d: loi.append(f'BIET TRUOC phu de DAO NGHIA: nghe «co phu de tieng Viet» trong khi du lieu CHUA co {cat}')
+            if not co_tu_khoa(nghe,['tieng anh']): loi.append(f'BIET TRUOC phu de: thieu «co tieng Anh» {cat}')
+    elif kieu=='ps_plus':
+        if gia_tri not in ('tuy_chon','bat_buoc'): return [f'BIET TRUOC PS Plus: keo.json khong du du lieu ({gia_tri}) ma loi van doc cau nay {cat}']
+        c=doc_can_ps_plus(nghe)
+        if not co_tu_khoa(nghe,['ps plus','plus']): loi.append(f'BIET TRUOC PS Plus: khong nghe thay «PS Plus» {cat}')
+        if ('online',True) not in c: loi.append(f'BIET TRUOC PS Plus: mong «choi online CAN», nghe duoc {c} {cat}')
+        if ('online',False) in c: loi.append(f'BIET TRUOC PS Plus DAO NGHIA: nghe «online KHONG can» {cat}')
+        if gia_tri=='tuy_chon':
+            if ('mot_minh',False) not in c: loi.append(f'BIET TRUOC PS Plus: mong «choi mot minh KHONG can PS Plus», nghe duoc {c} {cat}')
+            if ('mot_minh',True) in c: loi.append(f'BIET TRUOC PS Plus DAO NGHIA: nghe «mot minh CAN» {cat}')
+        elif ('mot_minh',False) in c: loi.append(f'BIET TRUOC PS Plus DAO NGHIA: game bat buoc online nhung nghe «mot minh khong can» {cat}')
+    elif kieu=='so_nguoi':
+        n=doc_so_nguoi(nghe)
+        if not isinstance(gia_tri,int) or gia_tri<2: return [f'BIET TRUOC so nguoi: keo.json khong du du lieu ({gia_tri}) ma loi van doc cau nay {cat}']
+        if gia_tri not in n: loi.append(f'BIET TRUOC so nguoi: mong {gia_tri} nguoi, nghe duoc {n or "khong co"} {cat}')
+        elif set(n)!={gia_tri}: loi.append(f'BIET TRUOC so nguoi: nghe them so khac {sorted(set(n)-{gia_tri})} ngoai {gia_tri} {cat}')
+    else: loi.append(f'BIET TRUOC: kieu la {kieu}')
+    return loi
 def tu_khoa_gioi(gt,ket_luan=None):
     """Kiem doan gioi thieu (tinh tu keo.json.gioi_thieu). (Keo v10: `ket_luan=(cau_dung,[cau_khac])` them cau ket luan cuoi doan: cau dung BAT BUOC, cau khac CAM.) BAT BUOC: tung phan them cua ban dac biet (kem SO vu khi + 'dung som' dung muc), TEN edition, che do co-op dung chu ('choi chung online' / 'tren mot may', khong
     alias 'choi chung'). MEM (>= 60%): the loai, dac diem khac. CAM: ten edition khac / 'standard', che do co-op nguoc, 'dung som' khi khong co, phu dinh ('khong co them'). -> dict."""
@@ -529,7 +608,7 @@ def tu_khoa_gioi(gt,ket_luan=None):
     if 'co_op_online' in keys: CAM.append(['choi chung tren mot may'])
     if 'co_op_local' in keys: CAM.append(['choi chung online'])
     return dict(bat_buoc=BB,mem=MEM,cam=CAM,so_luong=SL,dung_som=SOM,ket_luan=KL)
-def doi_chieu(nghe,tien=(),phan_tram=(),vung=(),ten=(),han=None,tien_thu_tu=(),cap=(),tien_tat=(),ngay=(),hang=False,chu_the=None,kiem_ten=True,diem=(),tu_khoa=None,sao=()):
+def doi_chieu(nghe,tien=(),phan_tram=(),vung=(),ten=(),han=None,tien_thu_tu=(),cap=(),tien_tat=(),ngay=(),hang=False,chu_the=None,kiem_ten=True,diem=(),tu_khoa=None,sao=(),biet_truoc=()):
     """So cau Whisper nghe duoc (`nghe`) voi gia tri KY VONG tinh tu du lieu. -> list loi (rong = dat).
     tien_tat: [vnd] ky vong dang noi tat 'X tram Y' (cho phep Whisper viet CHU SO literal '706' = 706.000; nghe CHU DAY DU 'bay tram le sau nghin' van so DUNG gia tri) · tien_thu_tu: [vnd] phai xuat hien DUNG THU TU ·
     cap: [(ma_vung, vnd)] tien di sau vung tuong ung · chu_the: ma vung re nhat -> kiem chieu 'chu_the RE HON kia' voi moi vung trong `cap` · hang=True (Top 5): cat tien to 'Hạng N' truoc khi so TEN ·
@@ -583,6 +662,8 @@ def doi_chieu(nghe,tien=(),phan_tram=(),vung=(),ten=(),han=None,tien_thu_tu=(),c
         if re.search(r'(?<![a-z])(?:khong|chang|chua|ko)\s+(?:co\s+)?(?:them|bao\s+gom|kem)',bo_dau(nfc(nghe))): loi.append(f'PHU DINH phan them ("khong co them"): («{nghe[:90]}»)')
         mem=tu_khoa.get('mem',[]); tr=[a[0] for a in mem if not co_tu_khoa(nghe,a)]
         if mem and (len(mem)-len(tr))<-(-0.6*len(mem)//1): loi.append(f'TU KHOA the loai/dac diem: chi nghe duoc {len(mem)-len(tr)}/{len(mem)}, thieu {tr} («{nghe[:90]}»)')
+    for kieu_,gt_ in biet_truoc:      # G3: menh de 'biet truoc khi mua' (phu de VI, can PS Plus, so nguoi online): theo NGHIA, cau trai nghia -> truot
+        loi+=kiem_menh_de(nghe,kieu_,gt_)
     if han is not None:
         hs=doc_han(nghe)
         if not any(h['gio24']==han['gio24'] and h['buoi']==han['buoi'] and h['ngay']==han['ngay'] for h in hs):

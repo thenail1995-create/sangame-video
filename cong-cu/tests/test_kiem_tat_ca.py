@@ -225,6 +225,39 @@ class D3TheoLuatKhuon(unittest.TestCase):      # Sol vong 2b #11/#12 o CAP SCRIP
             g2=dict(g,d=dict(noiDung={}),exp=exp); exec(src[i:j],g2); self.assertEqual(g2['sai'],[])
 
 
+class D3BietTruoc(unittest.TestCase):      # G3 13/10 o CAP SCRIPT: khoi D3 THAT cua kiem-tat-ca.py (keo-thom) voi kich-ban.json.doan[gioi].bt + keo.json.biet_truoc; cau trai nghia -> TRUOT
+    BT=dict(screenLanguages=['en','ja'],spokenLanguages=['en'],online='tuy_chon',can_plus_online=True,so_nguoi_online=16,mua_them=True)
+    PD='Game chưa có phụ đề tiếng Việt, có tiếng Anh.'; PL='Chơi một mình không cần PS Plus, chơi online cần gói.'; SN='Chơi online được tối đa mười sáu người.'
+    KL='Hợp với ai thích thể loại này.'
+    TRUOC='Game bắn súng roguelike, chết là chơi lại từ đầu, chơi chung online được, người chơi chấm 4.4 trên 5 sao. Bản Deluxe có thêm 2 vũ khí với vật phẩm dùng sớm, ảnh đại diện và nhạc phim. '
+    def chay(self,gioi,bt=None,kinds=('phu_de','online')):
+        VN=datetime.timezone(datetime.timedelta(hours=7)); het=datetime.datetime(2026,10,22,13,59,tzinfo=VN); V=[dict(ma='US',vnd=560000),dict(ma='HK',vnd=1209000),dict(ma='SG',vnd=1319000)]
+        KEO=dict(game=dict(ten='Returnal™ Digital Deluxe Edition',giam=75),goc_vnd=2240000,con_vnd=560000,vung=V,gioi_thieu=gioi_mau(),biet_truoc=self.BT if bt is None else bt)
+        heard={'mo':'Returno Digital Deluxe Edition đang giảm 75% trên PS to Mỹ nè.','gia':'Từ hơn 2 triệu 2 giờ còn có 560.000 thôi','gioi':gioi,'dap':'Store Mỹ đáng rẻ nhất, rẻ hơn Hồng Kông 650, rẻ hơn Sinh 706.','han':'Nhưng mà nhanh tay nha, hết giảm trước 2h chiều ngày 22 tháng 10, cha dám!'}
+        kb=dict(doan=[dict(k=k,loi=v,**({'bt':list(kinds)} if (k=='gioi' and kinds) else {})) for k,v in heard.items()])
+        sys.path.insert(0,str(ROOT/'khuon'/'keo-thom'))
+        try: return chay_d3('keo-thom','# 5d) D3 (B2)','# 5c) NEN',dict(KEO=KEO,_G=KEO['game'],_V=V,_h=het,_nd=datetime.date(2026,10,11),_kb=kb),heard,['mo','gia','gioi','dap','han'])[0]
+        finally: sys.path.remove(str(ROOT/'khuon'/'keo-thom'))
+    def test_cau_dung_dat_va_khong_bt_thi_khong_kiem(self):
+        r=self.chay(self.TRUOC+self.PD+' '+self.PL+' '+self.KL); self.assertTrue(r[1],r)
+        r=self.chay(self.TRUOC+self.KL,kinds=()); self.assertTrue(r[1],r)                          # kich-ban cu / khong cau bt: khong kiem them
+        r=self.chay(self.TRUOC+self.SN+' '+self.PD+' '+self.KL,kinds=('so_nguoi','phu_de')); self.assertTrue(r[1],r)
+    def test_phu_de_dao_nghia_truot(self):
+        r=self.chay(self.TRUOC+self.PD.replace('chưa có','có')+' '+self.PL+' '+self.KL); self.assertFalse(r[1],r); self.assertIn('BIET TRUOC phu de',r[2])
+        r=self.chay(self.TRUOC+self.PD+' '+self.PL+' '+self.KL,bt=dict(self.BT,screenLanguages=['vi','en'])); self.assertFalse(r[1],r); self.assertIn('DAO NGHIA',r[2])        # du lieu CO phu de, loi noi CHUA
+    def test_online_dao_nghia_truot(self):
+        for moi in ('Chơi một mình cần PS Plus, chơi online cần gói.','Chơi một mình không cần PS Plus, chơi online không cần gói.'):
+            r=self.chay(self.TRUOC+self.PD+' '+moi+' '+self.KL); self.assertFalse(r[1],(moi,r)); self.assertIn('BIET TRUOC PS Plus',r[2],(moi,r[2]))
+    def test_bo_mat_cau_hoac_so_nguoi_sai_truot(self):
+        r=self.chay(self.TRUOC+self.PD+' '+self.KL); self.assertFalse(r[1],r); self.assertIn('BIET TRUOC PS Plus',r[2])
+        r=self.chay(self.TRUOC+self.SN.replace('mười sáu','sáu')+' '+self.PD+' '+self.KL,kinds=('so_nguoi','phu_de')); self.assertFalse(r[1],r); self.assertIn('BIET TRUOC so nguoi',r[2])
+        self.assertTrue(self.chay(self.TRUOC+self.SN.replace('mười sáu','16')+' '+self.PD+' '+self.KL,kinds=('so_nguoi','phu_de'))[1])
+    def test_keo_json_thieu_bang_chung_ma_kich_ban_doc_cau_thi_truot(self):
+        r=self.chay(self.TRUOC+self.PD+' '+self.PL+' '+self.KL,bt=dict(self.BT,screenLanguages=None)); self.assertFalse(r[1],r); self.assertIn('khong du du lieu',r[2])
+    def test_ket_luan_van_cuoi_va_van_kiem(self):      # cau bt chen truoc ket luan khong lam hong kiem ket luan (phu dinh / thieu)
+        r=self.chay(self.TRUOC+self.PD+' '+self.PL+' Không '+self.KL.lower()); self.assertFalse(r[1],r)
+        r=self.chay(self.TRUOC+self.PD+' '+self.PL); self.assertFalse(r[1],r); self.assertIn('KET LUAN',r[2])
+
 class D3TenSauCumMoKeo(unittest.TestCase):
     """12/10: 3 khung Keo doi CUM CAM THAN truoc ten game. Khoi 5b THAT (kiem-tat-ca.py «Whisper nghe dung ten game») tim chu `đang` DAU TIEN cua doan `mo`
     => voi MOI cum mo (loi_chu.CUM_MO) khoi phai chay (khong StopIteration) va DAT khi ten duoc nghe dung; ten sai van TRUOT."""

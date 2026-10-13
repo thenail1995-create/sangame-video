@@ -115,6 +115,9 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:transparent;font
 #gtB{left:36px;height:50px;line-height:50px;padding:0 22px;background:var(--do);color:var(--giay);font-weight:800;font-size:30px;letter-spacing:3px;transform-origin:0 50%;box-shadow:4px 4px 0 var(--muc)}
 .gtI{font-weight:700;font-size:36px;line-height:50px;height:50px;transform-origin:0 50%}
 .gtI::before{content:"✓ ";color:var(--do);font-weight:800}
+/* G3 (13/10): THE BIET TRUOC KHI MUA — 1-2 the nho cuoi ho so (phu de VI · online can PS Plus · toi da N nguoi), CHI cho cau da doc; nam trong the, duoi hang cuoi nen khong che gia/sao/chip. */
+.gtT{height:46px;line-height:46px;padding:0 18px;border:3px solid var(--muc);font-weight:800;font-size:26px;letter-spacing:1px;box-shadow:4px 4px 0 var(--muc);transform-origin:0 50%;background:var(--vang);color:var(--muc)}
+.gtT.ko{background:var(--do);color:var(--giay)}
 /* CANH 4: bang so 3 vung */
 #bangW{left:0;top:0;width:1080px;height:1920px;z-index:12}
 #bang{left:120px;top:460px;width:768px;overflow:hidden}
@@ -294,6 +297,7 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:transparent;font
       <div id="gtLuot"></div><div id="gtScore"></div></div>
     <div id="gtB" class="h"></div>
     <div id="gtI1" class="h gtI"></div><div id="gtI2" class="h gtI"></div><div id="gtI3" class="h gtI"></div><div id="gtI4" class="h gtI"></div>
+    <div id="gtT1" class="h gtT"></div><div id="gtT2" class="h gtT"></div><div id="gtT3" class="h gtT"></div>
   </div></div>
 </div>
 
@@ -442,7 +446,17 @@ function datNoiDung(){
 var BW=[440,468,506];
 /* ===== HO SO GAME (canh 3, 11/10): hang nao thieu du lieu thi BO (khong doan). Vi tri tung hang tinh o day; thoi diem hien trong ve(). ===== */
 // GT.b = day (y, trong the) cua tung hang: the DAI DAN theo hang dang hien (H3). Chu thich de DONG RIENG (H25/H28/H30).
-var GI=KEO.gioi_thieu||{}, GT={G:0,C1:0,C2:0,R:0,B:0,I:[0,0,0,0],b:{}};
+var GI=KEO.gioi_thieu||{}, GT={G:0,C1:0,C2:0,R:0,B:0,I:[0,0,0,0],T:[0,0,0],b:{}};
+/* G3: noi dung the biet truoc = DUNG cac cau da doc (kich-ban.json.doan[gioi].bt) voi du lieu keo.json.biet_truoc; thieu bang chung thi KHONG the (khong doan). */
+function theBT(){
+  var g=KB.doan.filter(function(d){return d.k==='gioi'})[0]||{}, bt=g.bt||[], X=KEO.biet_truoc||{}, ra=[];
+  bt.forEach(function(k){
+    if(k==='phu_de'){var sl=X.screenLanguages||[], vi=sl.some(function(x){return String(x).toLowerCase().split(/[-_]/)[0]==='vi'}); ra.push({t:'PHỤ ĐỀ VIỆT '+(vi?'✓':'✗'),ko:!vi})}
+    else if(k==='online'&&X.can_plus_online===true&&(X.online==='tuy_chon'||X.online==='bat_buoc')){ra.push({t:X.online==='bat_buoc'?'PHẢI ONLINE + PS PLUS':'ONLINE CẦN PS PLUS',ko:false})}
+    else if(k==='so_nguoi'&&X.so_nguoi_online>=2){ra.push({t:'TỐI ĐA '+X.so_nguoi_online+' NGƯỜI ONLINE',ko:false})}
+  });
+  return ra.slice(0,3);
+}
 function datGT(){
   $('gtSo').textContent='SỐ '+KEO.so_ky_s;
   var y=96, tl=GI.the_loai||[], dd=GI.dac_diem||[], dm=GI.diem, ban=GI.ban;
@@ -456,6 +470,11 @@ function datGT(){
     var n=Math.min(4,ban.them.length),col2=n>1;
     for(var i=0;i<n;i++){var it=$('gtI'+(i+1));it.textContent=ban.them[i].hien;it.style.left=(36+(i%2)*360)+'px';it.style.top=(y+Math.floor(i/2)*54)+'px';vuaW(it,col2?324:696,36);GT.I[i]=1;GT.b['I'+i]=y+Math.floor(i/2)*54+50}
     y+=Math.ceil(n/2)*54}
+  var th=theBT();
+  if(th.length){var wt=36,yt=y+8;
+    for(var i=0;i<th.length;i++){var c=$('gtT'+(i+1));c.textContent=th[i].t;c.className='h gtT'+(th[i].ko?' ko':'');var w=Math.ceil(c.getBoundingClientRect().width);if(wt+w>732){wt=36;yt+=46+14}
+      c.style.left=wt+'px';c.style.top=yt+'px';wt+=w+16;GT.T[i]=1;GT.b['T'+i]=yt+46}
+    y=yt+46+16}
   $('gt').style.height=(y+22)+'px';   // chieu cao DAY DU (dung de do bo cuc); ve() thu lai theo hang dang hien
 }
 function gtPop(t,id,on,t0,from,rot){var e=$(id);show(e,!!on);if(!on)return;var d=dau(t,t0,from);op(e,d?1:0);if(d)tf(e,'translateX('+d[1]*.5+'px) rotate('+rot+'deg) scale('+d[0]+')')}
@@ -576,6 +595,7 @@ function ve(t){
     gW.style.transformOrigin='504px 900px';
     var TG=Math.max((G_.tl!==undefined?G_.tl:G_.game)-.04,t_), TC1=Math.max(G_.f1-.05,t_+.1), TC2=Math.max(G_.f2-.05,t_+.1), TR=Math.max(G_.ng-.05,t_), TB=Math.max(G_.ban-.1,t_);
     var TI=[1,2,3,4].map(function(i){return Math.max(G_['i'+i]-.12,t_)});
+    var TT3=[1,2,3].map(function(i){return Math.max((G_['bt'+i]!==undefined?G_['bt'+i]:G_.e)-.1,t_)});
     gtPop(t,'gtG',GT.G,TG,1.9,-3); gtPop(t,'gtC1',GT.C1,TC1,1.6,0); gtPop(t,'gtC2',GT.C2,TC2,1.6,0);
     if(GT.R){   // diem sao: khung sao hien ra o "Nguoi", sao to dan tu "cham" toi het diem, so diem dong dau o chu so
       var R_=$('gtR'),q=p(t,TR,.22); show(R_,true); op(R_,q); tf(R_,'translateY('+((1-eo5(q))*24)+'px)');
@@ -586,8 +606,9 @@ function ve(t){
     } else show($('gtR'),false);
     gtPop(t,'gtB',GT.B,TB,1.5,0);
     for(var gi=0;gi<4;gi++)gtPop(t,'gtI'+(gi+1),GT.I[gi],TI[gi],1.5,0);
+    for(var gi=0;gi<3;gi++)gtPop(t,'gtT'+(gi+1),GT.T[gi],TT3[gi],1.5,0);
     // the dai dan theo hang da hien (khong co khoang giay trong cho chu): day the = day hang cuoi da toi + 22
-    var hh=96, ms=[[GT.G,TG,GT.b.G],[GT.C1,TC1,GT.b.C1],[GT.C2,TC2,GT.b.C2],[GT.R,TR,GT.b.R],[GT.B,TB,GT.b.B]]; for(var gi=0;gi<4;gi++)ms.push([GT.I[gi],TI[gi],GT.b['I'+gi]]);
+    var hh=96, ms=[[GT.G,TG,GT.b.G],[GT.C1,TC1,GT.b.C1],[GT.C2,TC2,GT.b.C2],[GT.R,TR,GT.b.R],[GT.B,TB,GT.b.B]]; for(var gi=0;gi<4;gi++)ms.push([GT.I[gi],TI[gi],GT.b['I'+gi]]); for(var gi=0;gi<3;gi++)ms.push([GT.T[gi],TT3[gi],GT.b['T'+gi]]);
     ms.forEach(function(m){if(m[0])hh=Math.max(hh,L(96,m[2],eo(p(t,m[1]-.12,.3))))});
     $('gt').style.height=(hh+22)+'px';
   }

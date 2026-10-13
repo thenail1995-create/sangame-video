@@ -200,3 +200,48 @@ def hop_nhat_thong_tin(ds, nhan=None):
                 ra[k] = v
                 ra["nguon_truong"][k] = (nhan[i] if nhan and i < len(nhan) else i)
     return ra
+
+
+_KHOANG=re.compile(r"[\s\u00a0\u2007\u2009\u202f\u200b\ufeff]+")
+_BR=re.compile(r"<\s*br\s*/?\s*>|\n", re.I)
+
+
+def _dong_thong_bao(chuoi):
+    """Chuoi COMPATIBILITY_NOTICE (cac dong cach nhau `<br/>`) -> [dong da chuan hoa khoang trang (NBSP, thin space...), chu thuong]. PS Store viet `PS\xa0Plus` bang khoang trang dac biet."""
+    return [d for d in (_KHOANG.sub(" ", x).strip().lower() for x in _BR.split(chuoi or "")) if d]
+
+
+def biet_truoc(html, pid):
+    """Thong tin 'BIET TRUOC KHI MUA' cua DUNG san pham `Product:<pid>` (G3 13/10): ngon ngu + che do online. KHONG do toan HTML (bang dich / san pham goi y co cung chuoi gay nhieu):
+    chi doc cac manh `Product:<pid>` (nhieu the script, hop nhat theo truong, manh dau co truong thi dung) -> `screenLanguages`, `spokenLanguages`, va khoi `descriptions[type=COMPATIBILITY_NOTICE]`.
+    -> dict(screenLanguages[str]|None, spokenLanguages[str]|None, online 'khong'|'tuy_chon'|'bat_buoc'|None, can_plus_online bool|None, so_nguoi_online int|None, mua_them bool|None).
+    Thieu / khong ro -> None (KHONG doan). can_plus_online chi True khi trang ghi ro 'PS Plus required' (khong suy False tu viec vang dong do). Dong thong bao doc tieng Anh (cac trang en-*)."""
+    ra = dict(screenLanguages=None, spokenLanguages=None, online=None, can_plus_online=None, so_nguoi_online=None, mua_them=None)
+    if not pid or not isinstance(html, str):
+        return ra
+    thong_bao = None
+    for c in _cache_cac_the(html):
+        p = c.get(f"Product:{pid}")
+        if not isinstance(p, dict):
+            continue
+        for k in ("screenLanguages", "spokenLanguages"):
+            v = p.get(k)
+            if ra[k] is None and isinstance(v, list) and v and all(isinstance(x, str) for x in v):
+                ra[k] = list(dict.fromkeys(v))
+        for x in (p.get("descriptions") or []):
+            if thong_bao is None and isinstance(x, dict) and x.get("type") == "COMPATIBILITY_NOTICE" and isinstance(x.get("value"), str) and x["value"].strip():
+                thong_bao = x["value"]
+    for d in _dong_thong_bao(thong_bao):
+        m = re.fullmatch(r"online play (optional|required)", d)
+        if m:
+            ra["online"] = "tuy_chon" if m.group(1) == "optional" else "bat_buoc"
+        elif re.fullmatch(r"(no online play|online play (not supported|unsupported|unavailable))", d):
+            ra["online"] = "khong"
+        if re.search(r"\bps plus required\b", d) and "online" in d:
+            ra["can_plus_online"] = True
+        m = re.search(r"\bup to (\d+) online players\b", d)
+        if m and int(m.group(1)) >= 1:
+            ra["so_nguoi_online"] = int(m.group(1))
+        if re.fullmatch(r"in-game purchases (optional|required)", d):
+            ra["mua_them"] = True
+    return ra
