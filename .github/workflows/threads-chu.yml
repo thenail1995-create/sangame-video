@@ -4,11 +4,9 @@ name: Threads bai chu
 #   13:00 VN (06:00 UTC) = binh_chon, bai TEXT + poll (thang Top 5 hang 1 hoac bo cau co dinh), so sg_dang = binh-chon
 #   17:00 VN (10:00 UTC) = chieu, co anh bia, nguon manifest keo-thom-2
 # Khong can DATA_DEPLOY_KEY (doc manifest Release). Token Threads o Supabase qua cong sg-cong.
+# 13/10: BO lich `schedule` cua GitHub - lich 02:30 UTC chay tre 7 gio (16:35 VN) -> ngoai cua so -> ntfy loi gia.
+#   Lich that = cron-job.org goi workflow_dispatch (job "SG Threads chu sang 09:30", "... binh chon 13:00", "... chieu 17:00").
 on:
-  schedule:
-    - cron: "30 2 * * *"
-    - cron: "0 6 * * *"
-    - cron: "0 10 * * *"
   workflow_dispatch:
     inputs:
       loai:
