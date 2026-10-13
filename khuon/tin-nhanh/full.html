@@ -75,7 +75,7 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:transparent;font
 .dongK .t b{display:inline-block;font-weight:800;font-size:32px;white-space:nowrap;margin-top:6px}
 #mai{left:120px;font-family:NR;font-style:italic;font-weight:600;font-size:44px}
 #url3{left:120px;width:560px;height:110px;background:var(--muc);display:flex;align-items:center;gap:16px;padding:0 26px}
-#url3 b{font-family:PF;font-weight:900;font-size:58px;color:var(--kem);white-space:nowrap}
+#url3 b{font-family:PF;font-weight:900;font-size:50px;color:var(--kem);white-space:nowrap}
 #url3 .con{display:inline-block;width:12px;height:52px;background:var(--vang);margin-left:4px;vertical-align:-6px}
 #logo3{left:712px;width:162px}
 #logo3 img{width:162px;display:block;filter:drop-shadow(3px 0 0 #FBF6EA) drop-shadow(-3px 0 0 #FBF6EA) drop-shadow(0 3px 0 #FBF6EA) drop-shadow(0 -3px 0 #FBF6EA) drop-shadow(0 12px 12px rgba(0,0,0,.35))}
@@ -102,7 +102,7 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:transparent;font
   <div id="ke6a" class="a ke1"></div>
   <div id="tieuK" class="a pf">Sáng nay có <i>3 tin</i></div>
   <div id="dongs"></div>
-  <div id="mai" class="a">Mai lại có bản tin mới nhé!</div>
+  <div id="mai" class="a">Theo dõi Săn Game</div>
   <div id="url3" class="a"><svg width="46" height="46" viewBox="0 0 52 52" style="flex:none"><path d="M6 26h32M24 11l15 15-15 15" stroke="#E3A82B" stroke-width="8" fill="none"/></svg><b><span id="urlc"></span><span class="con" id="con"></span></b></div>
   <div id="logo3" class="a"><img src="logo.svg"></div>
 </div></div>
@@ -207,13 +207,17 @@ function ve(t){
     op($('hdr6'),p(t,CK+.3,.3)); $('ke6a').style.width=(768*eo(p(t,CK+.3,.4)))+'px';
     var q=p(t,CK+.3,.35); op($('tieuK'),q); tf($('tieuK'),'translateY('+((1-eo5(q))*30)+'px)');
     for(var i=0;i<3;i++){var e=$('dk'+i),d=dau(t,CK+.5+i*.15,1.25); op(e,d?1:0); if(d)tf(e,'translateX('+d[1]*.4+'px) scale('+d[0]+')')}
-    var ws=tu('ket'), iS=ws.findIndex(function(w){return /^săn$/i.test(w.w)}), a1=ws[iS].s, a2=ws[iS+3].s, a3=ws[iS+5].s;   // Săn Game chấm COM chấm VI en
-    var u=p(t,a1-.5,.3); op($('url3'),u); tf($('url3'),'translateY('+((1-eo5(u))*40)+'px)');
-    var n1=Math.floor(cl((t-a1)/.4)*7),n2=Math.floor(cl((t-a2)/.3)*4),n3=Math.floor(cl((t-a3)/.22)*3);
-    $('urlc').textContent='sangame'.slice(0,n1)+'.com'.slice(0,n2)+'.vn'.slice(0,n3);
-    op($('con'),(Math.floor(t*2.4)%2===0||(t>=a1&&t<a3+.3))?1:0);
-    var tmai=MOC[MOC.length-1].e+.15, mq=p(t,tmai,.4); op($('mai'),mq); $('mai').style.clipPath='inset(-10px '+(100-eo(mq)*100)+'% -10px 0)';
-    var lg=dau(t,a3+.1,1.9); op($('logo3'),lg?1:0); if(lg)tf($('logo3'),'translateX('+lg[1]*.5+'px) scale('+lg[0]+') rotate(-5deg)');
+    // 13/10 (Sol #3): `ket` = «Theo dõi Săn Game để không lỡ kèo nào nha!» — dòng nghiêng «Theo dõi Săn Game» vào cùng chữ `Theo`, hộp tên kênh hiện cùng lúc, logo dán ở chữ `Săn`,
+    //   @sangamecomvn gõ từ chữ `để` đến hết `nha!` (mốc lấy theo TỪ trong lời, không theo vị trí cũ «chấm com chấm vi en»; cùng cách Kèo v10)
+    var ws=tu('ket'), iS=ws.findIndex(function(w){return /^săn$/i.test(w.w)}), iD=ws.findIndex(function(w){return /^để$/i.test(w.w)});
+    if(iS<0)iS=2; if(iD<0)iD=Math.max(0,ws.length-6);
+    var aT=ws[0].s, aS=ws[iS].s, a1=ws[iD].s, a3=ws[ws.length-1].e+.1;
+    var u=p(t,aT+.27,.3); op($('url3'),u); tf($('url3'),'translateY('+((1-eo5(u))*40)+'px)');
+    var KENH='@sangamecomvn', nk=Math.floor(cl((t-a1)/(a3-a1))*KENH.length);
+    $('urlc').textContent=KENH.slice(0,nk);
+    op($('con'),(Math.floor(t*2.4)%2===0||(t>=a1&&t<a3+.25))?1:0);
+    var mq=p(t,aT-.05,.4); op($('mai'),mq); $('mai').style.clipPath='inset(-10px '+(100-eo(mq)*100)+'% -10px 0)';
+    var lg=dau(t,aS+.24,1.9); op($('logo3'),lg?1:0); if(lg)tf($('logo3'),'translateX('+lg[1]*.5+'px) scale('+lg[0]+') rotate(-5deg)');
   }
   // ----- canh mo -----
   var mo=t<C1+.45; show($('cMo'),mo);

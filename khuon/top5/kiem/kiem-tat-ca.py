@@ -208,9 +208,13 @@ for r in range(1,6):
     if not _ok: loi.append(f"TEN «{ky['ten'][0]}»: {_ly}")
     if can_vung and not ma: loi.append(f"VUNG: top5.json khong cho biet ma vung cua «{g.get('vung')}» — khong kiem duoc")
     thu.append(f"h{r} «{heard[k][:40]}»"); sai+=[f'hang {r} {x}' for x in loi]
+# 13/10 (Sol #4): `mo` XOAY 3 kieu theo ngay (kich-ban.py: toordinal % 3) -> ky vong tien theo KIEU DA CHON: kieu 1 = gia hang 1 (TOP[0]) + ten hang 1 (khu so trong ten truoc khi doc tien), kieu 0/2 = muc ngan sach; `ket` luon la muc.
+_KMO=datetime.date.fromisoformat(CFG['ngay_iso']).toordinal()%3 if CFG.get('ngay_iso') else 0
 for k in ('mo','ket'):
     if k in heard:
-        loi=NS.doi_chieu(heard[k],tien=[CFG['muc']]); sai+=[f'{k} {x}' for x in loi]
+        if k=='mo' and _KMO==1: loi=NS.doi_chieu(heard[k],tien=[TR.nghin_so(TOP[0]['gia'])*1000],ten=[TR.ten_doc_cua(TOP[0])],kiem_ten=False)
+        else: loi=NS.doi_chieu(heard[k],tien=[CFG['muc']])
+        sai+=[f'{k} {x}' for x in loi]
 ghi('D3 giong sach: ten (so phan/phien ban) + tien + phan tram + vung tung hang khop du lieu',not sai,f"5 hang; ten dat boi {TEN_BO}; pcm {bc['pcm_sha256'][:12]} (nghe moi {bc['nghe_moi']}, dung lai {bc['dung_lai']}); "+' | '.join(thu)+(f"; SAI: {sai}" if sai else ''),'D3')
 NGHE_BC=bc
 # 6b) D3 (doi thiet ke 11/10, Sol #10) — "giong trong video = giong da kiem": am thanh 16 kHz trich tu MP4 nay phai TUONG QUAN duong bao nang luong (RMS 20 ms, khung co giong, lech +-300 ms) voi

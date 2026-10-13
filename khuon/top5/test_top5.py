@@ -141,4 +141,57 @@ class KiemTatCaMaThoat(unittest.TestCase):   # vong 2 #6: kiem-video.py thoat !=
             dong=[l for l in s.split('\n') if "'Ky thuat file (kiem-video.py)'" in l][0]
             self.assertIn('rv.returncode==0',dong,kh)
 
+import datetime as _dt,re as _re,shutil as _sh
+import nghe_so as _ns
+
+class CauMoXoay(unittest.TestCase):   # G2 (13/10, Sol #4/#18): `mo` xoay 3 kieu theo toordinal % 3; D3 `mo` ky vong theo kieu (kieu 1 = gia hang 1, khong phai muc)
+    TOP=[dict(ten='Mafia',gia='167.000đ',giam=85,vung='Hồng Kông',ma='HK',goc='900.000đ',may='PS5'),dict(ten='Mortal Kombat 11',gia='136.000đ',giam=90,vung='Mỹ',ma='US',goc='900.000đ',may='PS5'),
+         dict(ten='Little Nightmares',gia='130.000đ',giam=80,vung='Hồng Kông',ma='HK',goc='900.000đ',may='PS5'),dict(ten='Outlast',gia='133.000đ',giam=75,vung='Indonesia',ma='ID',goc='900.000đ',may='PS5'),
+         dict(ten='Steelrising',gia='112.000đ',giam=90,vung='Hồng Kông',ma='HK',goc='900.000đ',may='PS5')]
+    def kb(self,ngay_iso,muc=200000,top=None):
+        with tempfile.TemporaryDirectory() as d:
+            d=pathlib.Path(d)
+            for f in ('kich-ban.py','ten_rut_gon.py','ten_ngoai_le.json'): _sh.copy(T/f,d/f)
+            cfg=dict(muc=muc,con_lai=85,ngay='11/10'); 
+            if ngay_iso: cfg['ngay_iso']=ngay_iso
+            (d/'top5.json').write_text(json.dumps(top or self.TOP,ensure_ascii=False),encoding='utf-8'); (d/'cau-hinh.json').write_text(json.dumps(cfg),encoding='utf-8')
+            r=subprocess.run([sys.executable,'-I',str(d/'kich-ban.py')],capture_output=True,text=True,cwd=d); self.assertEqual(r.returncode,0,r.stderr[-600:])
+            return {x['k']:x['loi'] for x in json.load(open(d/'kich-ban.json',encoding='utf-8'))}
+    def ngay_kieu(self,k):      # ngay ISO dau tien >= 2026-10-11 co toordinal % 3 == k
+        d=_dt.date(2026,10,11)
+        while d.toordinal()%3!=k: d+=_dt.timedelta(days=1)
+        return d.isoformat()
+    def test_ba_kieu_dung_cong_thuc(self):
+        mong={0:'Top năm game bán chạy đang dưới hai trăm nghìn nè anh em!',
+              1:'Mafia chỉ một trăm sáu mươi bảy nghìn, đứng đầu top năm hôm nay nè!',
+              2:'Có hai trăm nghìn thì mua được game gì? Top năm hôm nay nè!'}
+        for k,m in mong.items(): self.assertEqual(self.kb(self.ngay_kieu(k))['mo'],m,k)
+    def test_hai_ngay_lien_khac_kieu_nhieu_ngay(self):
+        d=_dt.date(2026,10,11); truoc=None; cac=set()
+        for i in range(12):
+            mo=self.kb((d+_dt.timedelta(days=i)).isoformat())['mo']; cac.add(mo)
+            if truoc is not None: self.assertNotEqual(mo,truoc,(i,mo))
+            truoc=mo
+        self.assertEqual(len(cac),3)
+    def test_thieu_ngay_iso_thi_kieu_cu(self):
+        self.assertEqual(self.kb(None)['mo'],'Top năm game bán chạy đang dưới hai trăm nghìn nè anh em!')
+    def test_ket_va_cac_hang_khong_doi(self):
+        a,b=self.kb(self.ngay_kieu(0)),self.kb(self.ngay_kieu(1))
+        for k in ('h1','h2','h3','h4','h5','ket'): self.assertEqual(a[k],b[k],k)
+        self.assertEqual(a['ket'],'Còn tám mươi lăm game nữa dưới hai trăm nghìn, tra ở Săn Game chấm com chấm vi en!')
+    def test_d3_mo_theo_kieu(self):                # chay DUNG khoi D3 `mo` that cua kiem-tat-ca.py (gia hang 1 167.000 != muc 200.000)
+        import ten_rut_gon as TR
+        src=(T/'kiem'/'kiem-tat-ca.py').read_text(encoding='utf-8'); a=src.index("_KMO="); b=src.index("sai+=[f'{k} {x}' for x in loi]",a)+len("sai+=[f'{k} {x}' for x in loi]")
+        def chay(ngay_iso,mo,ket='Còn tám mươi lăm game nữa dưới hai trăm nghìn, tra ở Săn Game'):
+            CFG=dict(muc=200000,con_lai=85); 
+            if ngay_iso: CFG['ngay_iso']=ngay_iso
+            g=dict(datetime=_dt,CFG=CFG,TOP=self.TOP,TR=TR,NS=_ns,heard=dict(mo=mo,ket=ket),sai=[]); exec(src[a:b],g); return g['sai']
+        k1,k0=self.ngay_kieu(1),self.ngay_kieu(0)
+        mo1='Mafia chỉ một trăm sáu mươi bảy nghìn, đứng đầu top năm hôm nay nè'; mo0='Top năm game bán chạy đang dưới hai trăm nghìn nè anh em'
+        self.assertEqual(chay(k1,mo1),[]); self.assertEqual(chay(k0,mo0),[])
+        self.assertTrue(chay(k1,mo0)); self.assertTrue(chay(k0,mo1))          # doi kieu: kieu 1 phai nghe gia hang 1; kieu 0 phai nghe muc
+        self.assertTrue(chay(k1,'Mafia chỉ hai trăm nghìn, đứng đầu top năm hôm nay nè'))          # gia hang 1 sai (nghe muc) -> TRUOT
+        self.assertTrue(chay(k0,mo0,ket='Còn tám mươi lăm game nữa dưới một trăm nghìn'))                     # ket van kiem muc
+        self.assertEqual(chay(None,mo0),[])                                                                   # thieu ngay_iso -> kieu 0 (khop kich-ban.py)
+
 if __name__=='__main__': unittest.main(verbosity=1)

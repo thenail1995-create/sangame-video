@@ -193,7 +193,8 @@ if TJ.get('ngay')!=sc.ngay_ddmm(exp) or TJ.get('thu')!=sc.thu_cua(exp): sai_ngay
 n1,n6=d['ngay']['n1'].strip(),d['ngay']['n6'].strip()
 if n1!=f"{sc.thu_cua(exp)} · {sc.ngay_ddmm(exp)}": sai_ngay.append(f"giay dau trang '{n1}'")
 if n6!=f"Bản tin sáng · {sc.ngay_ddmm(exp)}": sai_ngay.append(f"giay cuoi '{n6}'")
-if sc.ngay_doc(exp) not in KB['mo']: sai_ngay.append(f"loi mo dau khong doc ngay '{sc.ngay_doc(exp)}': {KB['mo']}")
+# 13/10 (Sol #2): loi mo KHONG con doc ngay (mo bang deal that, ngay chi nam tren giay/hinh/tin.json) -> chi cam lai mo dau «Bản tin sáng Săn Game» (3 giay dau khong mo bang ten kenh)
+if 'săn game' in KB['mo'].lower() or sc.ngay_doc(exp) in KB['mo']: sai_ngay.append(f"loi mo van mo bang ten kenh/ngay (khuon cu): {KB['mo']}")
 ghi('Ngay tren giay = ngay DANG (hinh + loi)',not sai_ngay,f"ngay dang {exp}: giay '{n1}' / '{n6}'"+(f"; {sai_ngay}" if sai_ngay else ''),'C3')
 
 # 6b2) B3: NOI DUNG tung the tren hinh (DOM that, moc dung yen) khop tin.json CHINH XAC (tit, nguon, ten game, nhan, giam %, gia, moc, muc luc); B4: vung tren hinh = vung cua du lieu
@@ -275,6 +276,9 @@ TEN_BO={}
 for i,g in enumerate(TJ['tin'],1):
     ws=[w for w in moc if w['doan']==f't{i}']
     if ws: cs[f't{i}']=(max(0,int((ws[0]['s']-0.15)*16000)),int((ws[-1]['e']+0.2)*16000))
+MO_DL=TJ.get('mo_du_lieu')      # 13/10: deal ro nhat muc giam sau (sinh-tin.py) -> D3 cho cau mo: ten + tien + % theo GIA TRI
+_wmo=[w for w in moc if w['doan']=='mo']
+if MO_DL and _wmo: cs['mo']=(max(0,int((_wmo[0]['s']-0.15)*16000)),int((_wmo[-1]['e']+0.2)*16000))
 heard,NGHE_BC=NS.nghe_doan(G16,cs,nghe_kiem,B/'kiem',rev=(os.environ.get('WHISPER_REV') or mo_hinh.REV_GHIM)+'|'+mo_hinh.ten_nghe_kiem())
 heard_s,_bc_s=NS.nghe_doan(G16,cs,nghe,B/'kiem',rev=os.environ.get('WHISPER_REV') or mo_hinh.REV_GHIM)   # small: CHI cho TEN game
 for i,g in enumerate(TJ['tin'],1):
@@ -323,6 +327,13 @@ for i,g in enumerate(TJ['tin'],1):
       for ng in g['kiem'].get('ngay',[]):
         r_=dau_hieu(heard_so,sc.chuan_so_sanh(ng),'mem'); d3.append(r_)
         if r_<0.75: d3_xau.append(f"tin {i} ngay/moc «{ng}» {r_:.2f} nghe: «{nghe_raw[:70]}»")
+if MO_DL:     # cau mo «<ten> con <gia>, giam <x> phan tram, ...»: ten (2 bo nghe, nguong LONG nhu tin) + tien + % theo GIA TRI; khong co mo_du_lieu thi cau mo chung (khong so) -> khong gi de kiem
+    if 'mo' not in heard: d3_xau.append('mo: khong co chu nao trong moc-chu cua doan mo')
+    else:
+        for x in NS.doi_chieu(heard['mo'],tien=[MO_DL['gia_vnd']],phan_tram=[MO_DL['giam']],ten=[MO_DL['ten_doc']],kiem_ten=False): d3_xau.append(f'mo {x}')
+        _ok_m,_bo_m,_ly_m=NS.ten_hai_bo(MO_DL['ten_doc'],{'turbo':heard['mo'],'small':heard_s.get('mo')}); TEN_BO['mo']=_bo_m
+        if not _ok_m: d3_xau.append(f"mo ten «{MO_DL['ten_doc']}»: {_ly_m}")
+        d3.append(1.0)
 ghi('D3 giong sach: TEN (so phan) + TIEN + PHAN TRAM + VUNG tung tin khop du lieu',not d3_xau,f"{len(d3)} muc, thap nhat {min(d3) if d3 else 1:.2f}"+f"; ten dat boi {TEN_BO}"+f"; pcm {NGHE_BC['pcm_sha256'][:12]} (nghe moi {NGHE_BC['nghe_moi']}, dung lai {NGHE_BC['dung_lai']})"+(f"; BO QUA {len(THIEU_KIEM)} tin thieu `kiem` — fixture dinh dang cu (hoi quy)" if THIEU_KIEM and HOI_QUY else '')+(f"; {d3_xau}" if d3_xau else ''),'D3')
 
 
