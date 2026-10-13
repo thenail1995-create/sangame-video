@@ -84,7 +84,7 @@ def du_canh(pool,can,ly):
     if tong>=can: return pool
     if not pool or tong<0.6*can: raise SystemExit(ly)
     ra=list(pool); goc=sorted(pool,key=lambda p:-p['len']); i=0
-    while sum(p['len'] for p in ra)<can:
+    while sum(p['len'] for p in ra)<can*1.35:   # du phong 35%: lay() mat 0,3 s moi lan noi + phan le < 0,6 s bi bo (run 38422626928 thieu 0,9 s)
         ra.append(dict(goc[i%len(goc)],lap=True)); i+=1
     print(f'  LAP TRAILER: canh sang {tong:.1f}s < {can:.1f}s -> dung lai {i} doan (con >= 60%)')
     return ra
