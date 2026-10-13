@@ -62,6 +62,15 @@ class IG(unittest.TestCase):
         self.assertEqual(len(self.loi), 1)
         self.assertIn("mất nhãn AI", self.loi[0][0])
 
+    def test_ca_hai_lan_400_khong_ntfy_mat_nhan_va_nem_loi(self):
+        loi400 = P(400, {"error": {"message": "(#100) Param is_ai_generated is not supported", "code": 100}})
+        m = _ig_mang([loi400, loi400])
+        with mock.patch("dang.http.gui", m):
+            with self.assertRaises(chung.LoiDang):
+                ig.chuan_bi(TOKEN_GIA["ig"], tao_nc(), _Luu())
+        self.assertEqual(len(_form_media(m)), 2)
+        self.assertEqual(self.loi, [])
+
     def test_loi_quyen_khong_thu_lai(self):
         m = _ig_mang(P(400, {"error": {"message": "(#10) Permission denied", "code": 10}}))
         with mock.patch("dang.http.gui", m):
@@ -117,15 +126,15 @@ class YouTube(unittest.TestCase):
         return [k["json_body"] for me, u, k in m.goi if me == "PUT" and "youtube/v3/videos" in u][0]["status"]
 
     def test_insert_va_update_deu_co_co(self):
-        self.assertIs(self._insert()["containsSyntheticMedia"], True)
-        st = self._update()
-        self.assertIs(st["containsSyntheticMedia"], True)
-        self.assertEqual(st["privacyStatus"], "public")
+        self.assertEqual(self._insert(), {"privacyStatus": "private", "selfDeclaredMadeForKids": False,
+                                          "containsSyntheticMedia": True})
+        self.assertEqual(self._update(), {"privacyStatus": "public", "selfDeclaredMadeForKids": False,
+                                          "containsSyntheticMedia": True})
 
     def test_tat_khong_co_co(self):
         with mock.patch.object(chung, "CO_GIONG_AI", False):
-            self.assertNotIn("containsSyntheticMedia", self._insert())
-            self.assertNotIn("containsSyntheticMedia", self._update())
+            self.assertEqual(self._insert(), {"privacyStatus": "private", "selfDeclaredMadeForKids": False})
+            self.assertEqual(self._update(), {"privacyStatus": "public", "selfDeclaredMadeForKids": False})
 
 
 class Caption(unittest.TestCase):
