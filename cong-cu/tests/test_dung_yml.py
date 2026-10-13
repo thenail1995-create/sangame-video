@@ -220,7 +220,11 @@ class DungNhanhMatrix(unittest.TestCase):
         self.assertIn('id: kiem_chung', kt); self.assertIn('CHUNG_SHA: ${{ needs.chung.outputs.chung_sha }}', kt)
         self.assertIn('bash cong-cu/nhan-chung-ra.sh chung-ra.enc "$CHUNG_SHA" chung-ra >> "$GITHUB_OUTPUT"', kt); self.assertNotIn('${{', kt.split('run:')[1])
         dl = buoc_trong(b, '- name: Ket qua chung (tu job chung)')
-        self.assertIn("if: steps.kiem_chung.outputs.ok != '1'", dl); self.assertIn('actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0', dl); self.assertIn('name: chung-ra', dl)
+        self.assertIn("if: steps.kiem_chung.outputs.ok != '1'", dl); self.assertIn('actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0', dl)
+        self.assertIn('name: chung-ra\n          path: chung-ra\n', dl + '\n')   # Sol 13/10: duong du phong phai tai DUNG thu muc ma buoc giai ma doc
+        # Sol 13/10: tep chung-ra.enc (cache + artifact) chi duoc tao boi openssl enc (MA HOA) - khong buoc nao khac ghi/copy tep tho vao ten nay
+        ghi = [l for l in c.splitlines() if re.search(r'(-out|>|\bcp\b|\bmv\b|\btar\b|\btee\b)[^\n]*chung-ra\.enc', l)]
+        self.assertEqual(ghi, ['          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:GOI_KHOA -in "$RUNNER_TEMP/chung-ra.tar" -out "$GITHUB_WORKSPACE/chung-ra.enc"'])
         gm = buoc_trong(b, '- name: Giai ma + giai nen ket qua chung vao khuon')
         self.assertIn('-in chung-ra/chung-ra.enc', gm); self.assertIn('nguon chung-ra:', gm)
         self.assertLess(b.index('actions/cache/restore@'), b.index('id: kiem_chung')); self.assertLess(b.index('id: kiem_chung'), b.index('actions/download-artifact')); self.assertLess(b.index('actions/download-artifact'), b.index('Giai ma + giai nen ket qua chung'))
