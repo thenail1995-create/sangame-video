@@ -231,10 +231,10 @@ def GTMOD_trang(ngon_ngu):
 
 # ================= BIET TRUOC KHI MUA (G3 13/10): cau chen cuoi `gioi` truoc ket luan; chon-keo lay trang vung re nhat =================
 BT_DU=dict(screenLanguages=['en','es','ja'],spokenLanguages=['en'],online='tuy_chon',can_plus_online=True,so_nguoi_online=16,mua_them=True)
-def chay_kich_ban_bt(ngay_dang,dang,bt,diem=None,ban=None,the_loai=True):
+def chay_kich_ban_bt(ngay_dang,dang,bt,diem=None,ban=None,the_loai=True,dac_diem=None):
     keo=dict(ngay_dang=ngay_dang,game=dict(ten='Sniper Elite 5',giam=70),goc_vnd=1650000,con_vnd=495000,vung=[dict(ma='US',vnd=495000),dict(ma='HK',vnd=560000),dict(ma='SG',vnd=640000)],
              han=dict(endTime=int(datetime.datetime(2026,10,20,12,0,tzinfo=datetime.timezone.utc).timestamp()*1000)),
-             gioi_thieu=dict(the_loai=[dict(vi='bắn súng')] if the_loai else [],dac_diem=[],diem=diem,ban=ban),biet_truoc=bt)
+             gioi_thieu=dict(the_loai=[dict(vi='bắn súng')] if the_loai else [],dac_diem=dac_diem or [],diem=diem,ban=ban),biet_truoc=bt)
     if bt is None: keo.pop('biet_truoc')
     with tempfile.TemporaryDirectory() as d:
         d=pathlib.Path(d)
@@ -290,6 +290,24 @@ class BietTruocLoi(unittest.TestCase):
             self.assertEqual(g['loi'].split()[:len(g0['loi'].split())-len(lc.KET_LUAN_HOP.split())],g0['loi'].split()[:-len(lc.KET_LUAN_HOP.split())])    # phan truoc khong doi
             for d in doan:
                 if d['k']!='gioi': self.assertNotIn('bt',d); self.assertEqual(d['loi'],next(x for x in goc if x['k']==d['k'])['loi'],d['k']) if d['k'] in ('gia','dap','han','ket') else None
+    def test_so_cau_theo_do_dai_ho_so(self):      # Sol soi diff G3: ho so dai -> the xuong qua vung an toan Shorts -> giam SO CAU (nguon loi) de hinh va loi khop
+        chip=lambda *h:[dict(hien=x) for x in h]; them=lambda n:dict(them=[dict()]*n)
+        ngan=dict(the_loai=[1],dac_diem=chip('ROGUELIKE'),diem=dict(tb=4.5),ban=None)
+        self.assertEqual(lc.so_cau_toi_da(ngan),2); self.assertEqual(lc.so_cau_toi_da(None),2)
+        vua=dict(the_loai=[1],dac_diem=chip('ROGUELIKE','CHƠI CHUNG ONLINE'),diem=dict(tb=4.5),ban=them(4)); self.assertEqual(lc.so_cau_toi_da(vua),2)       # 2 chip van 1 hang (do that 1129..1177 < 1254)
+        hai_hang=dict(the_loai=[1],dac_diem=chip('CHƠI CHUNG ONLINE','KHÓ KIỂU SOULS'),diem=dict(tb=4.5),ban=them(2)); self.assertEqual(lc.so_cau_toi_da(hai_hang),1)
+        xau=dict(the_loai=[1],dac_diem=chip('CHƠI CHUNG ONLINE','KHÓ KIỂU SOULS'),diem=dict(tb=4.5),ban=them(4)); self.assertEqual(lc.so_cau_toi_da(xau),0)
+        self.assertEqual(lc.cau_biet_truoc(BT_DU,ngay(0),'keo-thom',gt=xau),[]); self.assertEqual(len(lc.cau_biet_truoc(BT_DU,ngay(0),'keo-thom',gt=hai_hang)),1); self.assertEqual(len(lc.cau_biet_truoc(BT_DU,ngay(0),'keo-thom',gt=ngan)),2)
+        self.assertEqual(len(lc.cau_biet_truoc(BT_DU,ngay(0),'keo-thom')),2)             # khong truyen gt -> nhu cu
+        # moi uoc luong >= do that (do Shorts, the bat dau y 474): xau nhat 1127-474=653 <= 697; 2 chip 1 hang + 4 muc 1177-474-120 -> 583 <= 629
+        self.assertGreaterEqual(lc.uoc_cao_ho_so(xau),653); self.assertGreaterEqual(lc.uoc_cao_ho_so(vua),583)
+    def test_kich_ban_ho_so_dai_giam_so_cau(self):
+        ban=dict(ten='Deluxe Edition',ten_noi='Deluxe',them=[dict(k='vu_khi',so=2,noi='hai vũ khí',hien='2 vũ khí'),dict(k='trang_phuc',noi='trang phục',hien='trang phục'),dict(k='mo_rong',noi='gói mở rộng',hien='gói mở rộng'),dict(k='tien',noi='tiền trong game',hien='tiền trong game')],dung_som=False,them_goc=[])
+        co=dict(k='co_op_online',noi='chơi chung online được',hien='CHƠI CHUNG ONLINE'); so=dict(k='souls',noi='khó kiểu Souls',hien='KHÓ KIỂU SOULS'); rg=dict(k='roguelike',noi='roguelike, chết là chơi lại từ đầu',hien='ROGUELIKE')
+        for dd,ban_,n in (([rg],None,2),([rg,co],ban,2),([co,so],dict(ban,them=ban['them'][:2]),1),([co,so],ban,0)):
+            doan,loi=chay_kich_ban_bt(ngay(0),'keo-thom',BT_DU,diem=D(4.5,3000),ban=ban_,dac_diem=dd); g=next(d for d in doan if d['k']=='gioi')
+            self.assertEqual(len(g.get('bt',[])),n,(dd,n)); self.assertTrue(g['loi'].endswith(lc.KET_LUAN_DANG_MUA))
+            self.assertEqual('bt1' in g['neo'],n>=1); self.assertEqual('bt2' in g['neo'],n>=2)
     def test_thieu_bang_chung_thi_kich_ban_nhu_cu_khong_co_bt(self):
         goc,loi0=chay_kich_ban_bt(ngay(0),'keo-thom',None,diem=D(4.37,3000))
         for bt in (dict(online='tuy_chon',can_plus_online=None),dict(screenLanguages=None),{}):

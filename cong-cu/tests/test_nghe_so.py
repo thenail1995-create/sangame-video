@@ -379,4 +379,27 @@ class BietTruocMenhDe(unittest.TestCase):      # G3 13/10 (Sol #9 #10): menh de 
         self.assertEqual(ns.doi_chieu(t,biet_truoc=[('phu_de','chua'),('ps_plus','tuy_chon'),('so_nguoi',16)]),[])
         self.assertTrue(ns.doi_chieu(t.replace('chưa có','có'),biet_truoc=[('phu_de','chua'),('ps_plus','tuy_chon'),('so_nguoi',16)]))
 
+    # ---- Sol soi diff G3 (25-soi-diff-g3.md): Whisper hay viet «1 minh» va hay MAT dau cau; phu dinh chi xet cua so ngan truoc dong tu cua tung menh de
+    LIEN='Chơi một mình không cần PS Plus chơi online cần gói Game có phụ đề tiếng Việt'
+    def test_mot_minh_viet_bang_chu_so(self):
+        for t in ('Chơi 1 mình không cần PS Plus, chơi online cần gói.','chơi một mình không cần PS Plus chơi online cần gói','Chơi mot minh khong can PS Plus, choi online can goi'):
+            self.assertEqual(ns.doc_can_ps_plus(t),[('mot_minh',False),('online',True)],t); self.assertEqual(ns.kiem_menh_de(t,'ps_plus','tuy_chon'),[],t)
+        self.assertTrue(ns.kiem_menh_de('Chơi 1 mình cần PS Plus, chơi online cần gói.','ps_plus','tuy_chon'))      # dao nghia van truot
+        self.assertTrue(ns.kiem_menh_de('Chơi 1 mình không cần PS Plus, chơi online không cần gói.','ps_plus','tuy_chon'))
+    def test_mat_dau_cau_phu_dinh_khong_lan_sang_menh_de_khac(self):
+        self.assertEqual(ns.doc_phu_de_viet(self.LIEN),['co'])                                   # «khong can PS Plus» o menh de truoc KHONG lan sang phu de
+        self.assertEqual(ns.kiem_menh_de(self.LIEN,'phu_de','co'),[]); self.assertEqual(ns.kiem_menh_de(self.LIEN,'ps_plus','tuy_chon'),[])
+        self.assertEqual(ns.doi_chieu(self.LIEN,biet_truoc=[('phu_de','co'),('ps_plus','tuy_chon')]),[])
+        self.assertEqual(ns.doi_chieu('Game chưa có phụ đề tiếng Việt có tiếng Anh chơi 1 mình không cần PS Plus chơi online cần gói',biet_truoc=[('phu_de','chua'),('ps_plus','tuy_chon')]),[])
+        # dao nghia trong cau lien khong dau van TRUOT
+        self.assertTrue(ns.kiem_menh_de(self.LIEN.replace('Game có','Game chưa có'),'phu_de','co'))
+        self.assertTrue(ns.kiem_menh_de(self.LIEN.replace('Chơi một mình không cần','Chơi một mình cần'),'ps_plus','tuy_chon'))
+        self.assertTrue(ns.kiem_menh_de(self.LIEN.replace('chơi online cần','chơi online không cần'),'ps_plus','tuy_chon'))
+        self.assertTrue(ns.kiem_menh_de(self.LIEN,'phu_de','chua'))
+    def test_tieng_anh_co_khong(self):
+        self.assertEqual(ns.doc_tieng_anh('chưa có phụ đề tiếng Việt, có tiếng Anh'),['co']); self.assertEqual(ns.doc_tieng_anh('chưa có phụ đề tiếng Việt không có tiếng Anh'),['khong']); self.assertEqual(ns.doc_tieng_anh('tiếng Anh'),['khong_ro'])
+        self.assertEqual(ns.kiem_menh_de('Game chưa có phụ đề tiếng Việt, có tiếng Anh.','phu_de','chua'),[]); self.assertEqual(ns.kiem_menh_de('Game chưa có phụ đề tiếng Việt có tiếng Anh','phu_de','chua'),[])
+        r=ns.kiem_menh_de('Game chưa có phụ đề tiếng Việt, không có tiếng Anh.','phu_de','chua'); self.assertTrue(r); self.assertTrue(any('tieng Anh' in x for x in r))
+        self.assertTrue(ns.kiem_menh_de('Game chưa có phụ đề tiếng Việt, chẳng có tiếng Anh.','phu_de','chua')); self.assertTrue(ns.kiem_menh_de('Game chưa có phụ đề tiếng Việt.','phu_de','chua'))
+
 if __name__=='__main__': unittest.main()

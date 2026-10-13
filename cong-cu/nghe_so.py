@@ -506,25 +506,33 @@ def co_so_luong(nghe,so,tu):
 # ---------------------------------------------------------------- BIET TRUOC KHI MUA (G3 13/10): menh de CO/KHONG theo nghia, khong chi co tu
 # Sol soi: kiem 'co tu "tieng Viet" / "PS Plus"' khong phan biet cau thuan va phu dinh ("co phu de tieng Viet" vs "chua co phu de tieng Viet"; "khong can PS Plus" vs "can PS Plus") -> cau doi nghia van DAT.
 # Moi ham doc GIA TRI menh de tu ban Whisper, nguoi goi (kiem_menh_de) so voi gia tri ky vong.
+def _truoc_la_phu_dinh(tk,i):
+    """Cua so NGAN ngay truoc vi tri i (tu dong tu cua menh de): 'khong/chua/chang/ko co' -> True; 'khong'/'chua' ngay truoc -> True; 'co' ngay truoc (khong co phu dinh o truoc nua) -> False; khac -> None."""
+    if i>=1 and tk[i-1] in _PHU_DINH_TU: return True
+    if i>=1 and tk[i-1]=='co': return True if (i>=2 and tk[i-2] in _PHU_DINH_TU) else False
+    return None
 def doc_phu_de_viet(van_ban):
-    """Moi cum «phu de tieng Viet» trong ban nghe -> 'co' (co chu `co` trong cung menh de, KHONG co chu phu dinh) | 'chua' (co chu phu dinh khong/chua/chang/ko truoc cum trong cung menh de) | 'khong_ro'.
-    Menh de = doan giua hai dau cau (. , ; ! ? …). -> [str]."""
-    ra=[]
-    for mdd in re.split(r"[.,;:!?…\n]+",nfc(van_ban)):
-        tk=_tach_bd(bo_dau(mdd))
-        for i in range(len(tk)-2):
-            if tk[i]=='phu' and tk[i+1]=='de' and 'viet' in tk[i+2:i+4]:
-                truoc=tk[:i]
-                if any(w in _PHU_DINH_TU for w in truoc): ra.append('chua')
-                elif 'co' in truoc: ra.append('co')
-                else: ra.append('khong_ro')
+    """Moi cum «phu de tieng Viet» -> 'co' | 'chua' | 'khong_ro'. KHONG tach menh de bang dau cau (Whisper hay MAT dau cau): neo vao TU KHOA «phu de ... viet» va chi xet
+    1-2 tu NGAY TRUOC no ('chua co' / 'khong co' / 'co'), nen 'khong can PS Plus' cua menh de truoc khong lan sang. -> [str]."""
+    tk=_tach_bd(bo_dau(nfc(van_ban))); ra=[]
+    for i in range(len(tk)-2):
+        if tk[i]=='phu' and tk[i+1]=='de' and 'viet' in tk[i+2:i+4]:
+            neg=_truoc_la_phu_dinh(tk,i); ra.append('khong_ro' if neg is None else 'chua' if neg else 'co')
     return ra
+def doc_tieng_anh(van_ban):
+    """Moi cum «tieng Anh» -> 'co' | 'khong' | 'khong_ro' theo 1-2 tu ngay truoc ('co tieng Anh' / 'khong co tieng Anh'). -> [str]."""
+    tk=_tach_bd(bo_dau(nfc(van_ban))); ra=[]
+    for i in range(len(tk)-1):
+        if tk[i]=='tieng' and tk[i+1]=='anh':
+            neg=_truoc_la_phu_dinh(tk,i); ra.append('khong_ro' if neg is None else 'khong' if neg else 'co')
+    return ra
+_MOT_MINH_SO={'mot','1'}
 def doc_can_ps_plus(van_ban):
-    """Moi chu `can` trong ban nghe -> (pham_vi, can): pham_vi 'mot_minh' (sau «mot minh») | 'online' (sau «online») | None; neu chua co pham vi thi nhin toi 8 tu: «can mang va goi PS Plus de choi online» -> 'online'.
-    can = False khi ngay truoc `can` la khong/chua/chang/ko («khong can PS Plus»). -> [(pham_vi, bool)]."""
+    """Moi chu `can` -> (pham_vi, can): pham_vi 'mot_minh' (sau «mot minh» HOAC «1 minh», Whisper hay viet so bang chu so) | 'online' (sau «online») | None; neu chua co pham vi thi nhin toi 8 tu.
+    can = False khi ngay truoc `can` la khong/chua/chang/ko. Khong dua vao dau cau (Whisper hay mat dau cau): pham vi = moc tu khoa gan nhat truoc `can`. -> [(pham_vi, bool)]."""
     tk=_tach_bd(bo_dau(nfc(van_ban))); ra=[]; sc=None
     def la_online(i): return tk[i] in ('online','onlai','onlain') or (tk[i]=='on' and i+1<len(tk) and tk[i+1] in ('line','lai','lain'))
-    def la_mot_minh(i): return tk[i]=='mot' and i+1<len(tk) and tk[i+1]=='minh'
+    def la_mot_minh(i): return tk[i] in _MOT_MINH_SO and i+1<len(tk) and tk[i+1]=='minh'
     for i,w in enumerate(tk):
         if la_mot_minh(i): sc='mot_minh'
         elif la_online(i): sc='online'
@@ -564,7 +572,9 @@ def kiem_menh_de(nghe,kieu,gia_tri):
         else:
             if 'chua' not in d: loi.append(f'BIET TRUOC phu de: mong «chua co phu de tieng Viet», nghe duoc {d or "khong co"} {cat}')
             if 'co' in d: loi.append(f'BIET TRUOC phu de DAO NGHIA: nghe «co phu de tieng Viet» trong khi du lieu CHUA co {cat}')
-            if not co_tu_khoa(nghe,['tieng anh']): loi.append(f'BIET TRUOC phu de: thieu «co tieng Anh» {cat}')
+            ta=doc_tieng_anh(nghe)       # du lieu co 'en' (gia tri 'chua' chi sinh ra khi co en): phai doc «co tieng Anh», doc «khong co tieng Anh» -> TRUOT
+            if 'khong' in ta: loi.append(f'BIET TRUOC phu de DAO NGHIA: nghe «khong co tieng Anh» trong khi du lieu CO tieng Anh {cat}')
+            elif 'co' not in ta: loi.append(f'BIET TRUOC phu de: thieu «co tieng Anh» {cat}')
     elif kieu=='ps_plus':
         if gia_tri not in ('tuy_chon','bat_buoc'): return [f'BIET TRUOC PS Plus: keo.json khong du du lieu ({gia_tri}) ma loi van doc cau nay {cat}']
         c=doc_can_ps_plus(nghe)

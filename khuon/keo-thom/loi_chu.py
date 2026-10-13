@@ -353,9 +353,30 @@ def cac_cau_biet_truoc(bt):
     n=so_nguoi_online(bt)
     if n: ra.append(dict(kieu='so_nguoi',loi=f'Chơi online được tối đa {so_chu(n)} người.'))
     return ra
-def cau_biet_truoc(bt,ngay_dang,dang,toi_da=2):
+# DO DAI HO SO (Sol soi diff G3 13/10): the biet truoc nam DUOI hang cuoi cua the ho so; ho so dai (the loai dai + 2 chip xuong 2 hang + 3-4 muc Deluxe) day the xuong qua vung an toan
+# (Shorts: y <= 1248 + 6, the bat dau o y 474). Sua o NGUON LOI de hinh va loi luon khop: SO CAU biet truoc phai vua ho so. Uoc luong BAO THU theo cong thuc cua full.html datGT (do that: sai so < 3%, luon >= do that):
+GIOI_HAN_CAO_HO_SO=760     # px chieu cao the toi da (kem the) — Shorts: 474 + 760 = 1234 < 1254 (con 20 px du phong); Reels 455 + 760; TikTok 426 + 760
+def uoc_cao_ho_so(gt):
+    """Uoc luong CHIEU CAO the ho so (px, chua tinh the biet truoc) tu keo.json.gioi_thieu: 96 dau + the loai 125 + chip (1 hang 78; 2 chip qua rong -> 2 hang 146) + sao 134 + nhan ban 66 + 54/hang muc them (2 muc/hang) + 22 day."""
+    gt=gt or {}; h=96+22
+    if gt.get('the_loai'): h+=125
+    dd=[x for x in (gt.get('dac_diem') or [])][:2]
+    if dd:
+        w=[21*len(x.get('hien') or '')+42 for x in dd]; hang=1 if len(dd)==1 or 36+sum(w)+22*(len(dd)-1)<=732 else 2
+        h+=54+68*(hang-1)+24
+    if gt.get('diem'): h+=134
+    ban=gt.get('ban')
+    if ban: h+=66+54*((min(4,len(ban.get('them') or []))+1)//2)
+    return h
+def so_cau_toi_da(gt,toi_da=2):
+    """So cau/the biet truoc toi da ma ho so con chua duoc: moi the them ~60 px (hang dau 70 vi khoang cach 8 + 16 duoi); ho so rat dai -> 0."""
+    k=toi_da; h=uoc_cao_ho_so(gt)
+    while k>0 and h+70+60*(k-1)>GIOI_HAN_CAO_HO_SO: k-=1
+    return k
+def cau_biet_truoc(bt,ngay_dang,dang,toi_da=2,gt=None):
     """Chon <= toi_da cau tu cac cau du bang chung, XOAY theo (ngay, khung): bat dau tu vi tri (3*so_ngay + thu_tu_khung) % so_cau, lay lien tiep vong tron. -> [dict(kieu, loi)] ([] neu khong co bang chung).
-    Khong biet khung / khong co ngay -> bat dau o vi tri 0."""
+    Khong biet khung / khong co ngay -> bat dau o vi tri 0. gt = keo.json.gioi_thieu: neu co, SO CAU bi gioi han theo do dai ho so (so_cau_toi_da) de the khong tran vung an toan."""
+    if gt is not None: toi_da=min(toi_da,so_cau_toi_da(gt,toi_da))
     ds=cac_cau_biet_truoc(bt)
     if not ds: return []
     s=0

@@ -51,7 +51,7 @@ def doan_gioi(gt):
             d.noi(cum,f'i{i+1}',sau=dau)
     # G3 (13/10): 1-2 cau «biet truoc khi mua» (phu de VI · online can PS Plus · so nguoi) CUOI doan, TRUOC cau ket luan; chi khi keo.json.biet_truoc du bang chung. Neo moi bt1/bt2 = tu dau cau (6 khoa doan + neo cu giu nguyen)
     d.bt=[]
-    for i,c in enumerate(cau_biet_truoc(KEO.get('biet_truoc'),KEO.get('ngay_dang'),os.environ.get('DANG'))):
+    for i,c in enumerate(cau_biet_truoc(KEO.get('biet_truoc'),KEO.get('ngay_dang'),os.environ.get('DANG'),gt=gt)):
         d.noi(c['loi'],f'bt{i+1}'); d.bt.append(c['kieu'])
     d.noi(ket_luan(gt.get('diem')))    # v10 B: cau ket luan cuoi doan (khong so, khong khoa neo)
     return d
