@@ -262,18 +262,23 @@ class BietTruocLoi(unittest.TestCase):
         for n,mong in ((16,16),(2,2),(1,None),(0,None),(None,None),(True,None),(100,None)): self.assertEqual(lc.so_nguoi_online(dict(BT_DU,so_nguoi_online=n)),mong,n)
         self.assertIsNone(lc.so_nguoi_online(dict(BT_DU,can_plus_online=None)))    # khong ro online -> khong noi so nguoi
         self.assertEqual([c['loi'] for c in lc.cac_cau_biet_truoc(BT_DU)][-1],'Chơi online được tối đa mười sáu người.')
-    def test_toi_da_2_cau_va_xoay_theo_ngay_khung(self):
-        da=set()
+    def test_toi_da_1_cau_uu_tien_phu_de_online_so_nguoi_khong_xoay(self):
         for i in range(0,60):
-            for k in KHUNG:
-                r=lc.cau_biet_truoc(BT_DU,ngay(i),k); self.assertEqual(len(r),2,(ngay(i),k)); self.assertEqual(len({c['kieu'] for c in r}),2); da.add(tuple(c['kieu'] for c in r))
-                self.assertEqual(r,lc.cau_biet_truoc(BT_DU,ngay(i),k))                       # tat dinh
-            self.assertEqual(len({tuple(c['kieu'] for c in lc.cau_biet_truoc(BT_DU,ngay(i),k)) for k in KHUNG}),3,ngay(i))       # 3 khung cung ngay ra 3 cap khac nhau (3 ung vien)
-        self.assertEqual(da,{('phu_de','online'),('online','so_nguoi'),('so_nguoi','phu_de')})
-        self.assertEqual(len(lc.cau_biet_truoc(dict(screenLanguages=['en']),ngay(0),'keo-thom')),1)
-        self.assertEqual([c['kieu'] for c in lc.cau_biet_truoc(BT_DU,ngay(0),None)],['phu_de','online'])      # khung la -> vi tri 0
-        hai=dict(screenLanguages=['en'],online='bat_buoc',can_plus_online=True)
-        self.assertEqual({tuple(c['kieu'] for c in lc.cau_biet_truoc(hai,ngay(i),'keo-thom')) for i in range(6)},{('phu_de','online'),('online','phu_de')})       # 2 ung vien: doi thu tu
+            for k in KHUNG+(None,):
+                r=lc.cau_biet_truoc(BT_DU,ngay(i),k); self.assertEqual([c['kieu'] for c in r],['phu_de'],(ngay(i),k))      # luon phu de, khong doi theo ngay/khung
+        online_so=dict(online='bat_buoc',can_plus_online=True,so_nguoi_online=8)     # khong co ngon ngu -> (b) online
+        self.assertEqual([c['kieu'] for c in lc.cau_biet_truoc(online_so,ngay(0),'keo-thom')],['online'])
+        self.assertEqual([c['kieu'] for c in lc.cau_biet_truoc(dict(screenLanguages=['vi'],online='bat_buoc',can_plus_online=True),ngay(5),'keo-thom-3')],['phu_de'])
+        self.assertEqual(lc.cau_biet_truoc(dict(screenLanguages=['vi']),ngay(0),'keo-thom')[0]['loi'],lc.CAU_PHU_DE_CO)
+        self.assertEqual(lc.cau_biet_truoc(dict(screenLanguages=['en']),ngay(0),'keo-thom')[0]['loi'],lc.CAU_PHU_DE_CHUA)       # chua co Viet: giu cau cu
+        self.assertEqual([c['kieu'] for c in lc.cau_biet_truoc(dict(screenLanguages=['ja']),ngay(0),'keo-thom')],[])       # khong bang chung nao -> khong cau
+        self.assertEqual([c['kieu'] for c in lc.cau_biet_truoc(dict(screenLanguages=['ja'],online='tuy_chon',can_plus_online=True,so_nguoi_online=4),ngay(0),'keo-thom')],['online'])
+        self.assertEqual(lc.cau_biet_truoc(BT_DU,ngay(0),'keo-thom')[0]['tu'],3)      # «Game chưa có phụ đề...»: the hien o «phụ» (tu thu 4)
+    def test_tu_khoa_the_dung_tu_trong_cau(self):
+        for kieu,loi,mong in (('phu_de',lc.CAU_PHU_DE_CO,'phụ'),('phu_de',lc.CAU_PHU_DE_CHUA,'phụ'),('online',lc.CAU_ONLINE_TUY_CHON,'chơi'),('online',lc.CAU_ONLINE_BAT_BUOC,'chơi'),('so_nguoi','Chơi online được tối đa mười sáu người.','tối')):
+            i=lc.chi_so_tu_khoa(kieu,loi); self.assertEqual(loi.split()[i].lower().strip('.,'),mong,(kieu,loi))
+        t=lc.CAU_ONLINE_TUY_CHON.split(); i=lc.chi_so_tu_khoa('online',lc.CAU_ONLINE_TUY_CHON); self.assertEqual(t[i+1],'online')       # «chơi online», khong phai «Chơi một mình ... không cần PS Plus»
+        t=lc.CAU_ONLINE_BAT_BUOC.split(); self.assertEqual(t[lc.chi_so_tu_khoa('online',lc.CAU_ONLINE_BAT_BUOC)+1],'online.')
     def test_cau_khong_mang_phan_tram_vung_diem_sao_cho_d3(self):      # doan gioi khong doi chieu tien (doc_tien co the doc «mot minh ... PS» thanh 1.000d nhung D3 gioi khong co ky vong tien)
         for c in (lc.CAU_PHU_DE_CO,lc.CAU_PHU_DE_CHUA,lc.CAU_ONLINE_TUY_CHON,lc.CAU_ONLINE_BAT_BUOC,'Chơi online được tối đa mười sáu người.'):
             self.assertEqual(NS.doc_phan_tram(c),[],c); self.assertEqual(NS.doc_vung(c),[],c); self.assertEqual(NS.doc_diem_cham(c),[],c); self.assertEqual(NS.doc_sao(c),[],c)
@@ -283,10 +288,10 @@ class BietTruocLoi(unittest.TestCase):
         for dang in KHUNG+(None,):
             doan,loi=chay_kich_ban_bt(ngay(0),dang,BT_DU,diem=D(4.37,3000))
             self.assertEqual([d['k'] for d in doan],['mo','gia','gioi','dap','han','ket'])
-            g=next(d for d in doan if d['k']=='gioi'); g0=next(d for d in goc if d['k']=='gioi'); cau=lc.cau_biet_truoc(BT_DU,ngay(0),dang)
+            g=next(d for d in doan if d['k']=='gioi'); g0=next(d for d in goc if d['k']=='gioi'); cau=lc.cau_biet_truoc(BT_DU,ngay(0),dang); self.assertEqual(len(cau),1)
             self.assertEqual(g['bt'],[c['kieu'] for c in cau]); self.assertTrue(g['loi'].endswith(' '.join(c['loi'] for c in cau)+' '+lc.KET_LUAN_HOP),g['loi'])    # cau moi NGAY TRUOC ket luan, ket luan van cuoi doan
             for k,v in g0['neo'].items(): self.assertEqual(g['neo'][k],v,k)                                                                      # moi neo cu giu nguyen chi so
-            ws=g['loi'].split(); self.assertEqual(ws[g['neo']['bt1']],cau[0]['loi'].split()[0]); self.assertEqual(ws[g['neo']['bt2']],cau[1]['loi'].split()[0]); self.assertEqual(g['neo']['bt2'],g['neo']['bt1']+len(cau[0]['loi'].split()))
+            ws=g['loi'].split(); self.assertEqual(ws[g['neo']['bt1']],cau[0]['loi'].split()[cau[0]['tu']]); self.assertEqual(ws[g['neo']['bt1']],'phụ'); self.assertNotIn('bt2',g['neo'])      # neo = TU KHOA (the hien luc doc «phụ»)
             self.assertEqual(g['loi'].split()[:len(g0['loi'].split())-len(lc.KET_LUAN_HOP.split())],g0['loi'].split()[:-len(lc.KET_LUAN_HOP.split())])    # phan truoc khong doi
             for d in doan:
                 if d['k']!='gioi': self.assertNotIn('bt',d); self.assertEqual(d['loi'],next(x for x in goc if x['k']==d['k'])['loi'],d['k']) if d['k'] in ('gia','dap','han','ket') else None
@@ -297,17 +302,17 @@ class BietTruocLoi(unittest.TestCase):
         vua=dict(the_loai=[1],dac_diem=chip('ROGUELIKE','CHƠI CHUNG ONLINE'),diem=dict(tb=4.5),ban=them(4)); self.assertEqual(lc.so_cau_toi_da(vua),2)       # 2 chip van 1 hang (do that 1129..1177 < 1254)
         hai_hang=dict(the_loai=[1],dac_diem=chip('CHƠI CHUNG ONLINE','KHÓ KIỂU SOULS'),diem=dict(tb=4.5),ban=them(2)); self.assertEqual(lc.so_cau_toi_da(hai_hang),1)
         xau=dict(the_loai=[1],dac_diem=chip('CHƠI CHUNG ONLINE','KHÓ KIỂU SOULS'),diem=dict(tb=4.5),ban=them(4)); self.assertEqual(lc.so_cau_toi_da(xau),0)
-        self.assertEqual(lc.cau_biet_truoc(BT_DU,ngay(0),'keo-thom',gt=xau),[]); self.assertEqual(len(lc.cau_biet_truoc(BT_DU,ngay(0),'keo-thom',gt=hai_hang)),1); self.assertEqual(len(lc.cau_biet_truoc(BT_DU,ngay(0),'keo-thom',gt=ngan)),2)
-        self.assertEqual(len(lc.cau_biet_truoc(BT_DU,ngay(0),'keo-thom')),2)             # khong truyen gt -> nhu cu
+        self.assertEqual(lc.cau_biet_truoc(BT_DU,ngay(0),'keo-thom',gt=xau),[]); self.assertEqual(len(lc.cau_biet_truoc(BT_DU,ngay(0),'keo-thom',gt=hai_hang)),1); self.assertEqual(len(lc.cau_biet_truoc(BT_DU,ngay(0),'keo-thom',gt=ngan)),1)
+        self.assertEqual(len(lc.cau_biet_truoc(BT_DU,ngay(0),'keo-thom')),1)             # khong truyen gt -> 1 cau
         # moi uoc luong >= do that (do Shorts, the bat dau y 474): xau nhat 1127-474=653 <= 697; 2 chip 1 hang + 4 muc 1177-474-120 -> 583 <= 629
         self.assertGreaterEqual(lc.uoc_cao_ho_so(xau),653); self.assertGreaterEqual(lc.uoc_cao_ho_so(vua),583)
     def test_kich_ban_ho_so_dai_giam_so_cau(self):
         ban=dict(ten='Deluxe Edition',ten_noi='Deluxe',them=[dict(k='vu_khi',so=2,noi='hai vũ khí',hien='2 vũ khí'),dict(k='trang_phuc',noi='trang phục',hien='trang phục'),dict(k='mo_rong',noi='gói mở rộng',hien='gói mở rộng'),dict(k='tien',noi='tiền trong game',hien='tiền trong game')],dung_som=False,them_goc=[])
         co=dict(k='co_op_online',noi='chơi chung online được',hien='CHƠI CHUNG ONLINE'); so=dict(k='souls',noi='khó kiểu Souls',hien='KHÓ KIỂU SOULS'); rg=dict(k='roguelike',noi='roguelike, chết là chơi lại từ đầu',hien='ROGUELIKE')
-        for dd,ban_,n in (([rg],None,2),([rg,co],ban,2),([co,so],dict(ban,them=ban['them'][:2]),1),([co,so],ban,0)):
+        for dd,ban_,n in (([rg],None,1),([rg,co],ban,1),([co,so],dict(ban,them=ban['them'][:2]),1),([co,so],ban,0)):
             doan,loi=chay_kich_ban_bt(ngay(0),'keo-thom',BT_DU,diem=D(4.5,3000),ban=ban_,dac_diem=dd); g=next(d for d in doan if d['k']=='gioi')
             self.assertEqual(len(g.get('bt',[])),n,(dd,n)); self.assertTrue(g['loi'].endswith(lc.KET_LUAN_DANG_MUA))
-            self.assertEqual('bt1' in g['neo'],n>=1); self.assertEqual('bt2' in g['neo'],n>=2)
+            self.assertEqual('bt1' in g['neo'],n>=1); self.assertNotIn('bt2',g['neo'])
     def test_thieu_bang_chung_thi_kich_ban_nhu_cu_khong_co_bt(self):
         goc,loi0=chay_kich_ban_bt(ngay(0),'keo-thom',None,diem=D(4.37,3000))
         for bt in (dict(online='tuy_chon',can_plus_online=None),dict(screenLanguages=None),{}):

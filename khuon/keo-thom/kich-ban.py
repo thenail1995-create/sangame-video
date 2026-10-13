@@ -5,7 +5,7 @@
 # 11/10 (Hao: "nen noi 1 chut ve game nay, hay do ra sao, ban deluxe la ban ntn; k can hoi them la mua o store khac co re hon khong"): bo doan hoi-dap `hoi`,
 # them doan `gioi` (the loai + dac diem · diem sao · phan them cua ban dac biet) lay 100% tu keo.json.gioi_thieu (chon-keo.py ← trang PS Store); `dap` thanh cau so vung KHONG hoi-dap.
 # v10 (12/10, Hao chot 01-quyet-dinh-va-ke-hoach-keo-v10.md): `mo` mo bang CAU TINH HUONG (loi_chu.cau_mo: so gia · so sao · giam sau; khong du dieu kien -> cum cam than cu); `gioi` them CAU KET LUAN cuoi
-# (loi_chu.ket_luan); G3 13/10: 1-2 cau «biet truoc khi mua» chen cuoi gioi TRUOC ket luan (loi_chu.cau_biet_truoc, neo bt1/bt2, kich-ban.json.doan[gioi].bt = cac kieu da doc); `ket` = «Theo doi Săn Game de khong lo keo nao nha!» (thay cau tra gia). Khoa doan mo/gia/gioi/dap/han/ket giu nguyen. kich-ban.json.doan[mo].kieu = kieu cau mo (D3 doc de biet so nao phai nghe).
+# (loi_chu.ket_luan); G3 13/10 (14/10: toi da 1 cau, uu tien phu de > online > so nguoi): cau «biet truoc khi mua» chen cuoi gioi TRUOC ket luan (loi_chu.cau_biet_truoc, neo bt1/bt2, kich-ban.json.doan[gioi].bt = cac kieu da doc); `ket` = «Theo doi Săn Game de khong lo keo nao nha!» (thay cau tra gia). Khoa doan mo/gia/gioi/dap/han/ket giu nguyen. kich-ban.json.doan[mo].kieu = kieu cau mo (D3 doc de biet so nao phai nghe).
 import datetime,json,pathlib,sys
 T=pathlib.Path(__file__).resolve().parent; sys.path.insert(0,str(T))
 import os
@@ -49,10 +49,12 @@ def doan_gioi(gt):
         for i,(truoc,cum,dau) in enumerate(ghep_them(ban['them'])):
             if truoc: d.noi(truoc)
             d.noi(cum,f'i{i+1}',sau=dau)
-    # G3 (13/10): 1-2 cau «biet truoc khi mua» (phu de VI · online can PS Plus · so nguoi) CUOI doan, TRUOC cau ket luan; chi khi keo.json.biet_truoc du bang chung. Neo moi bt1/bt2 = tu dau cau (6 khoa doan + neo cu giu nguyen)
+    # G3 (13/10): 1-2 cau «biet truoc khi mua» (phu de VI · online can PS Plus · so nguoi) CUOI doan, TRUOC cau ket luan; chi khi keo.json.biet_truoc du bang chung. Neo bt1 = TU KHOA cua cau (loi_chu.TU_KHOA_THE), the vang hien dung luc doc (6 khoa doan + neo cu giu nguyen)
     d.bt=[]
     for i,c in enumerate(cau_biet_truoc(KEO.get('biet_truoc'),KEO.get('ngay_dang'),os.environ.get('DANG'),gt=gt)):
-        d.noi(c['loi'],f'bt{i+1}'); d.bt.append(c['kieu'])
+        ws=c['loi'].split(); k=c['tu']      # neo bt{i} = TU KHOA cua cau (the vang hien dung luc doc tu nay), khong phai tu dau cau
+        if k: d.noi(' '.join(ws[:k]))
+        d.noi(' '.join(ws[k:]),f'bt{i+1}'); d.bt.append(c['kieu'])
     d.noi(ket_luan(gt.get('diem')))    # v10 B: cau ket luan cuoi doan (khong so, khong khoa neo)
     return d
 if not (GT.get('the_loai') or GT.get('dac_diem') or GT.get('diem') or GT.get('ban')): raise SystemExit('gioi_thieu rong — khong dung cau doan mo')

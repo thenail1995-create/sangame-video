@@ -319,12 +319,12 @@ def ket_luan(diem):
     return KET_LUAN_CAN_NHAC
 
 # ================= BIET TRUOC KHI MUA (G3, 13/10/2026; 22-dac-ta-dot-1.md) =================
-# 1-2 cau chen CUOI doan `gioi`, TRUOC cau ket luan (6 khoa doan va moi neo cu giu nguyen). Du lieu = keo.json.biet_truoc (chon-keo.py ← cong-cu/gia_trang.biet_truoc cua DUNG vung re nhat).
+# <=1 cau chen CUOI doan `gioi`, TRUOC cau ket luan (6 khoa doan va moi neo cu giu nguyen). Du lieu = keo.json.biet_truoc (chon-keo.py ← cong-cu/gia_trang.biet_truoc cua DUNG vung re nhat).
 # Cau chi phat khi DU BANG CHUNG (Sol #13): thieu truong -> khong cau. Khuon cau co dinh, khong goi AI.
 #   phu_de   : screenLanguages co 'vi' -> «Game có phụ đề tiếng Việt.» · khong co 'vi' nhung co 'en' -> «Game chưa có phụ đề tiếng Việt, có tiếng Anh.» · con lai: khong cau
 #   online   : online='tuy_chon' va can_plus_online=True -> «Chơi một mình không cần PS Plus, chơi online cần gói.» · online='bat_buoc' va can_plus_online=True -> «Game cần mạng và gói PS Plus để chơi online.»
 #   so_nguoi : chi khi online la tuy_chon/bat_buoc va so_nguoi_online >= 2 -> «Chơi online được tối đa <so chu> người.»
-# Toi da 2 cau; thu tu/cap chon xoay theo (ngay, khung) nhu cum_mo. D3 (kiem-tat-ca.py) tinh LAI gia tri tu keo.json qua biet_truoc_ky_vong().
+# Toi da 1 cau (14/10: giam do dai video), chon theo UU TIEN phu_de > online > so_nguoi (khong xoay); the vang hien luc doc TU KHOA cua cau (TU_KHOA_THE). D3 (kiem-tat-ca.py) tinh LAI gia tri tu keo.json qua biet_truoc_ky_vong().
 CAU_PHU_DE_CO='Game có phụ đề tiếng Việt.'
 CAU_PHU_DE_CHUA='Game chưa có phụ đề tiếng Việt, có tiếng Anh.'
 CAU_ONLINE_TUY_CHON='Chơi một mình không cần PS Plus, chơi online cần gói.'
@@ -344,14 +344,22 @@ def che_do_online(bt):
 def so_nguoi_online(bt):
     bt=bt or {}; n=bt.get('so_nguoi_online')
     return n if che_do_online(bt) and isinstance(n,int) and not isinstance(n,bool) and 2<=n<=99 else None
+# Tu khoa cua tung kieu cau (THE vang hien DUNG LUC giong doc tu nay): phu_de «phụ», online «chơi» (cua cum «chơi online», lan CUOI trong cau), so_nguoi «tối» (cua «tối đa»).
+TU_KHOA_THE={'phu_de':'phụ','online':'chơi','so_nguoi':'tối'}
+def chi_so_tu_khoa(kieu,loi):
+    """Chi so TU (theo loi.split()) ma the cua `kieu` hien ra: lan DAU cua tu khoa (phu_de, so_nguoi) / lan CUOI (online: «Chơi một mình ... chơi online cần gói» -> «chơi» thu hai). Khong thay -> 0."""
+    ws=[w.lower().strip('.,!?…') for w in loi.split()]; k=TU_KHOA_THE.get(kieu)
+    ix=[i for i,w in enumerate(ws) if w==k]
+    return (ix[-1] if kieu=='online' else ix[0]) if ix else 0
 def cac_cau_biet_truoc(bt):
-    """Moi cau ung vien du bang chung, theo thu tu co dinh phu_de · online · so_nguoi -> [dict(kieu, loi)]."""
+    """Moi cau ung vien du bang chung, theo thu tu UU TIEN co dinh phu_de · online · so_nguoi -> [dict(kieu, loi, tu)] (tu = chi so tu khoa de the hien dung luc doc)."""
     ra=[]; pd=phu_de_viet(bt)
     if pd: ra.append(dict(kieu='phu_de',loi=CAU_PHU_DE_CO if pd=='co' else CAU_PHU_DE_CHUA))
     on=che_do_online(bt)
     if on: ra.append(dict(kieu='online',loi=CAU_ONLINE_TUY_CHON if on=='tuy_chon' else CAU_ONLINE_BAT_BUOC))
     n=so_nguoi_online(bt)
     if n: ra.append(dict(kieu='so_nguoi',loi=f'Chơi online được tối đa {so_chu(n)} người.'))
+    for c in ra: c['tu']=chi_so_tu_khoa(c['kieu'],c['loi'])
     return ra
 # DO DAI HO SO (Sol soi diff G3 13/10): the biet truoc nam DUOI hang cuoi cua the ho so; ho so dai (the loai dai + 2 chip xuong 2 hang + 3-4 muc Deluxe) day the xuong qua vung an toan
 # (Shorts: y <= 1248 + 6, the bat dau o y 474). Sua o NGUON LOI de hinh va loi luon khop: SO CAU biet truoc phai vua ho so. Uoc luong BAO THU theo cong thuc cua full.html datGT (do that: sai so < 3%, luon >= do that):
@@ -373,15 +381,11 @@ def so_cau_toi_da(gt,toi_da=2):
     k=toi_da; h=uoc_cao_ho_so(gt)
     while k>0 and h+70+60*(k-1)>GIOI_HAN_CAO_HO_SO: k-=1
     return k
-def cau_biet_truoc(bt,ngay_dang,dang,toi_da=2,gt=None):
-    """Chon <= toi_da cau tu cac cau du bang chung, XOAY theo (ngay, khung): bat dau tu vi tri (3*so_ngay + thu_tu_khung) % so_cau, lay lien tiep vong tron. -> [dict(kieu, loi)] ([] neu khong co bang chung).
-    Khong biet khung / khong co ngay -> bat dau o vi tri 0. gt = keo.json.gioi_thieu: neu co, SO CAU bi gioi han theo do dai ho so (so_cau_toi_da) de the khong tran vung an toan."""
+def cau_biet_truoc(bt,ngay_dang=None,dang=None,toi_da=1,gt=None):
+    """TOI DA 1 cau (giu video ngan), chon theo UU TIEN co dinh: (a) phu de tieng Viet (co/chua), (b) online/PS Plus, (c) so nguoi -> [dict(kieu, loi, tu)] ([] neu khong co bang chung).
+    Khong xoay theo ngay/khung (ngay_dang, dang giu de tuong thich). gt = keo.json.gioi_thieu: neu co, ho so qua dai thi KHONG cau nao (so_cau_toi_da) de the khong tran vung an toan."""
     if gt is not None: toi_da=min(toi_da,so_cau_toi_da(gt,toi_da))
-    ds=cac_cau_biet_truoc(bt)
-    if not ds: return []
-    s=0
-    if dang in KHUNG_KEO and ngay_dang: s=(3*datetime.date.fromisoformat(str(ngay_dang)[:10]).toordinal()+KHUNG_KEO[dang])%len(ds)
-    return [ds[(s+i)%len(ds)] for i in range(min(toi_da,len(ds)))]
+    return cac_cau_biet_truoc(bt)[:max(toi_da,0)]
 def biet_truoc_ky_vong(bt,cac_kieu):
     """Gia tri KY VONG cho D3 tu keo.json.biet_truoc va danh sach kieu da doc (kich-ban.json.doan[gioi].bt) -> [(kieu_menh_de, gia_tri)] cho nghe_so.doi_chieu(biet_truoc=...).
     Gia tri None khi keo.json KHONG du bang chung ma kich-ban van doc cau do -> D3 TRUOT (khong tu tin kich-ban.json)."""
