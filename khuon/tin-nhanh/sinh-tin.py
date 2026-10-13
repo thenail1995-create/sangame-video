@@ -104,7 +104,13 @@ for x in TIN:
 if tong_loi>TOI_DA['tong_loi']: loi_loi.append(f'tong loi {tong_loi} ky tu > {TOI_DA["tong_loi"]} (cat credit)')
 if loi_loi: print('SINH TIN LOI:\n - '+'\n - '.join(loi_loi)); sys.exit(1)
 
-D=dict(ngay_dang=C['ngay_dang'],ngay_dung=C['ngay_dung'],sha_du_lieu=C['sha_du_lieu'],ngay=sc.ngay_ddmm(ND),thu=sc.thu_cua(ND),ngay_doc=sc.ngay_doc(ND),tin=TIN)
+# Câu mở (13/10, Sol #1): deal rẻ nhất mục GIẢM SÂU -> kich-ban.py đọc «<tên> còn <giá>, giảm <x> phần trăm, ...». Thiếu mục giảm sâu / thiếu số liệu -> không có khối, kich-ban.py dùng câu mở chung.
+MO_DU_LIEU=None
+for r in C['tin']:
+    x=r.get('re_nhat') or {}
+    if r['kieu']=='giam-sau' and x.get('ten_doc') and isinstance(x.get('gia_vnd'),int) and x['gia_vnd']>0 and isinstance(x.get('giam'),int) and 0<x['giam']<=100:
+        MO_DU_LIEU=dict(ten_doc=x['ten_doc'],gia_vnd=x['gia_vnd'],giam=x['giam']); break
+D=dict(ngay_dang=C['ngay_dang'],ngay_dung=C['ngay_dung'],sha_du_lieu=C['sha_du_lieu'],ngay=sc.ngay_ddmm(ND),thu=sc.thu_cua(ND),ngay_doc=sc.ngay_doc(ND),mo_du_lieu=MO_DU_LIEU,tin=TIN)
 json.dump(D,open(T/'tin.json','w',encoding='utf-8'),ensure_ascii=False,indent=1)
 
 # ---- nguồn nền từng cảnh (nen-tin.py đọc nen-nguon.json) + trailer.json ----

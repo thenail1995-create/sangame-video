@@ -10,7 +10,17 @@ def nghin(gia):   # '167.000đ' -> 'một trăm sáu mươi bảy nghìn'
 ten_doc=tr.ten_doc_cua; vung_doc=tr.vung_doc_cua
 HANG=['một','hai','ba','bốn','năm']
 CFG=json.load(open(T/'cau-hinh.json'))   # muc, con_lai = tong - 5 (LOI-SAI D8: 'con ... nua' phai TRU 5 game da noi)
-doan=[('mo',f"[excited] Top năm game bán chạy đang dưới {so_chu(CFG['muc']//1000)} nghìn nè anh em!")]
+# 13/10 (Sol #18): câu mở XOAY 3 kiểu theo số thứ tự ngày (như Kèo v10: toordinal % 3, hai ngày liền luôn khác kiểu). Thiếu ngay_iso -> kiểu 0 (cũ).
+#   0 «Top năm game bán chạy đang dưới <mức> nghìn nè anh em!» · 1 «<tên hạng 1> chỉ <giá>, đứng đầu top năm hôm nay nè!» · 2 «Có <mức> nghìn thì mua được game gì? Top năm hôm nay nè!»
+#   kiem/kiem-tat-ca.py tính LẠI kiểu bằng CÙNG công thức để D3 kỳ vọng đúng số (kiểu 1 = giá hạng 1, không phải mức).
+import datetime
+def kieu_mo(cfg): return datetime.date.fromisoformat(cfg['ngay_iso']).toordinal()%3 if cfg.get('ngay_iso') else 0
+def cau_mo(cfg,top,k=None):
+    k=kieu_mo(cfg) if k is None else k; muc=so_chu(cfg['muc']//1000)
+    if k==1: return f"[excited] {ten_doc(top[0])} chỉ {nghin(top[0]['gia'])}, đứng đầu top năm hôm nay nè!"
+    if k==2: return f"[excited] Có {muc} nghìn thì mua được game gì? Top năm hôm nay nè!"
+    return f"[excited] Top năm game bán chạy đang dưới {muc} nghìn nè anh em!"
+doan=[('mo',cau_mo(CFG,top))]
 for i in range(4,-1,-1):
     g=top[i]; ten=ten_doc(g); gia=nghin(g['gia']); giam=so_chu(g['giam'])+' phần trăm'
     if i==4: c=f"Hạng năm: {ten}, giảm {giam}, còn {gia}."
