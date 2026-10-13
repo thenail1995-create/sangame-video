@@ -43,19 +43,23 @@ class TestKiemMoc(unittest.TestCase):
     def test_moc_dung_lech_nho_van_dat(self):
         self.assertEqual(km.kiem(moc_cho([0.3, 2.5, 5.4, 9.2]), self.db)['ket_qua'], 'dat')
 
+    def test_moc_dan_truoc_vao_lang_duoi_1_giay_van_dat(self):   # Top 5 13/10 neo_doan: moc som 0,3-0,85 s, nam trong lang truoc khi noi - da dat moi kiem + kiem-video
+        kq = km.kiem(moc_cho([0.2, 2.6 - 0.45, 5.2 - 0.8, 9.0 - 0.85]), self.db)
+        self.assertEqual(kq['ket_qua'], 'dat', kq); self.assertFalse(kq['lech_tung_doan'][1]['co_giong'])
+
     def test_moc_lech_8_giay_la_lech(self):   # loi Keo Taxi Life 13/10: 4 doan sau cung 1 moc, lech ~8 s
-        kq = km.kiem(moc_cho([0.2, 8.0, 8.0, 8.0]), self.db)
+        kq = km.kiem(moc_cho([0.2, 7.5, 7.5, 7.5]), self.db)
         self.assertEqual(kq['ket_qua'], 'lech'); self.assertEqual([r['doan'] for r in kq['lech_tung_doan'] if r['trang_thai'] == 'lech'], ['gia', 'gioi', 'ket'])
-        self.assertFalse(kq['lech_tung_doan'][1]['co_giong'])   # 8.0 s nam trong quang im 7.0-9.0
+        self.assertFalse(kq['lech_tung_doan'][1]['co_giong'])   # 7.5 s nam trong quang im 7.0-9.0
 
     def test_moc_trong_giong_nhung_xa_diem_bat_dau_la_lech(self):   # 3.8 s dang noi (doan gia 2.6-4.5) nhung khong phai dau cum: cach diem bat dau 1,2 s
         kq = km.kiem(moc_cho([0.2, 3.8, 5.2, 9.0]), self.db)
-        r = kq['lech_tung_doan'][1]; self.assertTrue(r['co_giong']); self.assertEqual(r['trang_thai'], 'lech'); self.assertGreater(r['lech_bat_dau'], 0.6)
+        r = kq['lech_tung_doan'][1]; self.assertTrue(r['co_giong']); self.assertEqual(r['trang_thai'], 'lech'); self.assertGreater(r['lech_bat_dau'], 1.0)
 
     def test_ws0_dung_dat_va_lech_thi_truot(self):
         tu = [0.2, 2.6, 5.2, 9.0]
         self.assertEqual(km.kiem(moc_ten(), self.db, ws0_cho(tu))['ket_qua'], 'dat')
-        sai = ws0_cho([0.2, 2.6, 6.0, 9.0])    # Whisper nghe dau doan gioi o 6.0 s nhung moc o 5.2 s: lech 0,8 s > 0,6 s
+        sai = ws0_cho([0.2, 2.6, 7.0, 9.0])    # Whisper nghe dau doan gioi o 6.0 s nhung moc o 5.2 s: lech 1,8 s > 1,0 s
         kq = km.kiem(moc_ten(), self.db, sai)
         self.assertEqual(kq['ket_qua'], 'lech'); self.assertEqual(kq['lech_tung_doan'][2]['ws0'], 'lech')
 
@@ -78,7 +82,7 @@ class TestKiemMoc(unittest.TestCase):
         self.assertIn('nhap nhang', r[0]['ly_do_ws0']); self.assertIsNone(r[0]['lech_ws0'])
         self.assertEqual(kq['ket_qua'], 'dat')   # khong kiem duoc != truot
         # khong kiem duoc cung KHONG che loi: moc lech 8 s van bi bat boi phep (1)/(2)
-        bad = moc_ten(tu, t_dau=(0.2, 8.0, 5.2, 9.0))
+        bad = moc_ten(tu, t_dau=(0.2, 7.5, 5.2, 9.0))
         self.assertEqual(km.kiem(bad, self.db, ws0)['ket_qua'], 'lech')
 
     def test_doan_toan_so_hoac_thieu_ws0_khong_kiem_duoc(self):
@@ -98,13 +102,13 @@ class TestCLI(unittest.TestCase):
             g = self._wav(td, giong_gia()); m = pathlib.Path(td) / 'm.json'; ra = pathlib.Path(td) / 'kq' / 'k.json'
             m.write_text(json.dumps(moc_cho([0.2, 2.6, 5.2, 9.0]))); self.assertEqual(km.main([str(m), str(g), '--ra', str(ra)]), 0)
             self.assertEqual(json.loads(ra.read_text())['ket_qua'], 'dat')
-            m.write_text(json.dumps(moc_cho([0.2, 8.0, 8.0, 8.0]))); self.assertEqual(km.main([str(m), str(g), '--ra', str(ra)]), 5)
+            m.write_text(json.dumps(moc_cho([0.2, 7.5, 7.5, 7.5]))); self.assertEqual(km.main([str(m), str(g), '--ra', str(ra)]), 5)
             self.assertEqual(km.main([str(pathlib.Path(td) / 'khong-co.json'), str(g)]), 2)
             self.assertEqual(km.main([]), 2)
 
     def test_ghi_tu_sua(self):
         with tempfile.TemporaryDirectory() as td:
-            t = pathlib.Path(td); a = km.kiem(moc_cho([0.2, 8.0, 8.0, 8.0]), km.nang_luong_db(giong_gia())); b = km.kiem(moc_cho([0.2, 2.6, 5.2, 9.0]), km.nang_luong_db(giong_gia()))
+            t = pathlib.Path(td); a = km.kiem(moc_cho([0.2, 7.5, 7.5, 7.5]), km.nang_luong_db(giong_gia())); b = km.kiem(moc_cho([0.2, 2.6, 5.2, 9.0]), km.nang_luong_db(giong_gia()))
             (t / 'a.json').write_text(json.dumps(a)); (t / 'b.json').write_text(json.dumps(b))
             self.assertEqual(km.main(['ghi-tu-sua', str(t / 'k' / 'tu-sua.json'), '--lan-dau', str(t / 'a.json'), '--cuoi', str(t / 'b.json'), '--cach-dau', 'cum_cau', '--cach-cuoi', 'du_phong', '--da-sua', '1']), 0)
             d = json.loads((t / 'k' / 'tu-sua.json').read_text())

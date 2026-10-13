@@ -24,6 +24,10 @@ else:
     json.dump(kq, open(ra, 'w')); sys.exit(rc)
 '''
 
+SO_MOC_GIA = r'''import os, sys
+open(os.environ['GHI_SO_MOC'], 'a').write('goi\n'); print('so-moc gia'); sys.exit(int(os.environ['RC_SO_MOC']))
+'''
+
 
 class Chay:
     def __init__(self, td, can_chu, kiem_moc):
@@ -32,9 +36,10 @@ class Chay:
         (self.M / 'can-chu.py').write_text(CAN_CHU_GIA); (self.root / 'cong-cu/kiem_moc.py').write_text(KIEM_MOC_GIA)
         (self.M / 'hang-can-chu.txt').write_text('\n'.join(can_chu)); (self.td / 'hang-kiem-moc.txt').write_text('\n'.join(map(str, kiem_moc)))
 
-    def chay(self, *cachs):
-        script = f'set -euo pipefail\nROOT={self.root}; M={self.M}; PY=({sys.executable})\n. {SH}\ncd "$M"\ncan_chu_tu_sua {" ".join(cachs)}\necho CHAY_TIEP\n'
-        env = dict(os.environ, KIEM_MOC_THAT=str(CC / 'kiem_moc.py'), HANG_KIEM_MOC=str(self.td / 'hang-kiem-moc.txt'))
+    def chay(self, *cachs, so_moc=None):   # so_moc = rc cua so-moc.py gia -> chay them so_moc_voi_mac (nhu chay.sh top5/tin-nhanh)
+        (self.root / 'cong-cu/so-moc.py').write_text(SO_MOC_GIA); (self.M / 'dau-vao').mkdir(exist_ok=True); (self.M / 'dau-vao/moc-chu.mac.json').write_text('[]')
+        script = f'set -euo pipefail\nROOT={self.root}; M={self.M}; PY=({sys.executable}); DO=/dev/null\n. {SH}\ncd "$M"\ncan_chu_tu_sua {" ".join(cachs)}\nso_moc_voi_mac\necho CHAY_TIEP\n'
+        env = dict(os.environ, RC_SO_MOC=str(so_moc or 0), GHI_SO_MOC=str(self.td / 'goi-so-moc.txt'), KIEM_MOC_THAT=str(CC / 'kiem_moc.py'), HANG_KIEM_MOC=str(self.td / 'hang-kiem-moc.txt'))
         r = subprocess.run(['/bin/bash', '-c', script], capture_output=True, text=True, env=env)
         self.out = r.stdout + r.stderr; return r.returncode
 
@@ -91,6 +96,16 @@ class TestTuSuaMoc(unittest.TestCase):
             c = Chay(td, ['0:neo_doan'], [2]); self.assertEqual(c.chay('neo_doan', 'cum_cau'), 2); self.assertEqual(c.goi_can_chu(), ['']); self.assertFalse((c.M / 'kiem/tu-sua.json').exists())
         with tempfile.TemporaryDirectory() as td:   # kiem_moc lan 2 crash
             c = Chay(td, ['0:neo_doan', '0'], [5, 3]); self.assertEqual(c.chay('neo_doan', 'cum_cau'), 3)
+
+    def test_so_moc_bo_qua_khi_da_doi_cach_nhung_giu_khi_khong_doi(self):   # Sol P1: so-moc vs moc Mac chi co y nghia cung thuat toan
+        with tempfile.TemporaryDirectory() as td:
+            c = Chay(td, ['0:neo_doan', '0'], [5, 0]); self.assertEqual(c.chay('neo_doan', 'cum_cau', 'du_phong', so_moc=1), 0)   # so-moc gia se tra 1 neu duoc goi
+            self.assertIn('so-moc bo qua: cach can doi tu neo_doan sang cum_cau', c.out); self.assertFalse((c.td / 'goi-so-moc.txt').exists()); self.assertIn('CHAY_TIEP', c.out)
+        with tempfile.TemporaryDirectory() as td:
+            c = Chay(td, ['0:neo_doan'], [0]); self.assertEqual(c.chay('neo_doan', 'cum_cau', so_moc=1), 1)   # khong doi cach: so-moc van chay va that bai thi dung
+            self.assertTrue((c.td / 'goi-so-moc.txt').exists()); self.assertNotIn('CHAY_TIEP', c.out)
+        with tempfile.TemporaryDirectory() as td:
+            c = Chay(td, ['0:neo_doan'], [0]); self.assertEqual(c.chay('neo_doan', 'cum_cau', so_moc=0), 0); self.assertIn('CHAY_TIEP', c.out)
 
     def test_xoa_ket_qua_cu_truoc_khi_chay(self):   # ws0 / tu-sua cua lan truoc khong duoc song sot
         with tempfile.TemporaryDirectory() as td:

@@ -1,13 +1,14 @@
 # Kiem MOC CHU DAU MOI DOAN (sau can-chu.py, truoc moi buoc dung hinh/tieng) - khong can hinh, chay vai giay.
-#   python3 kiem_moc.py <moc-chu.json> <giong.mp3|.wav> [--ws0 ws0.json] [--ra ket-qua.json] [--tran 0.6]
+#   python3 kiem_moc.py <moc-chu.json> <giong.mp3|.wav> [--ws0 ws0.json] [--ra ket-qua.json] [--tran 1.0]
 #   python3 kiem_moc.py ghi-tu-sua <ra.json> --lan-dau f1.json [--cuoi f2.json] --cach-dau X --cach-cuoi Y --da-sua 0|1 [--ghi-chu "..."]
-# Voi MOI doan (khoa `doan` trong moc-chu.json), moc chu DAU doan phai:
-#   (1) nam trong vung CO GIONG: >= 5 khung 10 ms co nang luong >= nen-16 dB trong 0,3 s sau moc (nen = trung vi nang luong cua file, cung cach can-chu.py);
-#   (2) cach diem BAT DAU NOI gan nhat (khung giong dau tien sau lang >= 120 ms, hoac dau file) <= `tran` (0,6 s) - khong co diem nao => khong kiem duoc;
-#   (3) neu co ws0.json (Whisper KHONG goi y, can-chu.py ghi): tu dau doan Whisper nghe duoc (khop chuan hoa, bo so) cach moc <= `tran`;
-#       thieu / nhap nhang neo (nhieu cho cung diem khop) = KHONG KIEM DUOC (khong tinh truot, khong tinh dat).
+# CHI BAT LECH LON (loi that da gap: Keo 13/10 lech ~8 s, Top 5 12/10 lech 1,5 s). Moc nho hon `tran` (1,0 s) so voi giong la CHAP NHAN (Top 5 13/10 neo_doan som 0,3-0,85 s da dat moi kiem + kiem-video).
+# Voi MOI doan (khoa `doan` trong moc-chu.json) LECH khi moc chu DAU doan:
+#   (a) cach diem BAT DAU NOI gan nhat (khung giong dau tien sau lang >= 120 ms, hoac dau file) > `tran`, HOAC
+#   (b) co ws0.json (Whisper KHONG goi y, can-chu.py ghi) va tu dau doan Whisper nghe duoc (khop chuan hoa, bo so) cach moc > `tran`.
+#       Neo thieu / nhap nhang (nhieu cho cung diem khop) = KHONG KIEM DUOC (khong tinh truot, khong tinh dat).
 #       Whisper hay keo som dau tu vao quang lang truoc do: moc nam SAU ws0, khoang giua gan nhu toan lang => DAT (ws0_keo_som); co tieng noi o giua => LECH.
-# Ma thoat: 0 dat · 5 co doan lech · 2 sai dau vao.  Lech 0,6 s la CANH BAO LECH LON (khuon tin nong ghi chinh loi nay), khong phai chuan moc dung.
+#   `co_giong` (moc co >= 5 khung giong trong 0,3 s sau) chi de THAM KHAO, khong con la dieu kien truot.
+# Ma thoat: 0 dat · 5 co doan lech · 2 sai dau vao.
 import json, re, subprocess, sys, unicodedata, pathlib
 import numpy as np
 
@@ -83,14 +84,13 @@ def _keo_som(v, tw, t0):
     return t0 > tw and b > a and float(v[a:b].mean()) <= 0.1
 
 
-def kiem(moc, db, ws0=None, tran=0.6, cua_so=0.3, toi_thieu_giong=5):
+def kiem(moc, db, ws0=None, tran=1.0, cua_so=0.3, toi_thieu_giong=5):
     nen = float(np.percentile(db, 50)); n = len(db)
     v = _bo_chop(db >= nen - 16, 4); ons = diem_bat_dau_noi(v)
     out = []
     for dk, ws in _doan(moc):
         t0 = float(ws[0]['s']); loi = []; r = dict(doan=dk, moc=round(t0, 2))
         a = int(round(t0 * 100)); r['co_giong'] = bool(a < n and v[a:a + int(cua_so * 100)].sum() >= toi_thieu_giong)
-        if not r['co_giong']: loi.append(f'moc {t0:.2f}s khong nam trong vung co giong')
         if ons:
             o = min(ons, key=lambda o: abs(o - t0)); r['bat_dau_noi_gan'] = round(o, 2); r['lech_bat_dau'] = round(abs(o - t0), 2)
             if r['lech_bat_dau'] > tran: loi.append(f'cach diem bat dau noi gan nhat ({o:.2f}s) {r["lech_bat_dau"]:.2f}s > {tran}s')
@@ -144,8 +144,8 @@ def main(argv):
         a = a[1:]; lan_dau = _arg(a, '--lan-dau'); cuoi = _arg(a, '--cuoi'); cd = _arg(a, '--cach-dau', ''); cc = _arg(a, '--cach-cuoi', ''); ds = _arg(a, '--da-sua', '0'); gc = _arg(a, '--ghi-chu', '')
         if len(a) != 1 or not lan_dau: print('cach dung: kiem_moc.py ghi-tu-sua <ra.json> --lan-dau f1.json ...'); return 2
         d = ghi_tu_sua(a[0], lan_dau, cuoi, cd, cc, ds == '1', gc); print(f"TU SUA: lan dau {d['lan_dau']['ket_qua']} ({d['lan_dau']['so_lech']} doan lech), cach {cd or '?'} -> {cc or '?'}, da_sua={d['da_sua']}, cuoi {d['ket_qua_cuoi']}"); return 0
-    ws0p = _arg(a, '--ws0'); ra = _arg(a, '--ra'); tran = float(_arg(a, '--tran', '0.6'))
-    if len(a) != 2: print('cach dung: kiem_moc.py <moc-chu.json> <giong> [--ws0 ws0.json] [--ra ket-qua.json] [--tran 0.6]'); return 2
+    ws0p = _arg(a, '--ws0'); ra = _arg(a, '--ra'); tran = float(_arg(a, '--tran', '1.0'))
+    if len(a) != 2: print('cach dung: kiem_moc.py <moc-chu.json> <giong> [--ws0 ws0.json] [--ra ket-qua.json] [--tran 1.0]'); return 2
     try:
         moc = json.load(open(a[0])); x = doc_giong(a[1])
         ws0 = json.load(open(ws0p)) if ws0p and pathlib.Path(ws0p).exists() else None

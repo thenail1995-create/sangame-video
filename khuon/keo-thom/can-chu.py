@@ -114,13 +114,6 @@ def cum_cau():
         for g,wi in zip(p,wgt):
             g['s']=t; t+=D*wi/tot; g['e']=t
     return [(cs*.01,ce*.01) for cs,ce in ranh],f'{P} cum, {P-1} ranh gioi chon theo Whisper+khoang lang (ngan nhat {nho:.2f}s; gop {gop} ranh gioi phay/cau ngan trong doan)'
-def goi_y_ten():
-    """C (13/10, Sol P2): goi y Whisper CHI ten rieng (ten game, Săn Game, ten vung) - KHONG nap ca bai (khuon tin nong [TN]: goi y ca bai lam Whisper bo 2/3 dau; Keo K19: lap 'ươi nghìn')."""
-    ten=['Săn Game','PlayStation','PS5','Mỹ','Hồng Kông','Singapore','Sing','Thái Lan','Thái','Indonesia','Indo','Ấn Độ']
-    try: ten.insert(3,json.load(open(T/'keo.json'))['game']['ten'])
-    except (OSError,ValueError,KeyError,TypeError): pass
-    ten=[re.sub(r'[®™]','',t).strip() for t in ten]
-    return ', '.join(dict.fromkeys(t for t in ten if t and not t.isdigit()))
 ranh,ghi_chu=cum_cau() if CACH_EP in (None,'cum_cau') else (None,'ep cach du_phong')
 if ranh:
     print('CAN CHU: cach cum cau —',ghi_chu); khop=len(goc); CACH='cum_cau'
@@ -129,6 +122,7 @@ else:
     CACH='du_phong'
     print('CAN CHU: KHONG tach duoc cum cau ->',ghi_chu,'-> dung cach du phong Whisper')
     # ===================== CACH DU PHONG: Whisper + bam nang luong =====================
+    loi=' '.join(d['loi'] for d in kb)
     seg,_=wm.transcribe(x,language='vi',beam_size=5,temperature=0.0,word_timestamps=True,initial_prompt=loi)   # 13/10: thu goi y CHI ten rieng [TN] lam fixture top5-01 lech 880 ms (cu 140) -> giu loi day du, xem lai o dot 2b
     ws=[(w.word.strip(),w.start,w.end) for s in seg for w in s.words]
     def chuan(t):
