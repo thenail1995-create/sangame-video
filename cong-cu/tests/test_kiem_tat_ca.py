@@ -254,6 +254,12 @@ class D3BietTruoc(unittest.TestCase):      # G3 13/10 o CAP SCRIPT: khoi D3 THAT
         self.assertTrue(self.chay(self.TRUOC+self.SN.replace('mười sáu','16')+' '+self.PD+' '+self.KL,kinds=('so_nguoi','phu_de'))[1])
     def test_keo_json_thieu_bang_chung_ma_kich_ban_doc_cau_thi_truot(self):
         r=self.chay(self.TRUOC+self.PD+' '+self.PL+' '+self.KL,bt=dict(self.BT,screenLanguages=None)); self.assertFalse(r[1],r); self.assertIn('khong du du lieu',r[2])
+    def test_sol_whisper_viet_1_minh_mat_dau_cau_va_khong_co_tieng_anh(self):      # Sol soi diff G3
+        r=self.chay(self.TRUOC+'Game chưa có phụ đề tiếng Việt, có tiếng Anh. Chơi 1 mình không cần PS Plus, chơi online cần gói. '+self.KL); self.assertTrue(r[1],r)
+        r=self.chay(self.TRUOC+'Chơi một mình không cần PS Plus chơi online cần gói Game chưa có phụ đề tiếng Việt có tiếng Anh '+self.KL,kinds=('online','phu_de')); self.assertTrue(r[1],r)
+        r=self.chay(self.TRUOC+'Chơi một mình không cần PS Plus chơi online cần gói Game có phụ đề tiếng Việt '+self.KL,bt=dict(self.BT,screenLanguages=['vi','en']),kinds=('online','phu_de')); self.assertTrue(r[1],r)
+        r=self.chay(self.TRUOC+'Game chưa có phụ đề tiếng Việt, không có tiếng Anh. '+self.PL+' '+self.KL); self.assertFalse(r[1],r); self.assertIn('tieng Anh',r[2])
+        r=self.chay(self.TRUOC+'Chơi một mình cần PS Plus chơi online cần gói Game chưa có phụ đề tiếng Việt có tiếng Anh '+self.KL,kinds=('online','phu_de')); self.assertFalse(r[1],r)
     def test_ket_luan_van_cuoi_va_van_kiem(self):      # cau bt chen truoc ket luan khong lam hong kiem ket luan (phu dinh / thieu)
         r=self.chay(self.TRUOC+self.PD+' '+self.PL+' Không '+self.KL.lower()); self.assertFalse(r[1],r)
         r=self.chay(self.TRUOC+self.PD+' '+self.PL); self.assertFalse(r[1],r); self.assertIn('KET LUAN',r[2])
