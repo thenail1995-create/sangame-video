@@ -1,7 +1,10 @@
 """Threads (@sangamecomvn): BAI CHU viet rieng, 2 bai/ngay (Hao chot 12/10/2026; Threads thoi dang lai video reels).
-CLI:  python -m dang.threads_chu --loai sang|chieu --ngay YYYY-MM-DD --che-do thu|that
-  sang  (09:30 VN): bai CHI CHU, nguon manifest Release v-<ngay>-tin-nhanh. So: game re nhat trong kiem_lai (gia VND, vung).
+CLI:  python -m dang.threads_chu --loai sang|chieu|binh_chon --ngay YYYY-MM-DD --che-do thu|that
+  sang  (09:30 VN): nguon manifest Release v-<ngay>-tin-nhanh. So: game re nhat trong kiem_lai (gia VND, vung).
+        Anh = bia PS Store cua DUNG game do (image.api.playstation.com); khong lay duoc -> bia-reels.jpg Release tin-nhanh; Pages hong -> CHI CHU.
   chieu (17:00 VN): bai CO ANH (bia-reels.jpg qua GitHub Pages), nguon v-<ngay>-keo-thom-2. Pages hong -> dang CHI CHU, khong bo bai.
+  binh_chon (13:00 VN): bai TEXT + poll (poll_attachment). Nguon (tuy chon) manifest v-<ngay>-top5: game hang 1; thieu Release / gia lech ->
+        bo >= 8 cau co dinh (xoay theo ngay). Khoa so sg_dang = 'binh-chon' (dang_bai) KHAC nguon Release (dang_nguon).
 Ma thoat: 0 xong · 1 loi · 3 khong dang (thieu Release/manifest, hoac gia/han lech) - chua ghi so, co the chay lai.
 che_do=thu: CHI IN bai (doc Release + kiem gia + kiem URL anh, chi doc), khong token, khong ghi so, khong tao container, khong ntfy.
 
@@ -12,18 +15,23 @@ Nguon huong dan noi dung: creators.instagram.com/threads (chu rieng, hoi lai de 
 Quy uoc loi nhu x.py: giu quyen bang cong.giu_dang TRUOC moi goi mang Threads; loi sau publish = khong_ro (khong dang lai)."""
 import argparse
 import datetime as dt
+import hashlib
 import os
 import re
 import sys
 import tempfile
+import urllib.parse
 
-from . import chay, chung, gia, manifest, ntfy, site, threads
+from . import chay, chung, gia, http, manifest, ntfy, site, threads
 from .chung import LoiDang
 from .so import Cong, LoiCong
 
 TOPIC_TAG = "PlayStation"
-NGUON = {"sang": "tin-nhanh", "chieu": "keo-thom-2"}
-GIO_DANG = {"sang": "09:30", "chieu": "17:00"}
+NGUON = {"sang": "tin-nhanh", "chieu": "keo-thom-2", "binh_chon": "top5"}      # dang_nguon: Release doc manifest
+BAI = {"sang": "tin-nhanh", "chieu": "keo-thom-2", "binh_chon": "binh-chon"}   # dang_bai: khoa dong sg_dang (giu_dang / cap_nhat_dang)
+GIO_DANG = {"sang": "09:30", "chieu": "17:00", "binh_chon": "13:00"}
+UA = gia.UA
+ANH_PS_HOST = "image.api.playstation.com"
 TRAN = 400          # Threads cho 500; chua du dia
 CHO_TRUOC_PUBLISH = 30   # tai lieu: ~30 giay
 TU_CAM = ("bình luận", "binh luan", "tag bạn", "tag ban", "share", "chia sẻ", "giveaway", "tặng", "http", "www.", "!!!", "#")
@@ -54,6 +62,23 @@ HOI_CHIEU = (
     "Ai đã chơi rồi, game này có đáng tiền ở mức này không?",
     "Mua ở Store nước ngoài thế này bạn thấy tiện không, hay vẫn ngại khoản thẻ thanh toán?",
 )
+
+
+# Bo cau binh chon CO DINH (khong phu thuoc Release/gia): y kien that cua nguoi choi PlayStation Viet, khong bait/giveaway.
+# Moi lua chon <= 25 ky tu, 2-4 lua chon. 10 cau > 7 ngay -> xoay theo toordinal khong lap trong 7 ngay.
+BINH_CHON_CO_DINH = (
+    ("Bạn đang dùng gói PS Plus nào?", ("Essential", "Extra", "Premium", "Chưa đăng ký")),
+    ("Khi mua game, bạn ưu tiên điều gì nhất?", ("Phụ đề tiếng Việt", "Chơi chung nhiều người", "Giá rẻ", "Cốt truyện, đồ họa")),
+    ("Bạn mua game PlayStation bản digital hay đĩa?", ("Digital", "Đĩa", "Tùy từng game")),
+    ("Game mới ra, bạn mua ngay hay chờ sale lớn?", ("Mua ngay khi ra mắt", "Chờ sale lớn", "Chờ thật rẻ mới mua")),
+    ("Thể loại game bạn chơi nhiều nhất?", ("Hành động, phiêu lưu", "Nhập vai (RPG)", "Thể thao, đua xe", "Bắn súng, sinh tồn")),
+    ("Bạn thường chơi game PlayStation với ai?", ("Một mình", "Bạn bè, người thân", "Online với người lạ")),
+    ("Một game đáng mua với bạn thường ở mức giá nào?", ("Dưới 300 nghìn", "300 – 600 nghìn", "600 nghìn – 1 triệu", "Trên 1 triệu")),
+    ("Bạn đang chơi game trên máy nào?", ("PS5", "PS4", "Cả PS4 lẫn PS5")),
+    ("Bạn đã mua game ở PS Store nước ngoài chưa?", ("Rồi, thường xuyên", "Rồi, thỉnh thoảng", "Chưa, đang tìm hiểu", "Chưa, không định mua")),
+    ("Phụ đề tiếng Việt quan trọng với bạn cỡ nào?", ("Rất quan trọng", "Có thì tốt", "Không quan trọng")),
+)
+LUA_CHON_TOP1 = ("Mua luôn", "Chờ giảm thêm", "Không hứng thú")
 
 
 # ---------------------------------------------------------------- ham thuan
@@ -111,6 +136,29 @@ def kiem_van(text):
         if len(chu) >= 8 and chu.isupper():
             raise LoiDang("bai Threads co ca cau viet hoa")
     return text
+
+
+def _poll(lua_chon):
+    return threads.kiem_poll(dict(zip(threads.POLL_KHOA, lua_chon)))
+
+
+def cau_co_dinh(ngay):
+    """-> (text, poll) tu bo co dinh, xoay theo toordinal ngay (10 cau: 7 ngay lien tiep khong lap). Khong phu thuoc Release / gia."""
+    cau, lua_chon = BINH_CHON_CO_DINH[_so_ngay(ngay) % len(BINH_CHON_CO_DINH)]
+    return kiem_van(cau), _poll(lua_chon)
+
+
+def soan_binh_chon(man, ngay):
+    """-> (text, poll, muc_can_kiem_lai). Co manifest Top 5 dung duoc: cau ve game hang 1 (kiem_lai[0]) -> muc=[deal] (phai kiem gia).
+    Khong co / khong dung duoc -> cau co dinh, muc=[] (khong nhac gia nen khong can kiem)."""
+    muc = (man or {}).get("kiem_lai") or []
+    if muc and _deal_ok(muc[0]):
+        deal = muc[0]
+        text = (f"{gon_ten(deal['ten'])} đứng đầu top bán chạy hôm nay, còn {tien(deal['gia_vnd'])} ở Store {VUNG[deal['loc']]}. "
+                f"Bạn sẽ làm gì?")
+        return kiem_van(text), _poll(LUA_CHON_TOP1), [deal]
+    text, poll = cau_co_dinh(ngay)
+    return text, poll, []
 
 
 def _ghep(*phan):
@@ -190,7 +238,29 @@ def url_anh(man, ngay, dang):
         return None
 
 
-CUA_SO = {"sang": (dt.time(9, 0), dt.time(12, 0)), "chieu": (dt.time(16, 30), dt.time(20, 0))}   # gio VN; schedule GitHub hay tre
+def anh_ps_game(deal):
+    """URL bia PS Store (image.api.playstation.com) cua DUNG game (loc/pid) -> kiem HEAD 200 + image/jpeg|png (Threads chi nhan JPEG/PNG).
+    Khong lay duoc -> None (nguoi goi dung bia Release / chi chu). Chi doc, khong ghi gi."""
+    try:
+        r = http.gui("GET", f"https://store.playstation.com/{deal['loc']}/product/{deal['pid']}", headers={"User-Agent": UA},
+                     theo_chuyen_huong=True, timeout=30)
+        if r.status != 200:
+            raise LoiDang(f"trang san pham HTTP {r.status}")
+        u = gia.gia_trang.media(r.text, deal["pid"]).get("anh")
+        if not isinstance(u, str) or urllib.parse.urlparse(u).hostname != ANH_PS_HOST or not u.startswith("https://"):
+            raise LoiDang(f"khong co anh bia {ANH_PS_HOST} cua dung pid")
+        h = http.gui("HEAD", u, timeout=30)
+        ct = h.headers.get("content-type", "").split(";")[0].strip().lower()
+        if h.status != 200 or ct not in ("image/jpeg", "image/png"):
+            raise LoiDang(f"anh bia HTTP {h.status} {ct}")
+        return u
+    except (LoiDang, http.LoiMang, KeyError, TypeError, AttributeError) as e:
+        chung.log(f"threads_chu: anh PS Store cua {deal.get('pid')} khong dung duoc: {e}")
+        return None
+
+
+CUA_SO = {"sang": (dt.time(9, 0), dt.time(12, 0)), "chieu": (dt.time(16, 30), dt.time(20, 0)),
+          "binh_chon": (dt.time(12, 30), dt.time(15, 0))}   # gio VN; schedule GitHub hay tre
 
 
 def kiem_ngay_gio(loai, ngay):
@@ -204,8 +274,29 @@ def kiem_ngay_gio(loai, ngay):
     return None
 
 
+def _binh_chon_kiem_gia(man, sha, ngay):
+    """-> (text, poll, muc, man, sha). Top 5 + gia khop -> cau game hang 1; thieu manifest / khong soan duoc / gia-han lech / kiem loi -> cau co dinh
+    (sha = sha256 cua chinh bai co dinh de sg_dang co manifest_sha, man=None)."""
+    if man:
+        try:
+            text, poll, muc = soan_binh_chon(man, ngay)
+            van_de = []
+            if muc:
+                van_de, canh_bao = gia.kiem_lai(muc, chung.bay_gio())
+                for c in canh_bao:
+                    chung.log(f"kiem_lai canh bao: {c}")
+            if not van_de:
+                return text, poll, muc, man, sha
+            chung.log_loi(f"threads_chu: binh_chon gia/han lech - dung cau co dinh: {'; '.join(van_de)}")
+        except Exception as e:   # moi loi kiem/soan -> cau co dinh (khong nhac gia nen an toan)
+            chung.log_loi(f"threads_chu: binh_chon khong dung duoc Top 5 ({type(e).__name__}: {e}) - dung cau co dinh")
+    text, poll = cau_co_dinh(ngay)
+    return text, poll, [], None, hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
 def chay_loai(a, cong=None, thu_muc=None, dich=None):
-    dang = NGUON[a.loai]
+    dang_nguon, dang_bai = NGUON[a.loai], BAI[a.loai]   # Release doc / khoa so sg_dang
+    binh_chon = a.loai == "binh_chon"
     if a.che_do == "that":
         ly = kiem_ngay_gio(a.loai, a.ngay)
         if ly:
@@ -214,48 +305,59 @@ def chay_loai(a, cong=None, thu_muc=None, dich=None):
             return 3
     thu_muc = thu_muc or tempfile.mkdtemp(prefix="sg-threads-")
     that = a.che_do == "that"
+    man = sha = None
     try:
-        man, sha = tai_man(a.ngay, dang, thu_muc)
+        man, sha = tai_man(a.ngay, dang_nguon, thu_muc)
     except manifest.LoiManifest as e:
         chung.log_loi(f"threads_chu: {e}")
-        if that:
-            ntfy.loi(f"Threads {a.loai} {a.ngay}: khong dang (thieu/sai Release)", str(e))
-        return 3
-    try:
-        text, muc = (soan_sang if a.loai == "sang" else soan_chieu)(man, a.ngay)
-    except LoiDang as e:
-        chung.log_loi(f"threads_chu: {e}")
-        if that:
-            ntfy.loi(f"Threads {a.loai} {a.ngay}: khong soan duoc bai", str(e))
-        return 3
-    van_de, canh_bao = gia.kiem_lai(muc[:1], chung.bay_gio())   # ban re nhat duoc nhac trong bai; fail-closed
-    for c in canh_bao:
-        chung.log(f"kiem_lai canh bao: {c}")
-    if van_de:
-        ly = "; ".join(van_de)
-        chung.log_loi(f"threads_chu: gia/han lech - khong dang: {ly}")
-        if that:
-            ntfy.loi(f"Threads {a.loai} {a.ngay}: gia/han lech, khong dang", ly)
-        return 3
-    if len(muc) > 1:   # ban Mỹ (dung pid Mỹ): lech/loi -> bo cau chenh, KHONG bo bai
+        if not binh_chon:   # binh chon co bo cau co dinh -> thieu Release khong phai loi
+            if that:
+                ntfy.loi(f"Threads {a.loai} {a.ngay}: khong dang (thieu/sai Release)", str(e))
+            return 3
+    poll = None
+    if binh_chon:
+        text, poll, muc, man, sha = _binh_chon_kiem_gia(man, sha, a.ngay)
+        anh = None   # poll chi gan duoc vao bai TEXT
+    else:
         try:
-            v2, _ = gia.kiem_lai(muc[1:], chung.bay_gio())
-        except Exception as e:
-            v2 = [f"loi kiem ban My: {type(e).__name__}"]
-        if v2:
-            chung.log_loi(f"threads_chu: bo cau chenh Mỹ: {'; '.join(v2)}")
-            text, muc = soan_chieu(man, a.ngay, so_my=False)
-    anh = url_anh(man, a.ngay, dang) if a.loai == "chieu" else None
+            text, muc = (soan_sang if a.loai == "sang" else soan_chieu)(man, a.ngay)
+        except LoiDang as e:
+            chung.log_loi(f"threads_chu: {e}")
+            if that:
+                ntfy.loi(f"Threads {a.loai} {a.ngay}: khong soan duoc bai", str(e))
+            return 3
+        van_de, canh_bao = gia.kiem_lai(muc[:1], chung.bay_gio())   # ban re nhat duoc nhac trong bai; fail-closed
+        for c in canh_bao:
+            chung.log(f"kiem_lai canh bao: {c}")
+        if van_de:
+            ly = "; ".join(van_de)
+            chung.log_loi(f"threads_chu: gia/han lech - khong dang: {ly}")
+            if that:
+                ntfy.loi(f"Threads {a.loai} {a.ngay}: gia/han lech, khong dang", ly)
+            return 3
+        if len(muc) > 1:   # ban Mỹ (dung pid Mỹ): lech/loi -> bo cau chenh, KHONG bo bai
+            try:
+                v2, _ = gia.kiem_lai(muc[1:], chung.bay_gio())
+            except Exception as e:
+                v2 = [f"loi kiem ban My: {type(e).__name__}"]
+            if v2:
+                chung.log_loi(f"threads_chu: bo cau chenh Mỹ: {'; '.join(v2)}")
+                text, muc = soan_chieu(man, a.ngay, so_my=False)
+        if a.loai == "chieu":
+            anh = url_anh(man, a.ngay, dang_nguon)
+        else:   # sang: bia PS Store cua DUNG game re nhat duoc nhac; khong lay duoc -> bia Release tin-nhanh; Pages hong -> chi chu
+            anh = anh_ps_game(muc[0]) or url_anh(man, a.ngay, dang_nguon)
     if not that:
-        print(f"=== BAI THREADS {a.loai} {a.ngay} (nguon {dang}) ===\n{text}\n--- {len(text)} ky tu · topic_tag={TOPIC_TAG} · "
+        print(f"=== BAI THREADS {a.loai} {a.ngay} (nguon {dang_nguon} · so {dang_bai}) ===\n{text}\n"
+              f"{'--- POLL ' + ' | '.join(poll.values()) + chr(10) if poll else ''}--- {len(text)} ky tu · topic_tag={TOPIC_TAG} · "
               f"{'anh ' + anh if anh else 'chi chu'}", flush=True)
         return 0
     gio = gio_dang(a.ngay, a.loai)
-    nc = chung.NguCanh(a.ngay, dang, a.che_do, gio, man, thu_muc, cong)
+    nc = chung.NguCanh(a.ngay, dang_bai, a.che_do, gio, man or {}, thu_muc, cong)
     nc.manifest_sha = sha
     tk = chay.tai_token(cong, "threads")
     chay.kiem_danh_tinh("threads", tk, nc, dich if dich is not None else chay.nap_dich(os.environ.get("DICH_JSON")))
-    if not cong.giu_dang(a.ngay, dang, "threads", a.che_do, chung.iso(gio), sha):
+    if not cong.giu_dang(a.ngay, dang_bai, "threads", a.che_do, chung.iso(gio), sha):
         chung.log("threads_chu: sg_dang da co dong cho khung nay - khong dang lai")
         return 0
 
@@ -266,7 +368,7 @@ def chay_loai(a, cong=None, thu_muc=None, dich=None):
             chung.log_loi(f"threads_chu: khong ghi duoc {kw}: {e}")
 
     try:
-        cid = threads.tao_container_chu(tk, text, anh, TOPIC_TAG, luu)
+        cid = threads.tao_container_chu(tk, text, anh, TOPIC_TAG, luu, poll)
         chung.ngu(CHO_TRUOC_PUBLISH)
     except LoiDang as e:
         chay._ghi_loi(cong, nc, "threads", e)
