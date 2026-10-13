@@ -62,17 +62,32 @@ def phan_tich(f,w,h,d,H,chat=True):
             if (j-i)/10>=dmin and sum(seg)/len(seg)>=ytb: ra.append((str(f),round(a0+i/10,2),round((j-i)/10,2),round(sum(seg)/len(seg),1),cr))
             i=j
     return ra
-def lay(D,pool,tieu=0.6):
-    """Lap day D giay bang cac doan trong pool (vua khit nhat; thieu thi noi nhieu doan). Mot doan da dung chi con phan sau, cach 0,3 s."""
+CACH_LAP=10.0   # 14/10: canh DUNG LAI (cung nguon, chong len cung doan hinh) phai cach lan dung truoc >= 10 s tren dong thoi gian video
+def trung_canh(dung,src,s0,d,t0,cach=CACH_LAP):
+    """True neu mau (src, [s0,s0+d]) dat o dong thoi gian [t0,t0+d] CHONG hinh voi mot mau da dat (dung = [(src,s0,s1,t0,t1)]) ma khoang cach thoi gian giua hai lan < cach (cung s0 liền nhau cung vao day)."""
+    for u,a0,a1,b0,b1 in dung:
+        if u!=src or min(s0+d,a1)-max(s0,a0)<=0.05: continue
+        if max(t0-b1,b0-(t0+d))<cach: return True
+    return False
+def lay(D,pool,tieu=0.6,a=0.0,dung=None,cach=CACH_LAP):
+    """Lap day D giay bang cac doan trong pool (vua khit nhat; thieu thi noi nhieu doan). Mot doan da dung chi con phan sau, cach 0,3 s.
+    14/10 (Keo 13/10: canh lap xuat hien hai lan sat nhau): a = giay bat dau cua khe tren dong thoi gian, dung = so cac mau da dat (dung chung giua cac khe, duoc cap nhat tai cho).
+    Uu tien theo bac: (1) doan GOC khong vi pham khoang cach, (2) ban 'lap' khong vi pham, (3) bat ky (hanh vi cu khi khong xep duoc, khong dung lai)."""
     out=[]; con=D
+    if dung is None: dung=[]
     while con>0.04:
-        c=[p for p in pool if p['len']>=con-1e-6]
-        if c: p=min(c,key=lambda p:p['len']-con)
-        else:
-            c=[p for p in pool if p['len']>=tieu]
-            if not c: raise SystemExit(f'KHONG du doan trailer sang de lap {D:.2f}s (con thieu {con:.2f}s) — trailer qua toi/qua ngan, can xem tay')
-            p=max(c,key=lambda p:p['len'])
-        d=min(con,p['len']); out.append((p['src'],round(p['s0'],3),round(d,3),0,0.5,p['cr']))
+        t0=a+(D-con); p=None; c=[]
+        for bac in (0,1,2):
+            if bac==0: tap=[q for q in pool if not q.get('lap')]
+            elif bac==1: tap=[q for q in pool if q.get('lap')]
+            else: tap=list(pool)
+            if bac<2: tap=[q for q in tap if q['len']>=tieu and not trung_canh(dung,q['src'],q['s0'],min(con,q['len']),t0,cach)]
+            c=[q for q in tap if q['len']>=con-1e-6]
+            if c: p=min(c,key=lambda q:q['len']-con); break
+            c=[q for q in tap if q['len']>=tieu]
+            if c: p=max(c,key=lambda q:q['len']); break
+        if p is None: raise SystemExit(f'KHONG du doan trailer sang de lap {D:.2f}s (con thieu {con:.2f}s) — trailer qua toi/qua ngan, can xem tay')
+        d=min(con,p['len']); out.append((p['src'],round(p['s0'],3),round(d,3),0,0.5,p['cr'])); dung.append((p['src'],p['s0'],p['s0']+d,t0,t0+d))
         rest=p['len']-d-0.3; pool.remove(p)
         if rest>=tieu: pool.append(dict(p,s0=p['s0']+d+0.3,len=rest))
         con=round(con-d,4)
@@ -132,10 +147,10 @@ def ke_hoach(H):
     for vong in range(8):
         pool=cat_quanh(goc_pool,xau_t)
         pool=du_canh(pool,DAI+1,'Sau khi bo canh phang, trailer khong con du doan hop le — chon game khac')
-        ds={}
+        ds={}; dung=[]     # dung = cac mau da dat tren dong thoi gian video (lay() tranh dung lai canh < 10 s)
         for i in sorted(range(len(khe)),key=lambda i:-khe[i][1]):
             a,D=khe[i]
-            ds[i]=lay(D,pool)
+            ds[i]=lay(D,pool,a=a,dung=dung)
         S=[x for i in range(len(khe)) for x in ds[i]]
         moi=[]
         with tempfile.TemporaryDirectory() as td:
