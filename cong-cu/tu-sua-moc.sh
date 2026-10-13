@@ -52,3 +52,14 @@ can_chu_tu_sua(){
   _tsm_ghi "$KD/kiem-moc-2.json" "$cach1" "$next" 1 "da doi cach $cach1 -> $next, VAN LECH"
   echo "TU SUA: doi cach '$cach1' -> '$next' van lech -> DUNG (toi da 1 lan doi cach)"; return 5
 }
+
+# so_moc_voi_mac: K14 (moc may moi vs moc Mac) CHI co y nghia khi CUNG thuat toan. Neu tu sua da DOI CACH (kiem/tu-sua.json da_sua=true) thi bo qua (in canh bao),
+# khong doi cach thi so-moc nhu cu (tran 80 ms, that bai => ma thoat khac 0). Goi sau can_chu_tu_sua; khong co moc-chu.mac.json thi khong lam gi.
+so_moc_voi_mac(){
+  [ -f "$M/dau-vao/moc-chu.mac.json" ] || return 0
+  if [ -f "$M/kiem/tu-sua.json" ] && grep -q '"da_sua": true' "$M/kiem/tu-sua.json"; then
+    echo "so-moc bo qua: cach can doi tu $(sed -n 's/^ *"cach_dau": "\(.*\)",$/\1/p' "$M/kiem/tu-sua.json") sang $(sed -n 's/^ *"cach_cuoi": "\(.*\)",$/\1/p' "$M/kiem/tu-sua.json") (so-moc chi so cung thuat toan)" | tee -a "$DO"
+    return 0
+  fi
+  "${PY[@]}" "$ROOT/cong-cu/so-moc.py" "$M/dau-vao/moc-chu.mac.json" "$M/dau-vao/moc-chu.json" 0.08 | tee -a "$DO"
+}

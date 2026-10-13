@@ -30,7 +30,7 @@ if la_chung; then
     if [ -f dau-vao/moc-chu.json ]; then cp dau-vao/moc-chu.json dau-vao/moc-chu.mac.json; fi
   fi
   can_chu_tu_sua du_phong;                    moc "can chu (Whisper) + kiem moc"      # Tin nhanh chi co 1 cach -> kiem moc chi BAO
-  if [ -f dau-vao/moc-chu.mac.json ]; then "${PY[@]}" "$ROOT/cong-cu/so-moc.py" dau-vao/moc-chu.mac.json dau-vao/moc-chu.json 0.08 | tee -a "$DO"; fi
+  so_moc_voi_mac                              # cong-cu/tu-sua-moc.sh: bo qua khi tu sua da doi cach
 fi
 case "$GD" in
 chung)   # CHI phan KHONG phu thuoc ban: chon doan nen, khung cham, tron tieng, KIEM SOM. Khong ma hoa nen / khong chup lop chu.
