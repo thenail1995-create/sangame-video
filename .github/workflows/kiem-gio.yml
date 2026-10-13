@@ -38,6 +38,7 @@ jobs:
           SG_CONG_KHOA: ${{ secrets.SG_CONG_KHOA }}
           NTFY_TIN: ${{ secrets.NTFY_TIN }}
           NTFY_BAO_LOI: ${{ secrets.NTFY_BAO_LOI }}
+          ZERNIO_KHOA: ${{ secrets.ZERNIO_KHOA }}   # 13/10: chi de bu link TikTok con thieu trong so (chay.bu_link_tiktok)
           NGAY: ${{ inputs.ngay }}
           DANG: ${{ inputs.dang }}
           CHE_DO: ${{ inputs.che_do }}
