@@ -16,7 +16,7 @@ if la_chung; then
   fi
   for f in keo.json kich-ban.json dau-vao/giong.mp3; do [ -f "$f" ] || { echo "THIEU $f"; exit 2; }; done
   if [ -z "${HOI_QUY:-}" ]; then
-    "${PY[@]}" can-chu.py | tail -4;          moc "can chu (Whisper)"
+    can_chu_tu_sua cum_cau du_phong;          moc "can chu (Whisper) + kiem moc"      # cong-cu/tu-sua-moc.sh: kiem moc dau doan, lech thi doi cach 1 lan
   fi
   [ -f dau-vao/moc-chu.json ] || { echo "THIEU dau-vao/moc-chu.json"; exit 2; }
   "${PY[@]}" dung.py build tiktok && node do-khung.cjs tiktok; moc "khung cham + neo.json"

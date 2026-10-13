@@ -137,7 +137,7 @@ function op(el,v){el.style.opacity=v>=1?'':String(Math.max(0,Math.min(.999,v)))}
 function show(el,on){el.style.display=on?'':'none'}
 function dau(t,a,from){var k=p(t,a,.14);if(t<a)return null;var s=k<1?L(from||2.2,1,eo5(k)):1;var r=p(t,a+.14,.3);var dx=r>0&&r<1?Math.sin(r*26)*14*(1-r):0;return [s,dx]}
 function rnd(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;var t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-function vua(el,max,co){el.style.fontSize=co+'px';var w=el.getBoundingClientRect().width;if(w>max)el.style.fontSize=(co*max/w)+'px'}
+function vua(el,max,co){el.style.fontSize=co+'px';var do_=function(){return Math.max(el.getBoundingClientRect().width,el.scrollWidth)};var w=do_();if(w>max){var c=co*max/w;el.style.fontSize=c+'px';while(do_()>max&&c>8){c-=.5;el.style.fontSize=c+'px'}}}   /* DOT 2a-D (13/10): co chu khong ti le thuan be rong (top5 #65: tran 3 px) -> do lai sau khi thu, giam 0,5 px toi khi vua; scrollWidth cho phan tu khoi */
 var C={}; CANH.forEach(function(c){C[c.k]=c});
 var MAU={xanh:'#23948D',do:'#C8372D',vang:'#1C1512'}, LCLS={xanh:'l-xanh',do:'l-do',vang:'l-vang'};
 /* ===== MOC CHU ===== */

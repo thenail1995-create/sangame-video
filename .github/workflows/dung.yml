@@ -494,7 +494,7 @@ jobs:
           # moi tep KHONG nam trong git cua khuon (du lieu chon, giong, moc chu, trailer, nen-doan, am.wav, sfx-bus...) tru ban dung lai duoc / qua lon / chi de nhin
           git ls-files --others -z -- "$K" | { grep -zvE '(^|/)(soi|am-thanh|__pycache__)/|/lop-[^/]*\.mov$|\.build\.html$|/am-tho\.wav$|/do-thoi-gian[^/]*\.txt$|/tai-nguyen[^/]*\.txt$' || true; } > "$RUNNER_TEMP/chung.lst"
           [ -s "$RUNNER_TEMP/chung.lst" ] || { echo "danh sach tep chung rong"; exit 1; }
-          tr '\0' '\n' < "$RUNNER_TEMP/chung.lst" | grep -E "^$K/[^/]+\.(json|txt)$" | tr '\n' '\0' > "$RUNNER_TEMP/meta.lst"
+          tr '\0' '\n' < "$RUNNER_TEMP/chung.lst" | grep -E "^$K/([^/]+\.(json|txt)|kiem/tu-sua\.json)$" | tr '\n' '\0' > "$RUNNER_TEMP/meta.lst"
           [ -s "$RUNNER_TEMP/meta.lst" ] || { echo "danh sach tep meta rong"; exit 1; }
           tar --null -T "$RUNNER_TEMP/chung.lst" -cf "$RUNNER_TEMP/chung-ra.tar"
           tar --null -T "$RUNNER_TEMP/meta.lst" -cf "$RUNNER_TEMP/chung-meta.tar"

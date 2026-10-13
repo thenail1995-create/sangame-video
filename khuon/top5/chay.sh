@@ -11,7 +11,7 @@ if la_chung; then
     if [ ! -f dau-vao/giong.mp3 ]; then mkdir -p dau-vao; "${PY[@]}" "$ROOT/cong-cu/giong.py" giong --loi-file loi.txt --ra dau-vao/giong.mp3 --du-an san-game --dang top5; moc "giong"; fi
   fi
   if [ -f dau-vao/moc-chu.json ]; then cp dau-vao/moc-chu.json dau-vao/moc-chu.mac.json; fi
-  "${PY[@]}" can-chu.py | tail -4;            moc "can chu (Whisper)"
+  can_chu_tu_sua neo_doan cum_cau du_phong;   moc "can chu (Whisper) + kiem moc"      # cong-cu/tu-sua-moc.sh: kiem moc dau doan, lech thi doi cach 1 lan
   if [ -f dau-vao/moc-chu.mac.json ]; then "${PY[@]}" "$ROOT/cong-cu/so-moc.py" dau-vao/moc-chu.mac.json dau-vao/moc-chu.json 0.08 | tee -a "$DO"; fi
 fi
 case "$GD" in
