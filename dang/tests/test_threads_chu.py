@@ -287,6 +287,7 @@ class Van(Chung):
         self.assertEqual(tc.gon_ten("Grand Theft Auto: The Trilogy – The Definitive Edition (PS5 & PS4)"),
                          "Grand Theft Auto: The Trilogy – The Definitive Edition")
         self.assertEqual(tc.gon_ten("EA SPORTS™ Madden NFL 27"), "EA SPORTS Madden NFL 27")
+        self.assertEqual(tc.gon_ten("Hogwarts Legacy PS5 Version"), "Hogwarts Legacy")   # bai Threads 13/10
 
 
 class Dang(Chung):
