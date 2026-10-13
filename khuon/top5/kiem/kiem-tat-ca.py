@@ -116,7 +116,16 @@ def doc(f,sr=48000): return np.frombuffer(subprocess.run(['ffmpeg','-v','error',
 g=doc(V/'giong.mp3'); g=np.pad(g,(0,max(0,len(bus)-len(g))))[:len(bus)]
 moc=[w for w in json.load(open(V/'moc-chu.json')) if w['w'].strip()]
 r=lambda x:20*np.log10(np.sqrt(np.mean(x**2))+1e-9)
-bien=sorted((r(g[int(w['s']*48000):int(w['e']*48000)])-r(bus[int(w['s']*48000):int(w['e']*48000)]),w['w'],w['s']) for w in moc)
+# 13/10 (run 38340819324): moc can chu doi khi bat dau trong quang lang truoc tieng noi ('Hạng' -46 dB) -> chi do tren khung 10 ms
+# CO GIONG (giong >= -45 dBFS); chu khong co khung nao co giong thi bo qua (khong co giong de bi che). Giong goc da nghe lai: du chu 'Hạng'.
+def _bien(w):
+    a,b=int(w['s']*48000),int(w['e']*48000); k=480; n_=(b-a)//k
+    if n_<1: return None
+    gg=g[a:a+n_*k].reshape(n_,k); bb=bus[a:a+n_*k].reshape(n_,k)
+    co=20*np.log10(np.sqrt(np.mean(gg**2,axis=1))+1e-9)>=-45
+    if not co.any(): return None
+    return r(gg[co].ravel())-r(bb[co].ravel())
+bien=sorted((x,w['w'],w['s']) for w in moc if (x:=_bien(w)) is not None)
 duoi6=[(round(a,1),b,c) for a,b,c in bien if a<6]
 ghi('Giong to hon tieng dong >= 6 dB (>= 95% chu)',len(duoi6)<=max(1,len(bien)//20),f"duoi 6 dB: {len(duoi6)}/{len(bien)} {duoi6[:4]}",'A3')
 
