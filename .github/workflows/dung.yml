@@ -53,6 +53,11 @@ on:
         description: che_do=thu - van tao Release pre-release thu-<ngay>-<dang> (de thu may dang E5)
         type: boolean
         default: false
+      may:
+        description: May cho 3 job nang (chon, chung, ban). Mac dinh may GitHub mien phi; ubicloud-standard-8 = thu do toc do (tinh tien Ubicloud)
+        type: choice
+        options: [ubuntu-24.04, ubicloud-standard-8]
+        default: ubuntu-24.04
   repository_dispatch:
     types: [dung]
 permissions: {}
@@ -166,7 +171,7 @@ jobs:
   chon:
     needs: kiem-moi
     if: github.ref == 'refs/heads/main' && needs.kiem-moi.outputs.live == '1' && needs.kiem-moi.outputs.ba_pha == '1' && needs.kiem-moi.outputs.moi == '1'
-    runs-on: ubuntu-24.04
+    runs-on: ${{ github.event.inputs.may || 'ubuntu-24.04' }}
     timeout-minutes: 20
     permissions:
       contents: read
@@ -270,7 +275,7 @@ jobs:
   chung:
     needs: [kiem-moi, chon]
     if: always() && github.ref == 'refs/heads/main' && needs.kiem-moi.result == 'success' && needs.kiem-moi.outputs.moi == '1' && (needs.kiem-moi.outputs.live != '1' || needs.kiem-moi.outputs.ba_pha != '1' || (needs.chon.result == 'success' && needs.chon.outputs.du == '1'))
-    runs-on: ubuntu-24.04
+    runs-on: ${{ github.event.inputs.may || 'ubuntu-24.04' }}
     timeout-minutes: 60
     permissions:
       contents: read
@@ -510,7 +515,7 @@ jobs:
     needs: [kiem-moi, chung]
     # !cancelled(): chung chay sau job chon (co the bi bo qua o Tin nhanh 1 pha) - xem bai hoc #35. Bo khung (chung xanh, khong co artifact) -> bo qua
     if: "!cancelled() && github.ref == 'refs/heads/main' && needs.chung.result == 'success' && needs.chung.outputs.bo_khung != '1'"
-    runs-on: ubuntu-24.04
+    runs-on: ${{ github.event.inputs.may || 'ubuntu-24.04' }}
     timeout-minutes: 90
     permissions:
       contents: read
