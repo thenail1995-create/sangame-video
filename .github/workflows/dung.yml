@@ -5,6 +5,13 @@ name: Dung video
 #   -> gom (manifest tu 3 ban, hop dong 7 tai san) -> phat-hanh -> bao-loi. Artifact giua cac job chua giong/loi/anh => MA HOA bang GOI_KHOA (repo cong khai).
 # B5': che do TU DONG (fixture de trong; hien chi khuon co chuan-bi.sh = top5): kiem-moi (du lieu gia 6 vung co ngay hom nay chua? + lay data_sha)
 #      -> chon (5 game + loi) -> dung (giong qua cong-cu/giong.py, dung, kiem D1-D3) -> phat-hanh. cron-job.org goi 10:15 (lan=1) va 10:45 (lan=2).
+# THU UBICLOUD 13/10-23/10/2026: lich tu dong (repository_dispatch, khong co inputs) chay ubicloud-standard-8; Hao quyet giu/bo theo phut + tien.
+# QUAY VE MAY GITHUB cho lich tu dong phai sua DUNG 4 CHO (khong chi default cua input):
+#   (1) default cua input `may` (workflow_dispatch) -> ubuntu-24.04
+#   (2) fallback `runs-on: ${{ github.event.inputs.may || '...' }}` o 3 job chon, chung, ban
+#   (3) fallback trong bieu thuc WORKERS o job chung
+#   (4) fallback trong bieu thuc WORKERS o job ban
+# Chung-ra di qua cache (cong-cu/nhan-chung-ra.sh kiem sha) truoc, artifact la du phong.
 # Chi nhan workflow_dispatch / repository_dispatch; job dau kiem ref = main. Khong pull_request. Job dung KHONG co quyen ghi; chi job phat-hanh co contents:write.
 on:
   workflow_dispatch:
@@ -54,10 +61,10 @@ on:
         type: boolean
         default: false
       may:
-        description: May cho 3 job nang (chon, chung, ban). Mac dinh may GitHub mien phi; ubicloud-standard-8 = thu do toc do (tinh tien Ubicloud)
+        description: May cho 3 job nang (chon, chung, ban). Mac dinh ubicloud-standard-8 (8 nhan, tinh tien Ubicloud, thu 13/10-23/10); ubuntu-24.04 = may GitHub mien phi
         type: choice
         options: [ubuntu-24.04, ubicloud-standard-8]
-        default: ubuntu-24.04
+        default: ubicloud-standard-8
   repository_dispatch:
     types: [dung]
 permissions: {}
@@ -171,7 +178,7 @@ jobs:
   chon:
     needs: kiem-moi
     if: github.ref == 'refs/heads/main' && needs.kiem-moi.outputs.live == '1' && needs.kiem-moi.outputs.ba_pha == '1' && needs.kiem-moi.outputs.moi == '1'
-    runs-on: ${{ github.event.inputs.may || 'ubuntu-24.04' }}
+    runs-on: ${{ github.event.inputs.may || 'ubicloud-standard-8' }}
     timeout-minutes: 20
     permissions:
       contents: read
@@ -275,13 +282,14 @@ jobs:
   chung:
     needs: [kiem-moi, chon]
     if: always() && github.ref == 'refs/heads/main' && needs.kiem-moi.result == 'success' && needs.kiem-moi.outputs.moi == '1' && (needs.kiem-moi.outputs.live != '1' || needs.kiem-moi.outputs.ba_pha != '1' || (needs.chon.result == 'success' && needs.chon.outputs.du == '1'))
-    runs-on: ${{ github.event.inputs.may || 'ubuntu-24.04' }}
+    runs-on: ${{ github.event.inputs.may || 'ubicloud-standard-8' }}
     timeout-minutes: 60
     permissions:
       contents: read
     outputs:
       bo_khung: ${{ steps.dung.outputs.bo_khung }}
       data_sha: ${{ steps.dsha.outputs.sha }}
+      chung_sha: ${{ steps.sha_chung.outputs.sha }}
     env:
       DANG: ${{ github.event.inputs.dang || github.event.client_payload.dang }}
       KHUON: ${{ startsWith(github.event.inputs.dang || github.event.client_payload.dang, 'keo-thom') && 'keo-thom' || (github.event.inputs.dang || github.event.client_payload.dang) }}
@@ -436,7 +444,7 @@ jobs:
         id: dung
         env:
           GD: chung
-          WORKERS: '4'
+          WORKERS: ${{ (github.event.inputs.may || 'ubicloud-standard-8') == 'ubicloud-standard-8' && '8' || '4' }}
           GH_TOKEN: ${{ github.token }}   # chon-tin.py (Tin nhanh) doc manifest cac Release 3 ngay qua `gh` (cong-cu/da_noi_bat.py); thieu -> CANH BAO, khong loc
           WHISPER_DIR: /home/runner/whisper-cache
           # chi khi chay fixture (hoi quy): bo kiem ngay du lieu theo NGAY (khuon/*/kiem). Khong fixture (LIVE) = khong dat. fixture + che_do=that da bi cam o kiem-moi.
@@ -493,6 +501,17 @@ jobs:
           openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:GOI_KHOA -in "$RUNNER_TEMP/chung-ra.tar" -out "$GITHUB_WORKSPACE/chung-ra.enc"
           openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:GOI_KHOA -in "$RUNNER_TEMP/chung-meta.tar" -out "$GITHUB_WORKSPACE/chung-meta.enc"
           ls -la chung-ra.enc chung-meta.enc
+      - name: Tinh sha256 chung-ra.enc (job ban doi chieu truoc khi tin cache)
+        id: sha_chung
+        if: steps.dung.outputs.bo_khung != '1'
+        run: echo "sha=$(sha256sum chung-ra.enc | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - name: Luu chung-ra vao cache (nhanh hon artifact tren Ubicloud; da ma hoa GOI_KHOA)
+        if: steps.dung.outputs.bo_khung != '1'
+        continue-on-error: true
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: chung-ra.enc
+          key: chung-ra-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Chuyen ket qua chung sang 3 job ban (da ma hoa)
         if: steps.dung.outputs.bo_khung != '1'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -515,7 +534,7 @@ jobs:
     needs: [kiem-moi, chung]
     # !cancelled(): chung chay sau job chon (co the bi bo qua o Tin nhanh 1 pha) - xem bai hoc #35. Bo khung (chung xanh, khong co artifact) -> bo qua
     if: "!cancelled() && github.ref == 'refs/heads/main' && needs.chung.result == 'success' && needs.chung.outputs.bo_khung != '1'"
-    runs-on: ${{ github.event.inputs.may || 'ubuntu-24.04' }}
+    runs-on: ${{ github.event.inputs.may || 'ubicloud-standard-8' }}
     timeout-minutes: 90
     permissions:
       contents: read
@@ -625,7 +644,21 @@ jobs:
         with:
           path: ~/whisper-cache
           key: whisper-small-536b0662742c02347bc0e980a01041f333bce120-turbo-0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf   # small (can chu, A2) + large-v3-turbo (D3 noi dung); doi revision nao thi doi khoa
-      - name: Ket qua chung (tu job chung)
+      - name: Lay chung-ra tu cache
+        id: cache_chung
+        continue-on-error: true
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: chung-ra.enc
+          key: chung-ra-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: chung-ra-${{ github.run_id }}-
+      - name: Kiem sha chung-ra tu cache
+        id: kiem_chung
+        env:
+          CHUNG_SHA: ${{ needs.chung.outputs.chung_sha }}
+        run: bash cong-cu/nhan-chung-ra.sh chung-ra.enc "$CHUNG_SHA" chung-ra >> "$GITHUB_OUTPUT"
+      - name: Ket qua chung (tu job chung) - du phong artifact khi cache truot
+        if: steps.kiem_chung.outputs.ok != '1'
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
           name: chung-ra
@@ -633,16 +666,18 @@ jobs:
       - name: Giai ma + giai nen ket qua chung vao khuon
         env:
           GOI_KHOA: ${{ secrets.GOI_KHOA }}
+          NGUON_CHUNG: ${{ steps.kiem_chung.outputs.ok == '1' && 'cache' || 'artifact' }}
         run: |
           set -euo pipefail
           [ -n "${GOI_KHOA:-}" ] || { echo "thieu secret GOI_KHOA"; exit 1; }
+          echo "nguon chung-ra: ${NGUON_CHUNG}"
           openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass env:GOI_KHOA -in chung-ra/chung-ra.enc | tar -xf - --no-same-owner -C "$GITHUB_WORKSPACE"
           ls "khuon/$KHUON"
       - name: "Dung + kiem DAY DU cua ban ${{ matrix.ban }} (GD=ban: nen, lop chu, ghep, bia, kiem)"
         id: dung
         env:
           GD: ban
-          WORKERS: '4'
+          WORKERS: ${{ (github.event.inputs.may || 'ubicloud-standard-8') == 'ubicloud-standard-8' && '8' || '4' }}
           WHISPER_DIR: /home/runner/whisper-cache
           # chi khi chay fixture (hoi quy): bo kiem ngay du lieu theo NGAY (khuon/*/kiem). Khong fixture (LIVE) = khong dat. fixture + che_do=that da bi cam o kiem-moi.
           HOI_QUY: ${{ env.FIXTURE != '' && '1' || '' }}

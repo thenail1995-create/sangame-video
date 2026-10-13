@@ -12,7 +12,10 @@ def buoc(ten):
 class TestDungYml(unittest.TestCase):
     def test_a2_khong_con_cache_giong(self):  # #2
         self.assertNotIn('giong-kho', Y.replace('/giong-kho', '').replace('runner.temp', ''))   # chi con GIONG_KHO tro runner.temp
-        self.assertNotIn('actions/cache/restore', Y); self.assertNotIn('actions/cache/save', Y)
+        # 13/10: cache /save va /restore CHI cho chung-ra.enc (da ma hoa GOI_KHOA, sha chot tu output job chung); moi cache khac van bi cam o duoi
+        for ten, n in TATCA.items():
+            self.assertEqual(len(re.findall(r'actions/cache/(?:save|restore)@', n)), len(re.findall(r'actions/cache/(?:save|restore)@[^\n]*\n(?:        [^\n]*\n)*?        with:\n          path: chung-ra\.enc\n          key: chung-ra-\$\{\{ github\.run_id \}\}-', n)), f'{ten}: cache save/restore ngoai chung-ra.enc')
+        self.assertEqual(len(re.findall(r'actions/cache/(?:save|restore)@', Y)), 2)
         self.assertEqual(Y.count('GIONG_KHO: ${{ runner.temp }}/giong-kho'), 2)   # chi job chung (thu giong + chay chung); job ban/gom KHONG thay giong tho qua cache
         # dung nhanh 11/10: duoc cache MO HINH, trinh duyet, goi Python, .deb - KHONG BAO GIO giong / khoa / du lieu rieng tu / khuon
         CHO_PHEP = ('whisper', 'apt-deb', 'playwright', 'uv-')
@@ -187,10 +190,40 @@ class DungNhanhMatrix(unittest.TestCase):
         for j in ('chung', 'ban', 'gom'):
             khoi = khoi_job(j)
             # máy GitHub, hoặc (chung/ban) máy chọn qua input `may` — chỉ 2 giá trị: ubuntu-24.04 | ubicloud-standard-8 (thử đo 13/10)
-            self.assertTrue('runs-on: ubuntu-24.04' in khoi or "runs-on: ${{ github.event.inputs.may || 'ubuntu-24.04' }}" in khoi, j)
+            self.assertTrue('runs-on: ubuntu-24.04' in khoi or "runs-on: ${{ github.event.inputs.may || 'ubicloud-standard-8' }}" in khoi, j)
             for m in re.finditer(r'uses: ([\w./-]+)@([^\s]+)', khoi): self.assertRegex(m.group(2), r'^[0-9a-f]{40}$', f'{j}: {m.group(0)} chua ghim SHA')
         self.assertIn('options: [ubuntu-24.04, ubicloud-standard-8]', Y)
+        self.assertRegex(Y, r'options: \[ubuntu-24\.04, ubicloud-standard-8\]\n        default: ubicloud-standard-8\n')
+        self.assertEqual(Y.count("runs-on: ${{ github.event.inputs.may || 'ubicloud-standard-8' }}"), 3)
+        for j in ('kiem-moi', 'gom', 'phat-hanh', 'bao-loi'): self.assertIn('runs-on: ubuntu-24.04', khoi_job(j), j)   # job nhe giu may GitHub
         self.assertIn('thieu secret GOI_KHOA', khoi_job('ban')); self.assertIn("os.environ['LIVE']=='1'", khoi_job('phat-hanh'))
+
+    def test_workers_theo_may(self):
+        bt = "WORKERS: ${{ (github.event.inputs.may || 'ubicloud-standard-8') == 'ubicloud-standard-8' && '8' || '4' }}"
+        self.assertIn(bt, khoi_job('chung')); self.assertIn(bt, khoi_job('ban')); self.assertEqual(Y.count('WORKERS:'), 2)
+
+    def test_chung_ra_qua_cache_artifact_du_phong(self):
+        c = khoi_job('chung')
+        self.assertIn('chung_sha: ${{ steps.sha_chung.outputs.sha }}', c)
+        sha = buoc_trong(c, '- name: Tinh sha256 chung-ra.enc'); self.assertIn('id: sha_chung', sha); self.assertIn("steps.dung.outputs.bo_khung != '1'", sha); self.assertIn('sha256sum chung-ra.enc', sha)
+        sv = buoc_trong(c, '- name: Luu chung-ra vao cache')
+        self.assertIn('continue-on-error: true', sv); self.assertIn("steps.dung.outputs.bo_khung != '1'", sv)
+        self.assertIn('uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9', sv)
+        self.assertIn('path: chung-ra.enc', sv); self.assertIn('key: chung-ra-${{ github.run_id }}-${{ github.run_attempt }}', sv)
+        self.assertLess(c.index('Dong goi + MA HOA ket qua chung'), c.index('id: sha_chung')); self.assertLess(c.index('id: sha_chung'), c.index('actions/cache/save@')); self.assertLess(c.index('actions/cache/save@'), c.index('name: chung-ra\n'))
+        self.assertIn('name: chung-ra\n          path: chung-ra.enc', c)   # artifact du phong van con
+        b = khoi_job('ban')
+        rs = buoc_trong(b, '- name: Lay chung-ra tu cache')
+        self.assertIn('id: cache_chung', rs); self.assertIn('continue-on-error: true', rs); self.assertIn('uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9', rs)
+        self.assertIn('restore-keys: chung-ra-${{ github.run_id }}-', rs)
+        kt = buoc_trong(b, '- name: Kiem sha chung-ra tu cache')
+        self.assertIn('id: kiem_chung', kt); self.assertIn('CHUNG_SHA: ${{ needs.chung.outputs.chung_sha }}', kt)
+        self.assertIn('bash cong-cu/nhan-chung-ra.sh chung-ra.enc "$CHUNG_SHA" chung-ra >> "$GITHUB_OUTPUT"', kt); self.assertNotIn('${{', kt.split('run:')[1])
+        dl = buoc_trong(b, '- name: Ket qua chung (tu job chung)')
+        self.assertIn("if: steps.kiem_chung.outputs.ok != '1'", dl); self.assertIn('actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0', dl); self.assertIn('name: chung-ra', dl)
+        gm = buoc_trong(b, '- name: Giai ma + giai nen ket qua chung vao khuon')
+        self.assertIn('-in chung-ra/chung-ra.enc', gm); self.assertIn('nguon chung-ra:', gm)
+        self.assertLess(b.index('actions/cache/restore@'), b.index('id: kiem_chung')); self.assertLess(b.index('id: kiem_chung'), b.index('actions/download-artifact')); self.assertLess(b.index('actions/download-artifact'), b.index('Giai ma + giai nen ket qua chung'))
 
     def test_cache_ghim(self):    # Playwright theo package-lock, uv theo uv.lock, apt .deb theo tuan; npm qua setup-node
         for j in ('chung', 'ban'):
