@@ -96,6 +96,20 @@ class Hook(unittest.TestCase):
         ld = dict(LOI_DANG["tin-nhanh"], mo_ta="1. A.\n2. B.\nGiảm sâu: rẻ nhất Alpha, 500.000đ ở X (giảm 50%).\nDeal hot: rẻ nhất Beta, 90.000đ ở X (giảm 70%).")
         self.assertTrue(nc("tin-nhanh", ld=ld).hook().startswith("Beta chỉ còn 90.000đ — 2 tin"))
 
+    def test_tin_nhanh_bo_duoi_nen_tang(self):
+        # 13/10 (manifest that): "rẻ nhất Hogwarts Legacy PS5 Version, 288.000đ" -> caption/hashtag khong co "PS5 Version"
+        ld = dict(LOI_DANG["tin-nhanh"], mo_ta="1. A.\nGiảm sâu: rẻ nhất Hogwarts Legacy PS5 Version, 288.000đ ở Store Hồng Kông (giảm 80%).")
+        c = nc("tin-nhanh", ld=ld)
+        self.assertTrue(c.hook().startswith("Hogwarts Legacy chỉ còn 288.000đ"))
+        self.assertIn("#HogwartsLegacy", c.caption_tiktok())
+        self.assertNotIn("PS5Version", c.caption_tiktok())
+
+    def test_bo_duoi_nen_tang(self):
+        for vao, ra in [("Hogwarts Legacy PS5 Version", "Hogwarts Legacy"), ("It Takes Two PS4 & PS5", "It Takes Two"),
+                        ("Mafia III for PS5", "Mafia III"), ("Ghost of Tsushima - PS5 Edition", "Ghost of Tsushima"),
+                        ("PS5", "PS5"), ("Gran Turismo 7", "Gran Turismo 7"), ("PS5 Pro Upgrade Pack", "PS5 Pro Upgrade Pack")]:
+            self.assertEqual(chung.bo_duoi_nen_tang(vao), ra)
+
     def test_tin_nhanh_khong_parse_duoc_dung_tieu_de(self):
         ld = dict(LOI_DANG["tin-nhanh"], mo_ta="khong co dong re nhat")
         self.assertEqual(nc("tin-nhanh", ld=ld).hook(), ld["tieu_de"])

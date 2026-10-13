@@ -63,7 +63,7 @@ def gon_ten(t):
     t = re.sub(r"\s*\([^()]*\)", "", t)
     t = re.sub(r"\s+for PS[45]$", "", t.strip())
     t = re.sub(r"\s+PS[45](?:\s*&\s*PS[45])?$", "", t.strip())
-    return re.sub(r"\s+", " ", t).strip()
+    return chung.bo_duoi_nen_tang(re.sub(r"\s+", " ", t).strip())
 
 
 def tien(n):

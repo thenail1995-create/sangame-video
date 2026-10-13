@@ -106,6 +106,15 @@ THAY_URL = "web Săn Game (link ở bio)"
 TIEU_DE_DU_PHONG = "Săn Game: tin giảm giá PlayStation hôm nay"
 _RE_GIA_DONG = re.compile(r"\s-\s(\d{1,3}(?:\.\d{3})+)đ")
 _RE_REN_NHAT = re.compile(r"rẻ nhất (.+?),\s*(\d{1,3}(?:\.\d{3})+)đ")
+# 13/10: caption Tin nhanh hien "Hogwarts Legacy PS5 Version" -> bo duoi nen tang o CUOI ten (chi caption/hashtag, khong doi video)
+_RE_DUOI_NEN_TANG = re.compile(r"(?:\s*[-–:]?\s*(?:PS[45]\s*(?:Version|Edition)|PS[45]\s*&\s*PS[45]|for\s+PS[45]|PS[45]))+\s*$", re.I)
+
+
+def bo_duoi_nen_tang(ten):
+    """'Hogwarts Legacy PS5 Version' -> 'Hogwarts Legacy'; 'It Takes Two PS4 & PS5' -> 'It Takes Two'. Rong sau khi bo -> giu ten cu."""
+    t = (ten or "").strip()
+    g = _RE_DUOI_NEN_TANG.sub("", t).strip(" -–:")
+    return g or t
 
 
 def _cat_chu(s, n):
@@ -259,7 +268,7 @@ def _gia_so(chuoi):
 
 def _ren_nhat(mo_ta):
     """Trong cac dong 'rẻ nhất <game>, <gia>đ ...' (Tin nhanh) -> (game, gia_chuoi) re nhat, hoac None."""
-    ung = [(m.group(1).strip(), m.group(2)) for m in _RE_REN_NHAT.finditer(mo_ta or "")]
+    ung = [(bo_duoi_nen_tang(m.group(1)), m.group(2)) for m in _RE_REN_NHAT.finditer(mo_ta or "")]
     return min(ung, key=lambda t: _gia_so(t[1])) if ung else None
 
 
