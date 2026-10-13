@@ -15,6 +15,8 @@ from dang.tests.gia_lap import Mang, P, cong_day_du
 
 NGAY = "2026-10-12"
 BAY_GIO = dt.datetime(2026, 10, 12, 9, 30, tzinfo=chung.VN)
+BINH_CHON = dt.datetime(2026, 10, 12, 13, 0, tzinfo=chung.VN)
+ANH_PS = "https://image.api.playstation.com/vulcan/ap/rnd/202509/mafia3-master.png"
 CHIEU = dt.datetime(2026, 10, 12, 17, 0, tzinfo=chung.VN)
 LINK = "https://www.threads.com/@sangamecomvn/post/ABC"
 
@@ -124,6 +126,18 @@ def man_cua(dang, loi_dang, kiem_lai):
             "sha_code": "c", "sha_du_lieu": "d", "tao_luc": "t", "ban": ban, "loi_dang": loi_dang, "kiem_lai": kiem_lai}
 
 
+TOP5_KIEM_LAI = [
+ {"ten": "Marvel's Spider-Man 2 PS5®", "pid": "UP9000-PPSA19417_00-MARVELSSPIDERMAN2", "loc": "en-hk", "gia_vnd": 1199000,
+  "gia_cuc_bo": 342.0, "tien_te": "HKD", "endTime": "1792594740000"},
+ {"ten": "Mafia III: Definitive Edition for PS5®", "pid": "UP1001-PPSA36864_00-MAFIA3DEPS500000", "loc": "en-hk", "gia_vnd": 160000,
+  "gia_cuc_bo": 45.8, "tien_te": "HKD", "endTime": "1792594740000"},
+]
+
+
+def man_top5():
+    return man_cua("top5", {"tieu_de": "Top 5", "mo_ta": "x", "hashtag": ["#SănGame"], "link": "https://sangame.com.vn/"}, TOP5_KIEM_LAI)
+
+
 def man_sang():
     return man_cua("tin-nhanh", SANG_LOI_DANG, SANG_KIEM_LAI)
 
@@ -153,8 +167,11 @@ class Chung(unittest.TestCase):
         self.van_de_my = []
         self.bay = BAY_GIO
         self.loi_release = None
+        self.tai_goi = []
+        self.anh_ps = mock.Mock(return_value=ANH_PS)
 
         def tai_tep(ngay, dang, ten, thu_muc, repo=None, che_do="that"):
+            self.tai_goi.append((ngay, dang, ten))
             if self.loi_release:
                 raise manifest.LoiManifest(self.loi_release)
             assert che_do == "that" and ten == "manifest.json"
@@ -173,6 +190,7 @@ class Chung(unittest.TestCase):
         for p in (mock.patch.object(chung, "bay_gio", lambda: self.bay),
                   mock.patch.object(chung, "ngu", lambda s: self.ngu.append(s)),
                   mock.patch.object(site, "kiem_url", self.kiem_url),
+                  mock.patch.object(tc, "anh_ps_game", self.anh_ps),
                   mock.patch.object(manifest, "tai_tep", tai_tep),
                   mock.patch.object(gia, "kiem_lai", kiem_lai),
                   mock.patch.object(ntfy, "loi", lambda t, n, **k: self.ntfy.append(("loi", t, n))),
@@ -299,13 +317,15 @@ class Dang(Chung):
         self.assertIn("threads", chay.MOD)
         self.assertEqual(chay.KHOA_DICH["threads"], "threads_user_id")
 
-    def test_sang_chi_chu_that(self):
+    def test_sang_that_kem_anh_dung_game_re_nhat(self):
         m = mang_threads()
         self.assertEqual(self.chay("sang", m=m), 0)
         f = self.form_tao(m)
         self.assertEqual(len(f), 1)
-        self.assertEqual(f[0]["media_type"], "TEXT")
-        self.assertNotIn("image_url", f[0])
+        self.assertEqual(f[0]["media_type"], "IMAGE")
+        self.assertEqual(f[0]["image_url"], ANH_PS)
+        self.assertEqual(self.anh_ps.call_args[0][0]["pid"], "UP1001-PPSA36864_00-MAFIA3DEPS500000")   # pid cua game duoc nhac
+        self.assertNotIn("poll_attachment", f[0])
         self.assertEqual(f[0]["topic_tag"], "PlayStation")
         self.assertIn("Mafia III", f[0]["text"])
         self.assertNotIn("#", f[0]["text"])
@@ -319,6 +339,24 @@ class Dang(Chung):
         # kiem lai dung muc nhac trong bai, tai gio hien tai
         self.assertEqual([[x["pid"] for x in c[0]] for c in self.kiem_lai_goi], [["UP1001-PPSA36864_00-MAFIA3DEPS500000"]])
         self.assertEqual(self.kiem_lai_goi[0][1], BAY_GIO)
+
+    def test_sang_anh_ps_hong_dung_bia_release_tin_nhanh(self):
+        self.anh_ps.return_value = None
+        m = mang_threads()
+        self.assertEqual(self.chay("sang", m=m), 0)
+        f = self.form_tao(m)[0]
+        self.assertEqual(f["media_type"], "IMAGE")
+        self.assertEqual(f["image_url"], "https://x.github.io/sangame-video/v/2026-10-12-tin-nhanh-a6c8f942.jpg")
+
+    def test_sang_ca_hai_anh_hong_dang_chi_chu(self):
+        self.anh_ps.return_value = None
+        self.kiem_url.side_effect = LoiDang("404")
+        m = mang_threads()
+        self.assertEqual(self.chay("sang", m=m), 0)
+        f = self.form_tao(m)[0]
+        self.assertEqual(f["media_type"], "TEXT")
+        self.assertNotIn("image_url", f)
+        self.assertEqual(self.cong.dong[(NGAY, "tin-nhanh", "threads", "that")]["trang_thai"], "da_dang")
 
     def test_chieu_co_anh(self):
         self.man = man_chieu()
@@ -430,6 +468,7 @@ class Dang(Chung):
         self.assertEqual(self.ntfy, [])
         self.assertIn("Mafia III", self.in_ra)
         self.assertIn("topic_tag=PlayStation", self.in_ra)
+        self.assertIn(f"anh {ANH_PS}", self.in_ra)
 
     def test_che_do_thu_chieu_in_ca_anh(self):
         self.man = man_chieu()
@@ -503,6 +542,244 @@ class Dang(Chung):
         with mock.patch.object(http, "gui", m), contextlib.redirect_stdout(io.StringIO()) as buf:
             self.assertEqual(tc.main(["--loai", "sang", "--ngay", NGAY, "--che-do", "thu"]), 0)
         self.assertIn("Mafia III", buf.getvalue())
+
+
+def trang_anh(pid, anh):
+    cache = {f"Product:{pid}": {"media": [{"role": "MASTER", "type": "IMAGE", "url": anh}]}}
+    return ('<html><script id="env:a" type="application/json">' + json.dumps({"cache": cache}) + "</script></html>").encode()
+
+
+class AnhPs(unittest.TestCase):
+    """anh_ps_game that (khong patch): mock http.gui."""
+    DEAL = {"pid": "UP1001-PPSA36864_00-MAFIA3DEPS500000", "loc": "en-hk"}
+
+    def goi(self, trang, head):
+        m = Mang()
+        m.them("GET", "store.playstation.com/en-hk/product/UP1001-PPSA36864_00-MAFIA3DEPS500000", trang)
+        m.them("HEAD", "image.api.playstation.com", head)
+        with mock.patch.object(http, "gui", m):
+            return tc.anh_ps_game(self.DEAL), m
+
+    def test_dat(self):
+        u, m = self.goi(P(raw=trang_anh(self.DEAL["pid"], ANH_PS)), P(200, headers={"Content-Type": "image/png"}))
+        self.assertEqual(u, ANH_PS)
+
+    def test_trang_404_none(self):
+        self.assertIsNone(self.goi(P(404), P(200, headers={"Content-Type": "image/png"}))[0])
+
+    def test_anh_khong_phai_host_ps_none(self):
+        u, m = self.goi(P(raw=trang_anh(self.DEAL["pid"], "https://evil.example.com/a.png")), P(200, headers={"Content-Type": "image/png"}))
+        self.assertIsNone(u)
+        self.assertEqual(m.dem("HEAD", ""), 0)
+
+    def test_head_khong_phai_anh_none(self):
+        self.assertIsNone(self.goi(P(raw=trang_anh(self.DEAL["pid"], ANH_PS)), P(200, headers={"Content-Type": "text/html"}))[0])
+
+    def test_head_404_none(self):
+        self.assertIsNone(self.goi(P(raw=trang_anh(self.DEAL["pid"], ANH_PS)), P(404, headers={"Content-Type": "image/png"}))[0])
+
+    def test_pid_khac_khong_lay_anh_cua_san_pham_khac(self):
+        self.assertIsNone(self.goi(P(raw=trang_anh("PID_KHAC", ANH_PS)), P(200, headers={"Content-Type": "image/png"}))[0])
+
+    def test_loi_mang_none(self):
+        self.assertIsNone(self.goi(http.LoiMang("timeout"), P())[0])
+
+
+class Poll(unittest.TestCase):
+    def test_kiem_poll(self):
+        ok = {"option_a": "Mua luôn", "option_b": "Chờ giảm thêm"}
+        self.assertEqual(threads.kiem_poll(ok), ok)
+        for xau in ({}, {"option_a": "Một"}, {"option_a": "A", "option_c": "C"}, {"option_a": "A", "option_b": ""},
+                    {"option_a": "A", "option_b": "b" * 26}, {"option_a": "A", "option_b": "a"},
+                    {"option_a": "A", "option_b": "B", "option_c": "C", "option_d": "D", "option_e": "E"},
+                    {"option_a": "A", "option_b": 3}, [("option_a", "A")]):
+            with self.assertRaises(LoiDang, msg=xau):
+                threads.kiem_poll(xau)
+        self.assertEqual(len(threads.kiem_poll({"option_a": "a" * 25, "option_b": "b" * 25})), 2)
+
+    def test_co_dinh_it_nhat_8_cau_hop_le(self):
+        self.assertGreaterEqual(len(tc.BINH_CHON_CO_DINH), 8)
+        cau = set()
+        for text, lua in tc.BINH_CHON_CO_DINH:
+            cau.add(text)
+            self.assertEqual(tc.kiem_van(text), text)   # co '?', khong bait/link, <= 400
+            self.assertTrue(2 <= len(lua) <= 4, text)
+            for o in lua:
+                self.assertTrue(1 <= len(o) <= 25, o)
+            threads.kiem_poll(dict(zip(threads.POLL_KHOA, lua)))
+            low = (text + " " + " ".join(lua)).lower()
+            for cam in tc.TU_CAM:
+                self.assertNotIn(cam, low)
+        self.assertEqual(len(cau), len(tc.BINH_CHON_CO_DINH))
+
+    def test_xoay_theo_ngay_khong_lap_trong_7_ngay(self):
+        d0 = dt.date(2026, 10, 1)
+        cac = [tc.cau_co_dinh((d0 + dt.timedelta(days=i)).isoformat())[0] for i in range(60)]
+        for i in range(len(cac)):
+            self.assertEqual(len(set(cac[i:i + 7])), len(cac[i:i + 7]), i)
+
+    def test_tao_container_poll_json_va_chi_text(self):
+        tk = {"token": "t", "threads_user_id": "THU1"}
+        m = mang_threads()
+        poll = {"option_a": "Mua luôn", "option_b": "Chờ giảm thêm"}
+        with mock.patch.object(http, "gui", m), mock.patch.object(chung, "ngu", lambda s: None):
+            self.assertEqual(threads.tao_container_chu(tk, "Câu hỏi?", None, "PlayStation", None, poll), "TC1")
+        f = [k["form"] for me, u, k in m.goi if me == "POST" and u.endswith("/THU1/threads")][0]
+        self.assertIsInstance(f["poll_attachment"], str)
+        self.assertEqual(json.loads(f["poll_attachment"]), poll)
+        self.assertEqual(f["media_type"], "TEXT")
+
+    def test_poll_kem_anh_loi_ro_khong_goi_mang(self):
+        m = mang_threads()
+        with mock.patch.object(http, "gui", m):
+            with self.assertRaises(LoiDang) as cm:
+                threads.tao_container_chu({"token": "t", "threads_user_id": "THU1"}, "Câu hỏi?", "https://x/a.jpg", "PlayStation", None,
+                                          {"option_a": "A1", "option_b": "B1"})
+        self.assertIn("TEXT", str(cm.exception))
+        self.assertEqual(m.goi, [])
+
+    def test_container_khong_poll_khong_gui_poll_attachment(self):
+        m = mang_threads()
+        with mock.patch.object(http, "gui", m), mock.patch.object(chung, "ngu", lambda s: None):
+            threads.tao_container_chu({"token": "t", "threads_user_id": "THU1"}, "Chữ?", None, "PlayStation")
+        f = [k["form"] for me, u, k in m.goi if me == "POST" and u.endswith("/THU1/threads")][0]
+        self.assertNotIn("poll_attachment", f)
+
+    def test_soan_top5_hang_1(self):
+        text, poll, muc = tc.soan_binh_chon(man_top5(), NGAY)
+        print("BINH CHON TOP5:", text, poll)
+        self.assertIn("Marvel's Spider-Man 2", text)
+        self.assertIn("1.199.000đ", text)
+        self.assertIn("Hồng Kông", text)
+        self.assertEqual(list(poll.values()), ["Mua luôn", "Chờ giảm thêm", "Không hứng thú"])
+        self.assertEqual([m["pid"] for m in muc], [TOP5_KIEM_LAI[0]["pid"]])
+
+    def test_soan_thieu_top5_hoac_hang_1_hong_thi_co_dinh(self):
+        for man in (None, {}, {"kiem_lai": []}, {"kiem_lai": [dict(TOP5_KIEM_LAI[0], gia_vnd=None)]},
+                    {"kiem_lai": [dict(TOP5_KIEM_LAI[0], loc="en-xx")]}):
+            text, poll, muc = tc.soan_binh_chon(man, NGAY)
+            self.assertEqual(muc, [])
+            self.assertIn((text, tuple(poll.values())), [(c, l) for c, l in tc.BINH_CHON_CO_DINH])
+
+
+class BinhChon(Chung):
+    def setUp(self):
+        super().setUp()
+        self.man = man_top5()
+        self.bay = BINH_CHON
+
+    def form_tao(self, m):
+        return [k["form"] for me, u, k in m.goi if me == "POST" and u.endswith("/THU1/threads")]
+
+    def khoa(self):
+        return (NGAY, "binh-chon", "threads", "that")
+
+    def test_top5_that_payload_poll_va_so_binh_chon(self):
+        m = mang_threads()
+        self.assertEqual(self.chay("binh_chon", m=m), 0)
+        f = self.form_tao(m)
+        self.assertEqual(len(f), 1)
+        self.assertEqual(f[0]["media_type"], "TEXT")
+        self.assertNotIn("image_url", f[0])
+        self.assertEqual(f[0]["topic_tag"], "PlayStation")
+        self.assertIsInstance(f[0]["poll_attachment"], str)
+        self.assertEqual(json.loads(f[0]["poll_attachment"]),
+                         {"option_a": "Mua luôn", "option_b": "Chờ giảm thêm", "option_c": "Không hứng thú"})
+        self.assertIn("Marvel's Spider-Man 2", f[0]["text"])
+        self.assertEqual(self.tai_goi, [(NGAY, "top5", "manifest.json")])   # doc Release top5
+        self.assertEqual(list(self.cong.dong), [self.khoa()])                 # nhung KHOA SO la 'binh-chon'
+        d = self.cong.dong[self.khoa()]
+        self.assertEqual((d["trang_thai"], d["id_bai"], d["link"], d["id_container"]), ("da_dang", "T9", LINK, "TC1"))
+        self.assertEqual(d["gio_du_kien"], "2026-10-12T06:00:00Z")   # 13:00 VN
+        self.assertTrue(d["manifest_sha"])
+        self.assertEqual(m.dem("POST", "threads_publish"), 1)
+        self.assertEqual([[x["pid"] for x in c[0]] for c in self.kiem_lai_goi], [[TOP5_KIEM_LAI[0]["pid"]]])
+        self.assertEqual([n[0] for n in self.ntfy], ["tin"])
+        self.assertEqual(self.anh_ps.call_count, 0)
+
+    def test_chay_trung_khong_dang_lai(self):
+        self.assertEqual(self.chay("binh_chon", m=mang_threads()), 0)
+        m2 = mang_threads()
+        self.assertEqual(self.chay("binh_chon", m=m2), 0)
+        self.assertEqual(m2.dem("POST", "graph.threads.net"), 0)
+        self.assertEqual(len(self.cong.dong), 1)
+
+    def test_thieu_top5_dung_cau_co_dinh_van_dang(self):
+        self.loi_release = "khong co Release v-2026-10-12-top5"
+        m = mang_threads()
+        self.assertEqual(self.chay("binh_chon", m=m), 0)
+        f = self.form_tao(m)[0]
+        self.assertEqual(f["media_type"], "TEXT")
+        poll = json.loads(f["poll_attachment"])
+        self.assertIn((f["text"], tuple(poll.values())), [(c, l) for c, l in tc.BINH_CHON_CO_DINH])
+        self.assertEqual(self.kiem_lai_goi, [])   # cau co dinh khong nhac gia -> khong kiem
+        d = self.cong.dong[self.khoa()]
+        self.assertEqual(d["trang_thai"], "da_dang")
+        self.assertEqual(len(d["manifest_sha"]), 64)
+        self.assertEqual([n[0] for n in self.ntfy], ["tin"])   # khong bao loi: thieu Release la binh thuong
+
+    def test_gia_lech_dung_cau_co_dinh(self):
+        self.van_de = ["Spider-Man: gia doi 342 -> 400 (> 2%)"]
+        m = mang_threads()
+        self.assertEqual(self.chay("binh_chon", m=m), 0)
+        f = self.form_tao(m)[0]
+        self.assertNotIn("Spider-Man", f["text"])
+        self.assertIn(f["text"], [c for c, _ in tc.BINH_CHON_CO_DINH])
+        self.assertEqual(self.cong.dong[self.khoa()]["trang_thai"], "da_dang")
+
+    def test_kiem_gia_nem_loi_bat_ky_van_co_dinh(self):
+        with mock.patch.object(gia, "kiem_lai", side_effect=RuntimeError("Sony 503")):
+            m = mang_threads()
+            self.assertEqual(self.chay("binh_chon", m=m), 0)
+        self.assertIn(self.form_tao(m)[0]["text"], [c for c, _ in tc.BINH_CHON_CO_DINH])
+
+    def test_manifest_top5_sai_khung_dung_co_dinh(self):
+        self.man["dang"] = "tin-nhanh"
+        m = mang_threads()
+        self.assertEqual(self.chay("binh_chon", m=m), 0)
+        self.assertIn(self.form_tao(m)[0]["text"], [c for c, _ in tc.BINH_CHON_CO_DINH])
+
+    def test_cua_so_bien(self):
+        for gio, rc in (((12, 29), 3), ((12, 30), 0), ((15, 0), 0), ((15, 1), 3)):
+            self.cong.dong.clear()
+            self.bay = dt.datetime(2026, 10, 12, *gio, tzinfo=chung.VN)
+            m = mang_threads()
+            self.assertEqual(self.chay("binh_chon", m=m), rc, gio)
+            if rc == 3:
+                self.assertEqual(m.goi, [])
+                self.assertEqual(self.cong.dong, {})
+
+    def test_sai_ngay_bi_chan(self):
+        self.bay = dt.datetime(2026, 10, 13, 13, 0, tzinfo=chung.VN)
+        m = mang_threads()
+        self.assertEqual(self.chay("binh_chon", m=m), 3)
+        self.assertEqual(m.goi, [])
+
+    def test_che_do_thu_chi_in_khong_publish(self):
+        m = Mang()
+        self.assertEqual(self.chay("binh_chon", che_do="thu", m=m, cong=None), 0)
+        self.assertEqual(m.goi, [])
+        self.assertEqual(self.cong.dong, {})
+        self.assertEqual(self.ntfy, [])
+        self.assertIn("POLL Mua luôn | Chờ giảm thêm | Không hứng thú", self.in_ra)
+        self.assertIn("Marvel's Spider-Man 2", self.in_ra)
+
+    def test_che_do_thu_ngoai_cua_so_van_chay(self):
+        self.bay = dt.datetime(2026, 10, 12, 3, 0, tzinfo=chung.VN)
+        self.assertEqual(self.chay("binh_chon", che_do="thu", m=Mang(), cong=None), 0)
+
+    def test_tao_container_loi_la_that_bai_ghi_binh_chon(self):
+        m = mang_threads(tao=P(400, {"error": {"message": "bad poll", "code": 100}}))
+        with self.assertRaises(LoiDang):
+            self.chay("binh_chon", m=m)
+        self.assertEqual(self.cong.dong[self.khoa()]["trang_thai"], "that_bai")
+        self.assertEqual(m.dem("POST", "threads_publish"), 0)
+
+    def test_main_cli_nhan_loai_binh_chon(self):
+        m = Mang()
+        with mock.patch.object(http, "gui", m), contextlib.redirect_stdout(io.StringIO()) as buf:
+            self.assertEqual(tc.main(["--loai", "binh_chon", "--ngay", NGAY, "--che-do", "thu"]), 0)
+        self.assertIn("POLL", buf.getvalue())
 
 
 if __name__ == "__main__":

@@ -2,9 +2,31 @@
 Rang buoc video (tai lieu): MP4 moov o dau, H.264 4:2:0, AAC <= 48 kHz, 23-60 fps, <= 300 s - do khuon dung kiem.
 # CHUA KIEM: truong status / PUBLISHED va permalink cua container Threads - https://developers.facebook.com/docs/threads/posts
 """
+import json
+
 from . import chung, meta
 
 TH = "https://graph.threads.net/v1.0"
+POLL_KHOA = ("option_a", "option_b", "option_c", "option_d")
+POLL_TOI_DA_KY_TU = 25   # tai lieu poll chinh chu: moi lua chon 1-25 ky tu, 2-4 lua chon (option_a, option_b bat buoc)
+
+
+def kiem_poll(poll):
+    """Kiem dict poll {option_a..option_d} theo tai lieu Threads (developers.facebook.com/documentation/threads/create-posts/polls):
+    2-4 lua chon lien tiep tu option_a, moi lua chon la chuoi 1-25 ky tu, khong trung. Sai -> LoiDang. Tra chinh poll."""
+    if not isinstance(poll, dict) or not (2 <= len(poll) <= 4):
+        raise chung.LoiDang("poll phai la dict 2-4 lua chon option_a..option_d")
+    for i, k in enumerate(poll):
+        if k != POLL_KHOA[i]:
+            raise chung.LoiDang(f"poll sai khoa '{k}': can {', '.join(POLL_KHOA[:len(poll)])} theo thu tu")
+    gia_tri = []
+    for k, v in poll.items():
+        if not isinstance(v, str) or not v.strip() or len(v) > POLL_TOI_DA_KY_TU:
+            raise chung.LoiDang(f"poll {k} phai la chuoi 1-{POLL_TOI_DA_KY_TU} ky tu: {v!r}")
+        gia_tri.append(v.strip().casefold())
+    if len(set(gia_tri)) != len(gia_tri):
+        raise chung.LoiDang("poll co lua chon trung nhau")
+    return poll
 
 
 def danh_tinh(tk, nc=None):
@@ -62,13 +84,18 @@ def cong_khai(tk, nc, dong):
     return {"id_bai": mid, "link": link}
 
 
-def tao_container_chu(tk, text, anh=None, topic_tag=None, luu=None):
+def tao_container_chu(tk, text, anh=None, topic_tag=None, luu=None, poll=None):
     """Bai CHU RIENG (dang/threads_chu.py): container TEXT, hoac IMAGE neu co anh (URL cong khai). -> container id, da cho FINISHED.
     Tham so theo tai lieu chinh chu (doc 12/10/2026) https://developers.facebook.com/docs/threads/posts :
       media_type = TEXT | IMAGE | VIDEO ; text (<= 500 ky tu, dem theo byte UTF-8 cho emoji) ; image_url (bat buoc voi IMAGE, URL cong khai) ;
       topic_tag (1-50 ky tu, khong dau cham / '&'; chi tag hop le dau tien cua bai co tac dung) ; nen cho ~30 giay truoc threads_publish.
+    poll (dict option_a..option_d): chi gan duoc vao bai TEXT -> gui `poll_attachment` = JSON string (form khong nhan dict). Co anh + poll = loi.
     Tao container CHUA dang gi len Threads -> loi o day la chac chan chua dang (khong_ro=False)."""
+    if poll and anh:
+        raise chung.LoiDang("poll chi gan duoc vao bai TEXT, khong kem anh (Threads API)")
     tham = {"media_type": "IMAGE" if anh else "TEXT", "text": text}
+    if poll:
+        tham["poll_attachment"] = json.dumps(kiem_poll(poll), ensure_ascii=False)
     if anh:
         tham["image_url"] = anh
     if topic_tag:
