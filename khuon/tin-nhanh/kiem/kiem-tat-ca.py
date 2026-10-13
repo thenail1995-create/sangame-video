@@ -168,7 +168,7 @@ def bag(o,ra,bo=('loi','chi_so','kiem','anh','khoa','kieu')):
     return ra
 sai_ten=[]
 for i,g in enumerate(TJ['tin'],1):
-    loi=KB[f't{i}']; cho=bag(g,set())|{'tin','re'}
+    loi=KB[f't{i}']; cho=bag(g,set())|{'tin','re'}|{'ps','store','plus','playstation','san','game'}   # 13/10 21:00 (run 38409672474): «PS» (PS Store/PS Plus) la thuong hieu, khong phai ten game bia
     for tk in re.findall(r"[^\W\d_][\w'’]*",loi):
         # tách cả dấu nháy như bag() (Player's -> player + s): mọi mảnh phải có trong tin.json (CI 11/10: «Player's» bị báo nhầm)
         if tk[0].isupper() and not all(x in cho for x in re.findall(r'[a-z0-9]+',sc.bo_dau(tk))):
