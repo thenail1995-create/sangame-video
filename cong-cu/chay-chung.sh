@@ -34,3 +34,4 @@ chay_kiem(){ local rc=0 nt; for nt in "${NTS[@]}"; do "${PY[@]}" "$M/kiem/kiem-t
 # chay_kiem_som: KIEM SOM (GD=chung) - cac phep KHONG can hinh da ve (DOM chu tran/phu de/vung an toan, D1 D2 B6 ngay/ten du lieu, D3 noi dung nghe tren giong sach,
 # giong vs tieng dong 6 dB, tieng khop khung cham). Truot -> ma != 0 -> job chung dung NGAY (khong chup lop chu). Bo kiem cuoi (chay_kiem) VAN chay lai ca nhom nay.
 chay_kiem_som(){ local rc=0 nt; for nt in "${NTS[@]}"; do KIEM_SOM=1 "${PY[@]}" "$M/kiem/kiem-tat-ca.py" "$M/video-$nt.mp4" "$nt" || rc=$?; moc "kiem som $nt"; done; return $rc; }
+. "$ROOT/cong-cu/tu-sua-moc.sh"        # can_chu_tu_sua: can chu -> kiem moc dau doan -> (lech) doi cach 1 lan (DOT 2a)

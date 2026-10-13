@@ -1,5 +1,7 @@
 # Can moc tung chu cua loi doc Keo thom v9 -> dau-vao/moc-chu.json [{w,s,e,doan}]  (doan = khoa doan trong kich-ban.json)
-#   uv run --frozen python can-chu.py [ra.json]
+#   uv run --frozen python can-chu.py [ra.json] [--cach cum_cau|du_phong]
+#   --cach EP mot cach (vong tu sua, cong-cu/tu-sua-moc.sh): cach do khong chay duoc thi THAT BAI ro rang (ma thoat 6), KHONG am tham roi sang cach khac.
+#   Luon ghi dau-vao/ws0.json (Whisper KHONG goi y, [tu,bat dau,ket thuc]) cho cong-cu/kiem_moc.py va in dong `CACH CAN CHU: <ten>`.
 # 1) Whisper KHONG goi y -> in ban nghe de kiem may doc dung chua (ten game, so, ten kenh).
 # 2) CACH CHINH (v9, "cum cau"): loi doc co dau cau (. ! ? … ,) ma giong eleven_v3 nghi o dau cau (nhung co khi nghi them cho khac). Moi ranh gioi
 #    cum = khoang LANG gan nhat moc Whisper uoc tinh (Whisper chi DAN HUONG, lech 300 ms van dung) -> moi cum co dung diem vao/ra cua tieng noi; chu trong cum chia theo SO AM TIET. Khong phu thuoc Whisper (K14), do 11/10 tren
@@ -9,11 +11,16 @@ import json,re,subprocess,difflib,pathlib,unicodedata,sys
 import numpy as np
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parent.parent.parent/'cong-cu')); import mo_hinh   # A4: Whisper ghim revision
 T=pathlib.Path(__file__).resolve().parent
+ARGS=sys.argv[1:]; CACH_EP=None
+if '--cach' in ARGS:
+    i=ARGS.index('--cach'); CACH_EP=ARGS[i+1] if i+1<len(ARGS) else ''; del ARGS[i:i+2]
+if CACH_EP not in (None,'cum_cau','du_phong'): sys.exit(f'--cach khong hop le: {CACH_EP!r} (cum_cau|du_phong)')
 kb=json.load(open(T/'kich-ban.json'))['doan']
 x=np.frombuffer(subprocess.run(['ffmpeg','-v','error','-i',str(T/'dau-vao/giong.mp3'),'-ac','1','-ar','16000','-f','f32le','-'],capture_output=True,check=True).stdout,dtype=np.float32)
 wm=mo_hinh.nap_whisper('float32')   # K14: float32 on dinh hon int8 giua arm (Mac) va x86 (GitHub) - xem NHAT-KY
 seg,_=wm.transcribe(x,language='vi',beam_size=5,temperature=0.0,condition_on_previous_text=False,word_timestamps=True)
 seg=list(seg); WS0=[(w.word.strip(),w.start,w.end) for s in seg for w in s.words]
+(T/'dau-vao').mkdir(exist_ok=True); json.dump([[w,round(a,3),round(b,3)] for w,a,b in WS0],open(T/'dau-vao/ws0.json','w'),ensure_ascii=False)   # cho kiem_moc.py (khong kiem vong tron: WS0 khong gui y)
 print('NGHE KHONG GOI Y:',' '.join(s.text.strip() for s in seg))
 goc=[]
 for d in kb:
@@ -107,14 +114,22 @@ def cum_cau():
         for g,wi in zip(p,wgt):
             g['s']=t; t+=D*wi/tot; g['e']=t
     return [(cs*.01,ce*.01) for cs,ce in ranh],f'{P} cum, {P-1} ranh gioi chon theo Whisper+khoang lang (ngan nhat {nho:.2f}s; gop {gop} ranh gioi phay/cau ngan trong doan)'
-ranh,ghi_chu=cum_cau()
+def goi_y_ten():
+    """C (13/10, Sol P2): goi y Whisper CHI ten rieng (ten game, Săn Game, ten vung) - KHONG nap ca bai (khuon tin nong [TN]: goi y ca bai lam Whisper bo 2/3 dau; Keo K19: lap 'ươi nghìn')."""
+    ten=['Săn Game','PlayStation','PS5','Mỹ','Hồng Kông','Singapore','Sing','Thái Lan','Thái','Indonesia','Indo','Ấn Độ']
+    try: ten.insert(3,json.load(open(T/'keo.json'))['game']['ten'])
+    except (OSError,ValueError,KeyError,TypeError): pass
+    ten=[re.sub(r'[®™]','',t).strip() for t in ten]
+    return ', '.join(dict.fromkeys(t for t in ten if t and not t.isdigit()))
+ranh,ghi_chu=cum_cau() if CACH_EP in (None,'cum_cau') else (None,'ep cach du_phong')
 if ranh:
-    print('CAN CHU: cach cum cau —',ghi_chu); khop=len(goc)
+    print('CAN CHU: cach cum cau —',ghi_chu); khop=len(goc); CACH='cum_cau'
 else:
+    if CACH_EP=='cum_cau': print('CAN CHU: EP cach cum_cau THAT BAI ->',ghi_chu); sys.exit(6)
+    CACH='du_phong'
     print('CAN CHU: KHONG tach duoc cum cau ->',ghi_chu,'-> dung cach du phong Whisper')
     # ===================== CACH DU PHONG: Whisper + bam nang luong =====================
-    loi=' '.join(d['loi'] for d in kb)
-    seg,_=wm.transcribe(x,language='vi',beam_size=5,temperature=0.0,word_timestamps=True,initial_prompt=loi)
+    seg,_=wm.transcribe(x,language='vi',beam_size=5,temperature=0.0,word_timestamps=True,initial_prompt=loi)   # 13/10: thu goi y CHI ten rieng [TN] lam fixture top5-01 lech 880 ms (cu 140) -> giu loi day du, xem lai o dot 2b
     ws=[(w.word.strip(),w.start,w.end) for s in seg for w in s.words]
     def chuan(t):
         t=''.join(c for c in unicodedata.normalize('NFD',t.lower()) if unicodedata.category(c)!='Mn').replace('đ','d')
@@ -172,11 +187,12 @@ else:
     for g in goc:   # cat duoi tu o khoang lang >= 120 ms ngay sau tieng noi (e cua 'khoan…' 9,36 chu khong phai 9,76)
         for a,b in lang:
             if g['s']+0.1<=a<g['e']: g['e']=a; break
+print('CACH CAN CHU:',CACH)
 for i in range(len(goc)-1):
     if goc[i]['e']>goc[i+1]['s']: goc[i]['e']=goc[i+1]['s']
     if goc[i]['e']<=goc[i]['s']: goc[i]['e']=min(goc[i+1]['s'],goc[i]['s']+0.15)
 out=[dict(w=g['w'],s=round(g['s'],2),e=round(g['e'],2),doan=g['doan']) for g in goc]
-RA=pathlib.Path(sys.argv[1]) if len(sys.argv)>1 else T/'dau-vao/moc-chu.json'   # tham so tuy chon: ghi ra file khac (hoi quy so voi moc cu)
+RA=pathlib.Path(ARGS[0]) if ARGS else T/'dau-vao/moc-chu.json'   # tham so tuy chon: ghi ra file khac (hoi quy so voi moc cu)
 json.dump(out,open(RA,'w'),ensure_ascii=False,indent=0)
 print(f'{khop}/{len(goc)} tu co moc; ghi {RA}')
 for d in kb:

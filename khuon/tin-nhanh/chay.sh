@@ -29,7 +29,7 @@ if la_chung; then
   else
     if [ -f dau-vao/moc-chu.json ]; then cp dau-vao/moc-chu.json dau-vao/moc-chu.mac.json; fi
   fi
-  "${PY[@]}" can-chu.py | tail -4;            moc "can chu (Whisper)"
+  can_chu_tu_sua du_phong;                    moc "can chu (Whisper) + kiem moc"      # Tin nhanh chi co 1 cach -> kiem moc chi BAO
   if [ -f dau-vao/moc-chu.mac.json ]; then "${PY[@]}" "$ROOT/cong-cu/so-moc.py" dau-vao/moc-chu.mac.json dau-vao/moc-chu.json 0.08 | tee -a "$DO"; fi
 fi
 case "$GD" in

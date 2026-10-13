@@ -1,5 +1,7 @@
 # Căn mốc từng chữ của lời đọc -> dau-vao/moc-chu.json [{w,s,e,doan}]
-#   uv run --with faster-whisper --with numpy python can-chu.py
+#   uv run --with faster-whisper --with numpy python can-chu.py [ra.json] [--cach du_phong]
+#   Tin nhanh chi co MOT cach (du phong: Whisper goi y loi + bam nang luong; doi goi y sang chi ten rieng CHUA ap dung - xem ghi chu 2a-C) -> --cach chi nhan du_phong (vong tu sua khong doi duoc cach, chi bao).
+#   Luon ghi dau-vao/ws0.json (Whisper KHONG goi y, [tu,bat dau,ket thuc]) cho cong-cu/kiem_moc.py va in dong `CACH CAN CHU: <ten>`.
 # 1) Whisper KHÔNG gợi ý -> in bản nghe để kiểm máy đọc đúng chưa (tên kênh, số).
 # 2) Whisper CÓ gợi ý lời -> mốc từng từ; ghép vào lời gốc bằng difflib, từ không khớp thì nội suy;
 # 3) bám mốc bắt đầu vào điểm năng lượng lên (sau khoảng im) gần nhất ±0,12 s (Whisper lệch ±0,1 s).
@@ -7,12 +9,19 @@ import json,re,subprocess,difflib,pathlib,unicodedata
 import numpy as np
 import sys,os; sys.path.insert(0,str(pathlib.Path(__file__).resolve().parent.parent.parent/'cong-cu')); import mo_hinh   # A4: Whisper ghim revision
 T=pathlib.Path(__file__).resolve().parent
+ARGS=sys.argv[1:]; CACH_EP=None
+if '--cach' in ARGS:
+    i=ARGS.index('--cach'); CACH_EP=ARGS[i+1] if i+1<len(ARGS) else ''; del ARGS[i:i+2]
+if CACH_EP not in (None,'du_phong'): sys.exit(f'--cach khong hop le cho Tin nhanh: {CACH_EP!r} (chi du_phong)')
 kb=json.load(open(T/'kich-ban.json'))
 x=np.frombuffer(subprocess.run(['ffmpeg','-v','error','-i',str(T/'dau-vao/giong.mp3'),'-ac','1','-ar','16000','-f','f32le','-'],capture_output=True,check=True).stdout,dtype=np.float32)
 wm=mo_hinh.nap_whisper('float32')   # K14: float32 on dinh hon int8 giua arm (Mac) va x86 (GitHub) - xem NHAT-KY
-seg,_=wm.transcribe(x,language='vi',beam_size=5,temperature=0.0,condition_on_previous_text=False)
+seg,_=wm.transcribe(x,language='vi',beam_size=5,temperature=0.0,condition_on_previous_text=False,word_timestamps=True)
+seg=list(seg); WS0=[(w.word.strip(),w.start,w.end) for s in seg for w in s.words]
+(T/'dau-vao').mkdir(exist_ok=True); json.dump([[w,round(a,3),round(b,3)] for w,a,b in WS0],open(T/'dau-vao/ws0.json','w'),ensure_ascii=False)   # cho kiem_moc.py (khong kiem vong tron: WS0 khong gui y)
 print('NGHE KHONG GOI Y:',' '.join(s.text.strip() for s in seg))
 loi=' '.join(d['loi'] for d in kb)
+# DOT 2a-C CHUA AP DUNG CHO TIN NHANH (13/10): doi initial_prompt sang CHI ten rieng lam moc fixture tin-nhanh-01 lech Mac toi 560 ms (8 tu vuot tran so-moc 80 ms, K14) -> Opus quyet.
 seg,_=wm.transcribe(x,language='vi',beam_size=5,temperature=0.0,word_timestamps=True,initial_prompt=loi)
 ws=[(w.word.strip(),w.start,w.end) for s in seg for w in s.words]
 def chuan(t):
@@ -81,7 +90,9 @@ for i in range(len(goc)-1):
     if goc[i]['e']>goc[i+1]['s']: goc[i]['e']=goc[i+1]['s']
     if goc[i]['e']<=goc[i]['s']: goc[i]['e']=min(goc[i+1]['s'],goc[i]['s']+0.15)
 out=[dict(w=g['w'],s=round(g['s'],2),e=round(g['e'],2),doan=g['doan']) for g in goc]
-json.dump(out,open(T/'dau-vao/moc-chu.json','w'),ensure_ascii=False,indent=0)
-print(f'{khop}/{len(goc)} tu khop Whisper; ghi dau-vao/moc-chu.json')
+RA=pathlib.Path(ARGS[0]) if ARGS else T/'dau-vao/moc-chu.json'
+json.dump(out,open(RA,'w'),ensure_ascii=False,indent=0)
+print('CACH CAN CHU: du_phong')
+print(f'{khop}/{len(goc)} tu khop Whisper; ghi {RA}')
 for d in kb:
     ds=[g for g in out if g['doan']==d['k']]; print(f"  {d['k']:4s} {ds[0]['s']:5.2f}-{ds[-1]['e']:5.2f}  {' '.join(g['w'] for g in ds)[:70]}")
