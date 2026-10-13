@@ -185,12 +185,14 @@ class CauMoXoay(unittest.TestCase):   # G2 (13/10, Sol #4/#18): `mo` xoay 3 kieu
         def chay(ngay_iso,mo,ket='Còn tám mươi lăm game nữa dưới hai trăm nghìn, tra ở Săn Game'):
             CFG=dict(muc=200000,con_lai=85); 
             if ngay_iso: CFG['ngay_iso']=ngay_iso
-            g=dict(datetime=_dt,CFG=CFG,TOP=self.TOP,TR=TR,NS=_ns,heard=dict(mo=mo,ket=ket),sai=[]); exec(src[a:b],g); return g['sai']
+            g=dict(datetime=_dt,CFG=CFG,TOP=self.TOP,TR=TR,NS=_ns,heard=dict(mo=mo,ket=ket),heard_s={},TEN_BO={},sai=[]); exec(src[a:b],g); return g['sai']
         k1,k0=self.ngay_kieu(1),self.ngay_kieu(0)
         mo1='Mafia chỉ một trăm sáu mươi bảy nghìn, đứng đầu top năm hôm nay nè'; mo0='Top năm game bán chạy đang dưới hai trăm nghìn nè anh em'
         self.assertEqual(chay(k1,mo1),[]); self.assertEqual(chay(k0,mo0),[])
         self.assertTrue(chay(k1,mo0)); self.assertTrue(chay(k0,mo1))          # doi kieu: kieu 1 phai nghe gia hang 1; kieu 0 phai nghe muc
         self.assertTrue(chay(k1,'Mafia chỉ hai trăm nghìn, đứng đầu top năm hôm nay nè'))          # gia hang 1 sai (nghe muc) -> TRUOT
+        self.assertTrue(chay(k1,'Outlast chỉ một trăm sáu mươi bảy nghìn, đứng đầu top năm hôm nay nè'))    # Sol soi diff G2: sai game -> TRUOT
+        self.assertTrue(chay(k1,'Chỉ một trăm sáu mươi bảy nghìn, đứng đầu top năm hôm nay nè'))            # bo ten -> TRUOT
         self.assertTrue(chay(k0,mo0,ket='Còn tám mươi lăm game nữa dưới một trăm nghìn'))                     # ket van kiem muc
         self.assertEqual(chay(None,mo0),[])                                                                   # thieu ngay_iso -> kieu 0 (khop kich-ban.py)
 
