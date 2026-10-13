@@ -33,10 +33,11 @@ def chuan_bi(tk, nc, luu):
         # Chi khi Meta TU CHOI rieng truong nhan AI (400 + nhac is_ai_generated): thu lai khong co, bao Hao. Loi quyen/mang: khong.
         if not (chung.CO_GIONG_AI and e.ma_http == 400 and "is_ai_generated" in (e.thong_diep or "")):
             raise
-        chung.log_loi(f"ig: Meta tu choi is_ai_generated, dang khong co nhan AI: {e}")
-        ntfy.loi(f"IG mất nhãn AI {nc.dang} {nc.ngay}", f"Meta từ chối is_ai_generated, bài vẫn đăng nhưng KHÔNG có nhãn AI: {e}", uu_tien=3)
+        chung.log_loi(f"ig: Meta tu choi is_ai_generated, dang thu lai khong nhan AI: {e}")
         tham.pop("is_ai_generated")
-        c = meta.goi(G, "POST", duong, token=tk["page_token"], tham_so=tham)
+        c = meta.goi(G, "POST", duong, token=tk["page_token"], tham_so=tham)   # that bai -> nem nhu cu, khong ntfy mat nhan
+        # chi bao khi container KHONG co co da tao THANH CONG (bai se dang khong nhan AI)
+        ntfy.loi(f"IG mất nhãn AI {nc.dang} {nc.ngay}", f"Meta từ chối is_ai_generated, container đã tạo lại KHÔNG có nhãn AI: {e}", uu_tien=3)
     cid = str(c.get("id") or "")
     if not cid:
         raise chung.LoiDang("IG khong tra container id")
