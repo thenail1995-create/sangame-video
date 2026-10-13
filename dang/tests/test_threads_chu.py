@@ -358,6 +358,46 @@ class Dang(Chung):
         self.assertNotIn("image_url", f)
         self.assertEqual(self.cong.dong[(NGAY, "tin-nhanh", "threads", "that")]["trang_thai"], "da_dang")
 
+    def test_sang_container_anh_loi_thu_bia_roi_chi_chu_publish_1_lan(self):
+        def tao(method, url, kw):
+            f = kw["form"]
+            if f.get("image_url"):
+                return P(400, {"error": {"message": "bad image_url", "code": 100}})
+            return P(body={"id": "TC1"})
+        m = mang_threads(tao=tao)
+        self.assertEqual(self.chay("sang", m=m), 0)
+        f = self.form_tao(m)
+        self.assertEqual([x.get("image_url") for x in f],
+                         [ANH_PS, "https://x.github.io/sangame-video/v/2026-10-12-tin-nhanh-a6c8f942.jpg", None])
+        self.assertEqual(f[-1]["media_type"], "TEXT")
+        self.assertEqual(m.dem("POST", "threads_publish"), 1)
+        self.assertEqual(self.cong.dong[(NGAY, "tin-nhanh", "threads", "that")]["trang_thai"], "da_dang")
+
+    def test_sang_container_anh_ps_loi_bia_release_ok(self):
+        def tao(method, url, kw):
+            if kw["form"].get("image_url") == ANH_PS:
+                return P(400, {"error": {"message": "bad", "code": 100}})
+            return P(body={"id": "TC1"})
+        m = mang_threads(tao=tao)
+        self.assertEqual(self.chay("sang", m=m), 0)
+        self.assertEqual(len(self.form_tao(m)), 2)
+        self.assertEqual(m.dem("POST", "threads_publish"), 1)
+
+    def test_container_chi_chu_loi_van_that_bai_khong_thu_them(self):
+        m = mang_threads(tao=P(400, {"error": {"message": "x", "code": 100}}))
+        with self.assertRaises(LoiDang):
+            self.chay("sang", m=m)
+        self.assertEqual(len(self.form_tao(m)), 3)   # anh PS, bia, chu - roi that bai
+        self.assertEqual(m.dem("POST", "threads_publish"), 0)
+        self.assertEqual(self.cong.dong[(NGAY, "tin-nhanh", "threads", "that")]["trang_thai"], "that_bai")
+
+    def test_publish_loi_khong_thu_ung_vien_khac(self):
+        m = mang_threads(publish=P(502))
+        with self.assertRaises(LoiDang):
+            self.chay("sang", m=m)
+        self.assertEqual(len(self.form_tao(m)), 1)
+        self.assertEqual(m.dem("POST", "threads_publish"), 1)
+
     def test_chieu_co_anh(self):
         self.man = man_chieu()
         self.bay = CHIEU
@@ -732,6 +772,17 @@ class BinhChon(Chung):
             m = mang_threads()
             self.assertEqual(self.chay("binh_chon", m=m), 0)
         self.assertIn(self.form_tao(m)[0]["text"], [c for c, _ in tc.BINH_CHON_CO_DINH])
+
+    def test_manifest_hong_cau_truc_van_ra_poll_co_dinh(self):
+        for hong in ({"phien_ban": 1, "ngay_dang": NGAY, "dang": "top5", "che_do": "that", "ban": ["corrupt"]},
+                     {"phien_ban": 1, "ngay_dang": NGAY, "dang": "top5", "che_do": "that", "ban": {"tiktok": 5, "reels": 5, "shorts": 5}}):
+            self.cong.dong.clear()
+            self.man = hong
+            m = mang_threads()
+            self.assertEqual(self.chay("binh_chon", m=m), 0)
+            f = self.form_tao(m)[0]
+            self.assertIn(f["text"], [c for c, _ in tc.BINH_CHON_CO_DINH])
+            self.assertIn("poll_attachment", f)
 
     def test_manifest_top5_sai_khung_dung_co_dinh(self):
         self.man["dang"] = "tin-nhanh"
