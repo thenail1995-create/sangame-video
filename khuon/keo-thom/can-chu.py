@@ -84,8 +84,21 @@ def cum_cau():
         if not ung: return None,f'khong co khoang lang gan ranh gioi cum {i+1} (uoc {est:.2f}s)'
         g=min(ung,key=lambda g:abs((g[0]+g[1])*.005-est)-0.5*(g[1]-g[0])*.01)
         chon.append(g); prev_end=g[1]
-    nho=min((g[1]-g[0])*.01 for g in chon)
-    if nho<0.10: return None,f'khoang lang dau cau ngan nhat chi {nho:.2f}s'
+    # 13/10 (Keo 17:30 Taxi Life, run 38383806501): 1 dau PHAY nghi 0,08 s lam BO CA cach cum cau -> du phong chi moc 4/107 tu -> lech 8 s, truot.
+    # Nay: ranh gioi lang < 0,10 s BEN TRONG cung doan -> GOP 2 cum (bo ranh gioi do); ranh gioi GIUA 2 doan van giu (khoang lang gan nhat Whisper).
+    giu=[]; gop=0
+    for i,g in enumerate(chon):
+        ngan=(g[1]-g[0])*.01<0.10
+        cung_doan=cum[i][-1]['doan']==cum[i+1][0]['doan']
+        if ngan and cung_doan: gop+=1; giu.append(None)
+        else: giu.append(g)
+    cum2=[];cur=list(cum[0])
+    for i in range(P-1):
+        if giu[i] is None: cur+=cum[i+1]
+        else: cum2.append(cur); cur=list(cum[i+1])
+    cum2.append(cur); cum=cum2; chon=[g for g in giu if g is not None]; P=len(cum)
+    nho=min(((g[1]-g[0])*.01 for g in chon),default=1.0)
+    if nho<0.05: return None,f'khoang lang giua 2 doan ngan nhat chi {nho:.2f}s'
     ranh=[];a=v0
     for s0,s1 in chon: ranh.append((a,s0)); a=s1
     ranh.append((a,v1))
@@ -93,7 +106,7 @@ def cum_cau():
         wgt=[am_tiet(g['w']) for g in p]; tot=sum(wgt); t=cs*.01; D=(ce-cs)*.01
         for g,wi in zip(p,wgt):
             g['s']=t; t+=D*wi/tot; g['e']=t
-    return [(cs*.01,ce*.01) for cs,ce in ranh],f'{P} cum, {P-1} ranh gioi chon theo Whisper+khoang lang (ngan nhat {nho:.2f}s)'
+    return [(cs*.01,ce*.01) for cs,ce in ranh],f'{P} cum, {P-1} ranh gioi chon theo Whisper+khoang lang (ngan nhat {nho:.2f}s; gop {gop} ranh gioi phay/cau ngan trong doan)'
 ranh,ghi_chu=cum_cau()
 if ranh:
     print('CAN CHU: cach cum cau —',ghi_chu); khop=len(goc)
