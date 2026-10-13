@@ -166,7 +166,7 @@ function hBand(t){ if(t<C1)return HB.mo; if(t<CK)return L(HB.mo,HB.gon,eio(p(t,C
 var MAST={F:150,sm:.4}, TX=[0,0,0,0,0];
 var CY=Math.round((TT+116+908)/2);   // tam vung trailer trong giua khoi dau trang va dai duoi: so to dap o day
 var BIG=520/150, SLOT={};
-function vua(el,max,co){el.style.fontSize=co+'px';var w=Math.max(el.getBoundingClientRect().width,el.scrollWidth);if(w>max)el.style.fontSize=(co*max/w)+'px'}   /* scrollWidth: .ten la khoi, rect = be rong CHA nen khong bao gio > max (K19) */
+function vua(el,max,co){el.style.fontSize=co+'px';var do_=function(){return Math.max(el.getBoundingClientRect().width,el.scrollWidth)};var w=do_();if(w>max){var c=co*max/w;el.style.fontSize=c+'px';while(do_()>max&&c>8){c-=.5;el.style.fontSize=c+'px'}}}   /* scrollWidth: .ten la khoi, rect = be rong CHA nen khong bao gio > max (K19). 13/10: co chu khong ti le thuan be rong (Overcooked! All You Can Eat tran 3 px) -> do lai, giam 0,5 px toi khi vua */
 /* ten tren the hang: thu co chu cho vua 1 dong; < 34 px (kho doc tren dien thoai) -> xuong 2 dong 38 px, thu dan toi 30 px */
 function vuaTen(el){var max=el.parentNode.getBoundingClientRect().width;vua(el,max,46);
   if(parseFloat(el.style.fontSize)<34){el.style.whiteSpace='normal';var k=38;el.style.fontSize=k+'px';el.style.lineHeight='1.02';while((el.scrollHeight>2*k*1.05||el.scrollWidth>max+1)&&k>30){k-=2;el.style.fontSize=k+'px'}}}
