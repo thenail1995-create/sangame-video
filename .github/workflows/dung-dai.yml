@@ -1,0 +1,90 @@
+# Dung VIDEO DAI (5 phut, 16:9) chia nho theo chuong tren Ubicloud - moi chuong 1 may chay song song.
+# Goi dau vao (cau hinh, giong, anh, thu vien do hoa, kich ban chay.sh) dung tren Mac roi MA HOA (openssl aes-256-cbc,
+# pbkdf2, khoa = secret DAI_KHOA) va tai len Release pre-release <goi>. Repo cong khai -> khong de lo giong/trailer/anh tho:
+# dau ra tung chuong cung ma hoa truoc khi upload-artifact; Mac tai ve, giai ma, ghep.
+# Workflow chi la "vo": logic dung nam trong goi/chay.sh de sua cach dung khong can gop main.
+name: dung-dai
+on:
+  workflow_dispatch:
+    inputs:
+      goi:
+        description: 'Tag Release chua goi.tar.gz.enc (vd dai-2026-10-14-xbox)'
+        required: true
+      chuong:
+        description: 'JSON danh sach phan, vd ["c0","c1","c2"]'
+        required: true
+      may:
+        description: 'May chay'
+        required: false
+        default: 'ubicloud-standard-8'
+permissions:
+  contents: read
+concurrency:
+  group: dung-dai-${{ github.event.inputs.goi }}
+  cancel-in-progress: false
+jobs:
+  phan:
+    runs-on: ${{ github.event.inputs.may || 'ubicloud-standard-8' }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        c: ${{ fromJSON(github.event.inputs.chuong) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: ffmpeg + numpy
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg python3-numpy zstd >/dev/null
+          ffmpeg -version | head -1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: cong-cu/package-lock.json
+      - name: Cache trinh duyet Playwright
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('cong-cu/package-lock.json') }}
+      - name: Playwright + Chromium
+        run: |
+          set -euo pipefail
+          cd cong-cu && npm ci --ignore-scripts
+          npx playwright install --with-deps chromium
+      - name: Tai + giai ma goi
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GOI: ${{ github.event.inputs.goi }}
+          DAI_KHOA: ${{ secrets.DAI_KHOA }}
+        run: |
+          set -euo pipefail
+          test -n "$DAI_KHOA"
+          mkdir -p "$RUNNER_TEMP/goi"
+          gh release download "$GOI" -R "$GITHUB_REPOSITORY" -p 'goi.tar.gz.enc' -D "$RUNNER_TEMP"
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass env:DAI_KHOA -in "$RUNNER_TEMP/goi.tar.gz.enc" | tar -xz -C "$RUNNER_TEMP/goi"
+          rm -f "$RUNNER_TEMP/goi.tar.gz.enc"
+      - name: Dung phan ${{ matrix.c }}
+        env:
+          PHAN: ${{ matrix.c }}
+          CAPTURE_DIR: ${{ github.workspace }}/cong-cu
+        run: |
+          set -euo pipefail
+          bash "$RUNNER_TEMP/goi/chay.sh" "$PHAN" "$RUNNER_TEMP/ra"
+          ls -la "$RUNNER_TEMP/ra"
+      - name: Ma hoa dau ra
+        env:
+          DAI_KHOA: ${{ secrets.DAI_KHOA }}
+          PHAN: ${{ matrix.c }}
+        run: |
+          set -euo pipefail
+          tar -C "$RUNNER_TEMP/ra" -cf - . | openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:DAI_KHOA -out "$RUNNER_TEMP/ra-$PHAN.tar.enc"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ra-${{ matrix.c }}
+          path: ${{ runner.temp }}/ra-${{ matrix.c }}.tar.enc
+          retention-days: 3
+          compression-level: 0
