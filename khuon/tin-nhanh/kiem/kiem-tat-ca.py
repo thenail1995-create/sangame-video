@@ -330,8 +330,11 @@ for i,g in enumerate(TJ['tin'],1):
             for x in NS.doi_chieu(nghe_goc,kiem_ten=False,ngay=ngay_s): d3_xau.append(f'tin {i} {x}')
             d3.append(1.0)
     else:
+      # so La Ma (>=2 ky tu, chu hoa) -> so ca hai phia: moc «Spec IV» giong doc 'bốn', Whisper viet «Specs 4» (14/10 Tin nhanh 15/10, run 38598718701)
+      _lm=lambda t:re.sub(r'\b[IVX]{2,}\b',lambda m:str(NS._la_ma_gt(m.group()) or m.group()),t)
+      heard_mem=sc.chuan_so_sanh(_lm(nghe_raw))
       for ng in g['kiem'].get('ngay',[]):
-        r_=dau_hieu(heard_so,sc.chuan_so_sanh(ng),'mem'); d3.append(r_)
+        r_=dau_hieu(heard_mem,sc.chuan_so_sanh(_lm(ng)),'mem'); d3.append(r_)
         if r_<0.75: d3_xau.append(f"tin {i} ngay/moc «{ng}» {r_:.2f} nghe: «{nghe_raw[:70]}»")
 if MO_DL:     # cau mo «<ten> con <gia>, giam <x> phan tram, ...»: ten (2 bo nghe, nguong LONG nhu tin) + tien + % theo GIA TRI; khong co mo_du_lieu thi cau mo chung (khong so) -> khong gi de kiem
     if 'mo' not in heard: d3_xau.append('mo: khong co chu nao trong moc-chu cua doan mo')
