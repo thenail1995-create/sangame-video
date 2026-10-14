@@ -43,6 +43,14 @@ def tin(tieu_de, noi_dung, **kw):
     return gui("NTFY_TIN", tieu_de, noi_dung, **kw)
 
 
+def chia_se_nhom(dang, ngay, link_fb):
+    """Nhac Hao chia se bai Trang vao nhom FB 'San Game - Mua chung, share & san keo game PS4/PS5' (nhom khong co API)."""
+    return gui("NTFY_TIN", f"Chia sẻ vào nhóm: {dang} {ngay}",
+               "Bấm thông báo này → mở bài Trang Săn Game → Chia sẻ → Chia sẻ lên nhóm → chọn nhóm Săn Game → Đăng.\n"
+               "(Nhớ chuyển sang Trang Săn Game trước: ảnh đại diện góc phải → chọn Săn Game.)\n" + link_fb,
+               uu_tien=3, tags=("busts_in_silhouette",), click=link_fb)
+
+
 def loi(tieu_de, noi_dung, **kw):
     kw.setdefault("uu_tien", 4)
     kw.setdefault("tags", ("warning",))
