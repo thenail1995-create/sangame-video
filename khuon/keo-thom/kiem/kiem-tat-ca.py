@@ -169,7 +169,9 @@ wm=mo_hinh.nap_whisper()
 chu=lambda s:re.findall(r'\w+',s.lower().replace('-',''))
 import unicodedata
 def chuan(t):
-    t=re.sub(r'(\d+)\s*nghìn',r'\g<1>000',t.lower()); t=re.sub(r'(?<=\d)[.,](?=\d)','',t)
+    # 14/10 (Keo run 38550032936): Whisper viet «3,2 trên 5» thanh «3,256» -> bo 'trên' / '/' giua hai so truoc khi so
+    t=re.sub(r'(?<=\d)\s*(?:trên|/)\s*(?=\d)','',t.lower())
+    t=re.sub(r'(\d+)\s*nghìn',r'\g<1>000',t); t=re.sub(r'(?<=\d)[.,](?=\d)','',t)
     t=''.join(c for c in unicodedata.normalize('NFD',t) if unicodedata.category(c)!='Mn').replace('đ','d')
     return re.sub(r'[^a-z0-9]','',t)
 def nghe(x16):
@@ -198,7 +200,11 @@ if not SOM:   # can video da dung - KIEM SOM bo qua (bo kiem cuoi van chay)
         tong_g+=rg*n; tong_v+=rv*n; tong_chu+=n
         # cau bi coi la KEM chi khi: khop kich ban sut > 0.10 VA ban ghep khac ban chep giong goc (bo dau thanh, chuan hoa so "784 nghin"="784.000")
         # bo qua cau ngan < 1 s (Whisper doan bua ca 2 ban)
-        if rv<rg-0.10 and (b-a)/16000>=1.0 and difflib.SequenceMatcher(None,chuan(tg),chuan(tv)).ratio()<0.80:
+        # 14/10 (Keo run 38550032936): Whisper small doc SO lech kieu viet giua 2 ban (goc «3,2 trên 5» / ghep «3,256») -> cau bi bat
+        # thi nghe LAI bang turbo (mo hinh nghe kiem D3) tren ca 2 ban; chi KEM khi turbo cung thay ban ghep sut > 0.10 va khac ban goc.
+        if rv<rg-0.10 and (b-a)/16000>=1.0 and difflib.SequenceMatcher(None,chuan(tg),chuan(tv)).ratio()<0.80 \
+           and (lambda tg2,tv2:difflib.SequenceMatcher(None,chu(kb),chu(tv2)).ratio()<difflib.SequenceMatcher(None,chu(kb),chu(tg2)).ratio()-0.10
+                and difflib.SequenceMatcher(None,chuan(tg2),chuan(tv2)).ratio()<0.80)(nghe_kiem(G16[a:b]),nghe_kiem(X16[a:b])):
             xau.append(f"«{kb[:40]}» goc {rg:.2f} → ghep {rv:.2f} (goc: {tg[:40]} | ghep: {tv[:40]})")
     rg,rv=tong_g/tong_chu,tong_v/tong_chu
     ghi('Whisper tung cau: ban ghep nghe khong kem giong goc',rv>=rg-0.05 and not xau,f"{len(cau)} cau; khop kich ban: giong goc {rg:.2f}, ban ghep {rv:.2f}"+(f"; cau kem: {xau}" if xau else ''),'A2')
