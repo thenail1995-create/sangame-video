@@ -387,6 +387,13 @@ def pha_cong_khai(a, cong, thu_muc):
             ntfy.loi(f"{TEN[kenh]} loi {a.dang} {a.ngay}", f"{ghi}{type(e).__name__}: {e}")
     if tin:
         ntfy.tin(f"Da dang {a.dang} {a.ngay}" + (" (che do thu)" if a.che_do == "thu" else ""), "\n".join(tin))
+    # 14/10 (Hao chot "1 + 2"): Groups API bi Meta go tu 22/04/2024 -> may KHONG dang thang vao nhom FB duoc.
+    # Bai Trang FB len xong thi nhac Hao chia se tay vao nhom (bam thong bao -> mo bai -> Chia se -> Chia se len nhom).
+    fb = cong.doc_dang(a.ngay, a.ngay, a.che_do) if a.che_do == "that" else []
+    link_fb = next((r.get("link") for r in fb if r.get("dang") == a.dang and r.get("kenh") == "fb"
+                    and r.get("trang_thai") == "da_dang" and r.get("link")), None)
+    if link_fb and "fb" not in loi:
+        ntfy.chia_se_nhom(a.dang, a.ngay, link_fb)
     return 1 if loi else 0
 
 

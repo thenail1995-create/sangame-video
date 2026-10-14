@@ -65,6 +65,7 @@ class Khung(unittest.TestCase):
             mock.patch.object(chay.gia, "kiem_lai", lambda m, gio: ([], [])),
             mock.patch.object(chay.ntfy, "tin", lambda t, n, **k: self.ntfy.append(("tin", t, n))),
             mock.patch.object(chay.ntfy, "loi", lambda t, n, **k: self.ntfy.append(("loi", t, n))),
+            mock.patch.object(chay.ntfy, "chia_se_nhom", lambda d, n, l: self.ntfy.append(("nhom", d, l))),
             mock.patch.dict(os.environ, {"DICH_JSON": self.dich, "PAGES_URL": "https://x.github.io/sangame-video", "BUFFER_KHOA": "bk_test_123456"}),
             mock.patch.object(chay.x, "cong_khai", self.x_cong_khai),
             vo_ngu(),
@@ -112,6 +113,8 @@ class TestChuanBiVaCongKhai(Khung):
         self.assertEqual(len(tin), 1)
         self.assertIn("https://x/fb", tin[0][2])
         self.assertIn("hop thu", tin[0][2])
+        # 14/10: nhac chia se bai Trang vao nhom FB (nhom khong co API) - dung 1 lan, kem link bai FB
+        self.assertEqual([x for x in self.ntfy if x[0] == "nhom"], [("nhom", DANG, "https://x/fb")])
         # duy nhat 1 ntfy loi: nhac bat nhan AI khi TikTok vao hop thu (khong co co video_made_with_ai)
         self.assertEqual([x[1] for x in self.ntfy if x[0] == "loi"], ["TikTok hộp thư: nhớ bật nhãn AI top5 2026-10-12"])
 
@@ -123,6 +126,7 @@ class TestChuanBiVaCongKhai(Khung):
             self.assertEqual(self.kenh[k].ck, 0)
             self.assertEqual(self.cong.trang_thai(k, "thu"), "chuan_bi_xong")
         self.assertEqual(self.kenh["tiktok"].hop, 1)   # hop thu TikTok van thu
+        self.assertEqual([x for x in self.ntfy if x[0] == "nhom"], [])   # che do thu: khong nhac chia se nhom
 
     def test_giu_cho_lan_2_khong_dang_lai(self):
         self.chay("chuan-bi")
