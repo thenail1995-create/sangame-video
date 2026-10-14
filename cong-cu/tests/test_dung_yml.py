@@ -189,17 +189,18 @@ class DungNhanhMatrix(unittest.TestCase):
     def test_giu_luat_an_toan(self):
         for j in ('chung', 'ban', 'gom'):
             khoi = khoi_job(j)
-            # máy GitHub, hoặc (chung/ban) máy chọn qua input `may` — chỉ 2 giá trị: ubuntu-24.04 | ubicloud-standard-8 (thử đo 13/10)
-            self.assertTrue('runs-on: ubuntu-24.04' in khoi or "runs-on: ${{ github.event.inputs.may || 'ubicloud-standard-8' }}" in khoi, j)
+            # máy GitHub, hoặc (chung/ban) máy chọn qua input `may` — chỉ 2 giá trị, mặc định MIỄN PHÍ ubuntu-24.04 (Hào 14/10: "làm phương án miễn phí"); ubicloud-standard-8 khi cần gấp
+            self.assertTrue('runs-on: ubuntu-24.04' in khoi or "runs-on: ${{ github.event.inputs.may || 'ubuntu-24.04' }}" in khoi, j)
             for m in re.finditer(r'uses: ([\w./-]+)@([^\s]+)', khoi): self.assertRegex(m.group(2), r'^[0-9a-f]{40}$', f'{j}: {m.group(0)} chua ghim SHA')
         self.assertIn('options: [ubuntu-24.04, ubicloud-standard-8]', Y)
-        self.assertRegex(Y, r'options: \[ubuntu-24\.04, ubicloud-standard-8\]\n        default: ubicloud-standard-8\n')
-        self.assertEqual(Y.count("runs-on: ${{ github.event.inputs.may || 'ubicloud-standard-8' }}"), 3)
+        self.assertRegex(Y, r'options: \[ubuntu-24\.04, ubicloud-standard-8\]\n        default: ubuntu-24\.04\n')
+        self.assertEqual(Y.count("runs-on: ${{ github.event.inputs.may || 'ubuntu-24.04' }}"), 3)
+        self.assertNotIn("|| 'ubicloud-standard-8'", Y)   # lịch tự động (không có input) KHÔNG được rơi về máy tính tiền
         for j in ('kiem-moi', 'gom', 'phat-hanh', 'bao-loi'): self.assertIn('runs-on: ubuntu-24.04', khoi_job(j), j)   # job nhe giu may GitHub
         self.assertIn('thieu secret GOI_KHOA', khoi_job('ban')); self.assertIn("os.environ['LIVE']=='1'", khoi_job('phat-hanh'))
 
     def test_workers_theo_may(self):
-        bt = "WORKERS: ${{ (github.event.inputs.may || 'ubicloud-standard-8') == 'ubicloud-standard-8' && '8' || '4' }}"
+        bt = "WORKERS: ${{ (github.event.inputs.may || 'ubuntu-24.04') == 'ubicloud-standard-8' && '8' || '4' }}"
         self.assertIn(bt, khoi_job('chung')); self.assertIn(bt, khoi_job('ban')); self.assertEqual(Y.count('WORKERS:'), 2)
 
     def test_chung_ra_qua_cache_artifact_du_phong(self):

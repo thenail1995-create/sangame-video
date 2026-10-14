@@ -1,4 +1,4 @@
-# Dung VIDEO DAI (5 phut, 16:9) chia nho theo chuong tren Ubicloud - moi chuong 1 may chay song song.
+# Dung VIDEO DAI (5 phut, 16:9) chia nho theo chuong - moi chuong 1 may chay song song. Mac dinh may GitHub MIEN PHI (Hao 14/10); may=ubicloud-standard-8 khi can gap (tinh tien).
 # Goi dau vao (cau hinh, giong, anh, thu vien do hoa, kich ban chay.sh) dung tren Mac roi MA HOA (openssl aes-256-cbc,
 # pbkdf2, khoa = secret DAI_KHOA) va tai len Release pre-release <goi>. Repo cong khai -> khong de lo giong/trailer/anh tho:
 # dau ra tung chuong cung ma hoa truoc khi upload-artifact; Mac tai ve, giai ma, ghep.
@@ -16,7 +16,7 @@ on:
       may:
         description: 'May chay'
         required: false
-        default: 'ubicloud-standard-8'
+        default: 'ubuntu-24.04'
 permissions:
   contents: read
 concurrency:
@@ -24,7 +24,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   phan:
-    runs-on: ${{ github.event.inputs.may || 'ubicloud-standard-8' }}
+    runs-on: ${{ github.event.inputs.may || 'ubuntu-24.04' }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
