@@ -5,9 +5,9 @@ name: Dung video
 #   -> gom (manifest tu 3 ban, hop dong 7 tai san) -> phat-hanh -> bao-loi. Artifact giua cac job chua giong/loi/anh => MA HOA bang GOI_KHOA (repo cong khai).
 # B5': che do TU DONG (fixture de trong; hien chi khuon co chuan-bi.sh = top5): kiem-moi (du lieu gia 6 vung co ngay hom nay chua? + lay data_sha)
 #      -> chon (5 game + loi) -> dung (giong qua cong-cu/giong.py, dung, kiem D1-D3) -> phat-hanh. cron-job.org goi 10:15 (lan=1) va 10:45 (lan=2).
-# THU UBICLOUD 13/10-23/10/2026: lich tu dong (repository_dispatch, khong co inputs) chay ubicloud-standard-8; Hao quyet giu/bo theo phut + tien.
-# QUAY VE MAY GITHUB cho lich tu dong phai sua DUNG 4 CHO (khong chi default cua input):
-#   (1) default cua input `may` (workflow_dispatch) -> ubuntu-24.04
+# 14/10/2026 Hao chot "lam phuong an mien phi": lich tu dong quay ve may GitHub MIEN PHI ubuntu-24.04 (ket thuc thu Ubicloud 13-14/10).
+# DOI MAY MAC DINH phai sua DUNG 4 CHO (khong chi default cua input):
+#   (1) default cua input `may` (workflow_dispatch)
 #   (2) fallback `runs-on: ${{ github.event.inputs.may || '...' }}` o 3 job chon, chung, ban
 #   (3) fallback trong bieu thuc WORKERS o job chung
 #   (4) fallback trong bieu thuc WORKERS o job ban
@@ -61,10 +61,10 @@ on:
         type: boolean
         default: false
       may:
-        description: May cho 3 job nang (chon, chung, ban). Mac dinh ubicloud-standard-8 (8 nhan, tinh tien Ubicloud, thu 13/10-23/10); ubuntu-24.04 = may GitHub mien phi
+        description: May cho 3 job nang (chon, chung, ban). Mac dinh ubuntu-24.04 = may GitHub MIEN PHI (repo cong khai, 4 nhan); ubicloud-standard-8 = 8 nhan, tinh tien, chi khi can gap
         type: choice
         options: [ubuntu-24.04, ubicloud-standard-8]
-        default: ubicloud-standard-8
+        default: ubuntu-24.04
   repository_dispatch:
     types: [dung]
 permissions: {}
@@ -178,7 +178,7 @@ jobs:
   chon:
     needs: kiem-moi
     if: github.ref == 'refs/heads/main' && needs.kiem-moi.outputs.live == '1' && needs.kiem-moi.outputs.ba_pha == '1' && needs.kiem-moi.outputs.moi == '1'
-    runs-on: ${{ github.event.inputs.may || 'ubicloud-standard-8' }}
+    runs-on: ${{ github.event.inputs.may || 'ubuntu-24.04' }}
     timeout-minutes: 20
     permissions:
       contents: read
@@ -282,7 +282,7 @@ jobs:
   chung:
     needs: [kiem-moi, chon]
     if: always() && github.ref == 'refs/heads/main' && needs.kiem-moi.result == 'success' && needs.kiem-moi.outputs.moi == '1' && (needs.kiem-moi.outputs.live != '1' || needs.kiem-moi.outputs.ba_pha != '1' || (needs.chon.result == 'success' && needs.chon.outputs.du == '1'))
-    runs-on: ${{ github.event.inputs.may || 'ubicloud-standard-8' }}
+    runs-on: ${{ github.event.inputs.may || 'ubuntu-24.04' }}
     timeout-minutes: 60
     permissions:
       contents: read
@@ -444,7 +444,7 @@ jobs:
         id: dung
         env:
           GD: chung
-          WORKERS: ${{ (github.event.inputs.may || 'ubicloud-standard-8') == 'ubicloud-standard-8' && '8' || '4' }}
+          WORKERS: ${{ (github.event.inputs.may || 'ubuntu-24.04') == 'ubicloud-standard-8' && '8' || '4' }}
           GH_TOKEN: ${{ github.token }}   # chon-tin.py (Tin nhanh) doc manifest cac Release 3 ngay qua `gh` (cong-cu/da_noi_bat.py); thieu -> CANH BAO, khong loc
           WHISPER_DIR: /home/runner/whisper-cache
           # chi khi chay fixture (hoi quy): bo kiem ngay du lieu theo NGAY (khuon/*/kiem). Khong fixture (LIVE) = khong dat. fixture + che_do=that da bi cam o kiem-moi.
@@ -534,7 +534,7 @@ jobs:
     needs: [kiem-moi, chung]
     # !cancelled(): chung chay sau job chon (co the bi bo qua o Tin nhanh 1 pha) - xem bai hoc #35. Bo khung (chung xanh, khong co artifact) -> bo qua
     if: "!cancelled() && github.ref == 'refs/heads/main' && needs.chung.result == 'success' && needs.chung.outputs.bo_khung != '1'"
-    runs-on: ${{ github.event.inputs.may || 'ubicloud-standard-8' }}
+    runs-on: ${{ github.event.inputs.may || 'ubuntu-24.04' }}
     timeout-minutes: 90
     permissions:
       contents: read
@@ -677,7 +677,7 @@ jobs:
         id: dung
         env:
           GD: ban
-          WORKERS: ${{ (github.event.inputs.may || 'ubicloud-standard-8') == 'ubicloud-standard-8' && '8' || '4' }}
+          WORKERS: ${{ (github.event.inputs.may || 'ubuntu-24.04') == 'ubicloud-standard-8' && '8' || '4' }}
           WHISPER_DIR: /home/runner/whisper-cache
           # chi khi chay fixture (hoi quy): bo kiem ngay du lieu theo NGAY (khuon/*/kiem). Khong fixture (LIVE) = khong dat. fixture + che_do=that da bi cam o kiem-moi.
           HOI_QUY: ${{ env.FIXTURE != '' && '1' || '' }}
