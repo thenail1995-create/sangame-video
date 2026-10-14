@@ -108,6 +108,12 @@ class TuPhienBanLechChinhTa(unittest.TestCase):
         self.assertEqual(NS.tu_phien_ban('remaster'),'remastered'); self.assertTrue(NS.so_phan_biet('Game Remastered','Game Remaster')[0])
 
 class BiDanhThang(unittest.TestCase):
+    def test_doc_ngay_nghe_nay_thay_ngay(self):
+        # 14/10 run 38576671691: turbo nghe 'hết ngày 21 tháng 10' thanh 'hết này 21 tháng 10'
+        self.assertEqual(NS.doc_ngay("Tin 3, đợt siêu Player's Choice đang chạy, hết này 21 tháng 10."),[(21,10)])
+        self.assertEqual(NS.doc_ngay('game này hay'),[]); self.assertEqual(NS.doc_ngay('giá này 21 nghìn'),[])
+        self.assertEqual(NS.doi_chieu("Tin 3, đợt siêu Player's Choice đang chạy, hết này 21 tháng 10.",ngay=[(21,10)],kiem_ten=False),[])
+
     def test_khang_chi_trong_mau_ngay_so_thang_so(self):
         self.assertEqual(NS.doc_ngay('hết giảm ngày 22 kháng 10'),[(22,10)]); self.assertEqual(NS.doc_ngay('ngày hai mươi hai kháng mười'),[(22,10)])
         self.assertEqual(NS.doc_han('hết giảm trước 2 giờ chiều ngày 22 kháng 10')[0]['ngay'],(22,10))

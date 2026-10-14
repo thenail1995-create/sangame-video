@@ -231,7 +231,9 @@ def doc_ngay(van_ban):
     """-> [(ngay, thang)] cho cum 'ngày X tháng Y' (khong can gio): 'hết giảm ngày hai mươi mốt tháng mười' -> [(21,10)]; Whisper viet '14 tháng 10' / '14/10' cung nhan."""
     t=re.sub(r'(?<=\d)\s*/\s*(?=\d)',' tháng ',nfc(van_ban)); T=_tach(t); kq=[]
     for i in range(len(T)):
-        if _w(T,i)!='ngày': continue
+        # 'này' = bi danh CO CHU DICH cua 'ngày' CHI khi theo sau la '<số> (tháng|kháng) <số>' (14/10 Tin nhanh 15/10: turbo nghe
+        # 'hết ngày 21 tháng 10' thanh 'hết này 21 tháng 10' - run 38576671691; doc_han da nhan bi danh nay tu 12/10). Van so GIA TRI ngay+thang.
+        if _w(T,i) not in ('ngày','này'): continue
         r=_so(T,i+1) if _lien(T,i+1) else None
         if r and _w(T,r[2]) in THANG_NGAY and _lien(T,r[2]):
             m=_so(T,r[2]+1) if _lien(T,r[2]+1) else None
