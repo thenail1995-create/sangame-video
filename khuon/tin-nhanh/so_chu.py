@@ -128,8 +128,11 @@ def bo_dau(t):
     t=''.join(c for c in unicodedata.normalize('NFD',t.lower()) if unicodedata.category(c)!='Mn').replace('đ','d')
     return t
 
+LA_MA={'II':2,'III':3,'IV':4,'VI':6,'VII':7,'VIII':8,'IX':9,'XI':11,'XII':12}
+
 def chuan_so_sanh(t):
     """Chuẩn hoá để so lời Whisper nghe với dữ liệu: bỏ dấu, '288 nghìn'/'288.000' -> chữ, số lẻ -> chữ, bỏ ký tự lạ."""
+    t=re.sub(r'\b(II|III|IV|VI|VII|VIII|IX|XI|XII)\b',lambda m:str(LA_MA[m.group(1)]),t)   # 15/10: «Spec IV» giong doc «bốn», Whisper viet «Specs 4» -> ca hai ve 'bon'; chi so La Ma VIET HOA >= 2 chu (I/V/X don co the la chu cai)
     t=t.lower()
     t=re.sub(r'(\d+)\s*(?:phần trăm|%)',lambda m:so_ra_chu(int(m.group(1)))+' phan tram',t)
     t=re.sub(r'(\d+)\s*k\b',lambda m:so_ra_chu(int(m.group(1))*1000),t)     # Whisper viet '335k'
