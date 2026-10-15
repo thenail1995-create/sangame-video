@@ -78,7 +78,7 @@ exp={'bia.issue':f"SỐ {_so} · THÁNG {_nd.month:02d} · {_nd.year}",'bia.sao'
      'bang.pill':['✓ RẺ NHẤT','+'+_d(_V[1]['vnd']-_V[0]['vnd']),'+'+_d(_V[2]['vnd']-_V[0]['vnd'])],'bang.tit':f"Giá ngày {_dl.day:02d}/{_dl.month:02d} · đổi ra đồng",
      'phieu.so':f"{_h.hour:02d}{_h.minute:02d}",'phieu.ngay':f"ngày {_h.day:02d}/{_h.month:02d} · giờ Việt Nam"}
 # GIOI THIEU game (11/10): tinh LAI tu so lieu tho trong keo.json.gioi_thieu (diem trung binh, so luot) bang loi_chu — khong doc chuoi da dinh dang san
-from loi_chu import lam_tron_diem,hien_diem,hien_luot,the_biet_truoc
+from loi_chu import lam_tron_diem,hien_diem,hien_luot,the_biet_truoc,ten_hien
 _GT=KEO.get('gioi_thieu') or {}; _gb=_GT.get('ban'); _gd=_GT.get('diem')
 exp.update({'gioi.the_loai':' · '.join(x['vi'].upper() for x in _GT.get('the_loai',[])) or None,'gioi.chip':[x['hien'] for x in _GT.get('dac_diem',[])[:2]],
             'gioi.diem':(hien_diem(lam_tron_diem(_gd['tb']))+'/5') if _gd else None,'gioi.luot':(hien_luot(_gd['so_luot'])+' lượt chấm') if _gd else None,
@@ -91,7 +91,9 @@ for k,v in exp.items():
     else: okk=_cs(got or '')==_cs(v)
     if not okk: sai.append(f"{k}: hinh «{got}» ≠ keo.json «{v}»")
 _tg=_cs(nd.get('bia.title',''))
-if _G['ten'] and not all(w.lower() in _tg.lower() for w in re.findall(r"[\wÀ-ỹ-]+",_ten.replace('’',''))[-2:] ): sai.append(f"bia.title: hinh «{_tg}» khong chua ten «{_ten}»")
+# 15/10: so voi ten BIA HIEN (ten_hien -> gon_ten bo 'Standard Edition', (PS5)...), khong so ten goc: 'Khazan Standard Edition' bi bao lech du bia dung -> Keo 22:00 bo khung
+_tbia=' '.join(x for x in ten_hien(_G['ten']) if x).replace('®','').replace('™','')
+if _G['ten'] and not all(w.lower() in _tg.lower() for w in re.findall(r"[\wÀ-ỹ-]+",_tbia.replace('’',''))[-2:] ): sai.append(f"bia.title: hinh «{_tg}» khong chua ten «{_tbia}»")
 _cat=d.get('catChu',[])
 _chong=d.get('chongGT',[])
 ghi('The biet truoc khong che / de len hang khac cua ho so game (ten the loai, chip, sao, ban, phan them) o moi moc (G3)',not _chong,f"{len(_chong)} cho de"+(f": {_chong[:3]}" if _chong else ''),'G3/Sol#14')

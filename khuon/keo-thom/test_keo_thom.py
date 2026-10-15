@@ -188,3 +188,14 @@ class KeoKhongChonUkraine(unittest.TestCase):   # 15/10: Keo chi vung mua duoc b
             dict(ma='UA',vnd_con=40000,khong_co_the=True),dict(ma='UA',vnd_con=40000),dict(ma='IN',vnd_con=45000,khong_co_the=True),
             dict(ma='SG',vnd_con=90000),dict(ma='TH',vnd_con=95000)]},'VUNG':lc.VUNG})
         self.assertEqual([v['ma'] for v in vs],['SG','TH'])   # ke ca UA khong co co khong_co_the van bi loai vi khong thuoc VUNG
+
+
+class BiaTitleTheoTenHien(unittest.TestCase):   # Keo 22:00 15/10: D1 bia.title so ten GOC ('... Standard Edition') trong khi bia hien ten_hien -> bao lech, bo khung
+    def test_ten_hien_bo_standard_edition(self):
+        from loi_chu import ten_hien
+        self.assertEqual(ten_hien('The First Berserker: Khazan Standard Edition'),('','The First Berserker: Khazan'))
+    def test_kiem_d1_so_voi_ten_hien(self):
+        import pathlib
+        s=(pathlib.Path(__file__).parent/'kiem'/'kiem-tat-ca.py').read_text()
+        self.assertIn("_tbia=' '.join(x for x in ten_hien(_G['ten']) if x)",s)
+        self.assertIn('_tbia.replace(',s)
