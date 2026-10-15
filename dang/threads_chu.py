@@ -68,11 +68,11 @@ HOI_CHIEU = (
 # Moi lua chon <= 25 ky tu, 2-4 lua chon. 10 cau > 7 ngay -> xoay theo toordinal khong lap trong 7 ngay.
 BINH_CHON_CO_DINH = (
     ("Bạn đang dùng gói PS Plus nào?", ("Essential", "Extra", "Premium", "Chưa đăng ký")),
-    ("Khi mua game, bạn ưu tiên điều gì nhất?", ("Phụ đề tiếng Việt", "Chơi chung nhiều người", "Giá rẻ", "Cốt truyện, đồ họa")),
+    ("Khi mua game, bạn ưu tiên điều gì nhất?", ("Phụ đề Việt", "Chơi chung", "Giá rẻ", "Truyện, đồ họa")),
     ("Bạn mua game PlayStation bản digital hay đĩa?", ("Digital", "Đĩa", "Tùy từng game")),
-    ("Game mới ra, bạn mua ngay hay chờ sale lớn?", ("Mua ngay khi ra mắt", "Chờ sale lớn", "Chờ thật rẻ mới mua")),
-    ("Thể loại game bạn chơi nhiều nhất?", ("Hành động, phiêu lưu", "Nhập vai (RPG)", "Thể thao, đua xe", "Bắn súng, sinh tồn")),
-    ("Bạn thường chơi game PlayStation với ai?", ("Một mình", "Bạn bè, người thân", "Online với người lạ")),
+    ("Game mới ra, bạn mua ngay hay chờ sale lớn?", ("Mua ngay khi ra mắt", "Chờ sale lớn", "Chờ thật rẻ")),
+    ("Thể loại game bạn chơi nhiều nhất?", ("Hành động", "Nhập vai (RPG)", "Thể thao, đua xe", "Bắn súng, sinh tồn")),
+    ("Bạn thường chơi game PlayStation với ai?", ("Một mình", "Bạn bè, người thân", "Online người lạ")),
     ("Một game đáng mua với bạn thường ở mức giá nào?", ("Dưới 300 nghìn", "300 – 600 nghìn", "600 nghìn – 1 triệu", "Trên 1 triệu")),
     ("Bạn đang chơi game trên máy nào?", ("PS5", "PS4", "Cả PS4 lẫn PS5")),
     ("Bạn đã mua game ở PS Store nước ngoài chưa?", ("Rồi, thường xuyên", "Rồi, thỉnh thoảng", "Chưa, đang tìm hiểu", "Chưa, không định mua")),

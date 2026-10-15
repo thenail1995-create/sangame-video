@@ -9,6 +9,8 @@ from . import chung, meta
 TH = "https://graph.threads.net/v1.0"
 POLL_KHOA = ("option_a", "option_b", "option_c", "option_d")
 POLL_TOI_DA_KY_TU = 25   # tai lieu poll chinh chu: moi lua chon 1-25 ky tu, 2-4 lua chon (option_a, option_b bat buoc)
+# 15/10 (binh chon 13:00 that bai code 100): API THAT dem 25 theo BYTE UTF-8, khong theo ky tu - thu container: 25 byte dat, 26 byte
+# (ca 'a'*26 lan 'Hành động, phiêu lưu' 20 ky tu/26 byte) bi tu choi 'Invalid parameter'. Chu co dau ton 2-3 byte.
 
 
 def kiem_poll(poll):
@@ -21,8 +23,8 @@ def kiem_poll(poll):
             raise chung.LoiDang(f"poll sai khoa '{k}': can {', '.join(POLL_KHOA[:len(poll)])} theo thu tu")
     gia_tri = []
     for k, v in poll.items():
-        if not isinstance(v, str) or not v.strip() or len(v) > POLL_TOI_DA_KY_TU:
-            raise chung.LoiDang(f"poll {k} phai la chuoi 1-{POLL_TOI_DA_KY_TU} ky tu: {v!r}")
+        if not isinstance(v, str) or not v.strip() or len(v.encode("utf-8")) > POLL_TOI_DA_KY_TU:
+            raise chung.LoiDang(f"poll {k} phai la chuoi 1-{POLL_TOI_DA_KY_TU} byte UTF-8: {v!r}")
         gia_tri.append(v.strip().casefold())
     if len(set(gia_tri)) != len(gia_tri):
         raise chung.LoiDang("poll co lua chon trung nhau")

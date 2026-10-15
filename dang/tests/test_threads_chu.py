@@ -636,6 +636,9 @@ class Poll(unittest.TestCase):
             with self.assertRaises(LoiDang, msg=xau):
                 threads.kiem_poll(xau)
         self.assertEqual(len(threads.kiem_poll({"option_a": "a" * 25, "option_b": "b" * 25})), 2)
+        # 15/10: Threads dem 25 theo BYTE UTF-8 - 'Hành động, phiêu lưu' (20 ky tu, 26 byte) bi API tu choi code 100
+        with self.assertRaises(LoiDang):
+            threads.kiem_poll({"option_a": "Hành động, phiêu lưu", "option_b": "Nhập vai"})
 
     def test_co_dinh_it_nhat_8_cau_hop_le(self):
         self.assertGreaterEqual(len(tc.BINH_CHON_CO_DINH), 8)
@@ -645,7 +648,7 @@ class Poll(unittest.TestCase):
             self.assertEqual(tc.kiem_van(text), text)   # co '?', khong bait/link, <= 400
             self.assertTrue(2 <= len(lua) <= 4, text)
             for o in lua:
-                self.assertTrue(1 <= len(o) <= 25, o)
+                self.assertTrue(1 <= len(o.encode('utf-8')) <= 25, o)
             threads.kiem_poll(dict(zip(threads.POLL_KHOA, lua)))
             low = (text + " " + " ".join(lua)).lower()
             for cam in tc.TU_CAM:
