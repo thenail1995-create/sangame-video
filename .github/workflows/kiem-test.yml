@@ -33,4 +33,4 @@ jobs:
       - name: pytest (moi truong khoa uv.lock)
         env:
           UV_PYTHON_PREFERENCE: managed
-        run: uv run --frozen python -m pytest dang/tests khuon cong-cu -q
+        run: uv run --frozen python -m pytest dang/tests khuon cong-cu do_so/tests -q
