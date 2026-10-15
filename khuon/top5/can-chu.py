@@ -118,6 +118,16 @@ def neo_doan():
         j=max(ung,key=lambda j:(diem(j),-j))
         neo.append(wsn[j][1]); tu=j+1
     v=db>=nen-12; idx=np.where(v)[0]; v0,v1=idx[0]*.01,(idx[-1]+1)*.01
+    # 15/10 (run 38675292407): Whisper keo dau tu 'Hạng' som vao quang lang truoc do (7,60 -> noi that 8,09; 16,88 -> 17,25) -> chu dau doan
+    # dat len tieng tho, tieng dong so hang de len 'bốn:' (A3 -12,9 dB). Neo nam trong lang -> doi toi diem bat dau noi dau tien (<= 0,8 s),
+    # chi khi doan giua neo va diem do TOAN LANG (khong nuot tieng noi that).
+    def _bam(t):
+        k=int(round(t*100))
+        if v[k:k+8].sum()>=5: return t
+        for j in range(k,min(len(v)-8,k+80)):
+            if v[j] and v[j:j+8].sum()>=5: return j*.01
+        return t
+    neo=[_bam(t) for t in neo]
     bien=[v0]+neo+[v1]
     if any(b-a<0.3 for a,b in zip(bien,bien[1:])): return None,'doan ngan bat thuong (< 0,3 s) - neo nghi sai'
     for (dk,ws),a,b in zip(ds,bien,bien[1:]):
