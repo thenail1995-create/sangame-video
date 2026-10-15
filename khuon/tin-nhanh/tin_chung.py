@@ -6,8 +6,9 @@ import importlib.util
 _sp=importlib.util.spec_from_file_location('sangame_gia_trang',str(pathlib.Path(__file__).resolve().parent.parent.parent/'cong-cu'/'gia_trang.py')); GT=importlib.util.module_from_spec(_sp); _sp.loader.exec_module(GT)   # khoi gia/han/media cua DUNG pid
 
 UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36"
-LOC={'SG':'en-sg','HK':'en-hk','IN':'en-in','ID':'en-id','US':'en-us','TH':'en-th'}
-TIEN_TE={'SG':'SGD','HK':'HKD','IN':'INR','ID':'IDR','US':'USD','TH':'THB'}
+LOC={'SG':'en-sg','HK':'en-hk','IN':'en-in','ID':'en-id','US':'en-us','TH':'en-th','UA':'uk-ua'}   # UA: vung THAM KHAO (khong the o VN): co bang tra de khong KeyError, nhung KHONG bao gio duoc chon (xem VUNG_THAM_KHAO)
+VUNG_THAM_KHAO=('IN','UA')   # gia chi de tham khao, khong phai 'vung re nhat mua duoc'
+TIEN_TE={'SG':'SGD','HK':'HKD','IN':'INR','ID':'IDR','US':'USD','TH':'THB','UA':'UAH'}
 
 def mo(url,timeout=40,thu_lai=2):
     for k in range(thu_lai+1):

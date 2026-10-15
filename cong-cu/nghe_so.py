@@ -162,10 +162,11 @@ def doc_phan_tram(van_ban):
 # ---------------------------------------------------------------- vung
 # 'sinh'/'xinh' (SG): Whisper small nghe 'Sing' thanh 'sinh' tren video that thu-d; bi danh CHI dung o doc_vung
 VUNG_MAU=[('US',r'my|hoa ky|usa'),('HK',r'hong ?kong|hong kon|hongkong|honkong'),('SG',r'singapore|singapo|xin[ -]ga[ -]po|sin[ -]ga[ -]po|sing|sinh|xinh'),
-          ('TH',r'thai lan|thai'),('ID',r'indonesia|indo|in do'),('IN',r'an do|ando|india')]
-VUNG_HIEN={'US':'MỸ','HK':'HỒNG KÔNG','SG':'SINGAPORE','TH':'THÁI LAN','ID':'INDONESIA','IN':'ẤN ĐỘ'}   # chu hoa tren hinh (dung chung khi so DOM)
+          ('TH',r'thai lan|thai'),('ID',r'indonesia|indo|in do'),('IN',r'an do|ando|india'),
+          ('UA',r'ukraine|ukraina|ucraina|u crai na|u cren')]   # UA: vung THAM KHAO (khong the o VN) - chi la bang tra de nghe/doi chieu khong KeyError, KHONG phai vung duoc chon
+VUNG_HIEN={'US':'MỸ','HK':'HỒNG KÔNG','SG':'SINGAPORE','TH':'THÁI LAN','ID':'INDONESIA','IN':'ẤN ĐỘ','UA':'UKRAINE'}   # chu hoa tren hinh (dung chung khi so DOM)
 def doc_vung(van_ban):
-    """-> [(ma, vi_tri)] ; ma trong US/HK/SG/TH/ID/IN."""
+    """-> [(ma, vi_tri)] ; ma trong US/HK/SG/TH/ID/IN/UA."""
     t=bo_dau(van_ban); kq=[]
     for ma,mau in VUNG_MAU:
         for m in re.finditer(r'(?<![a-z0-9])(?:'+mau+r')(?![a-z0-9])',t): kq.append((ma,m.start()))

@@ -21,6 +21,26 @@ def dung_repo(td, feed_cap_nhat='2026-10-11', tong='2026-10-11', bo_truong=()):
     return td
 
 
+class TestUaTuyChon(unittest.TestCase):   # 15/10: UA = vung TUY CHON, khong bao gio la dieu kien 'moi'
+    def test_ua_khong_nam_trong_vung_bat_buoc(self):
+        self.assertNotIn('UA', k.VUNG); self.assertEqual(sorted(k.VUNG), ['HK', 'ID', 'IN', 'SG', 'TH', 'US'])
+
+    def test_thieu_giam_gia_uk_ua_van_moi(self):
+        with tempfile.TemporaryDirectory() as td:
+            dung_repo(td)
+            self.assertFalse((pathlib.Path(td) / 'du-lieu' / 'giam-gia-uk-UA.json').exists())
+            self.assertEqual(k.kiem(td, '2026-10-11'), (True, []))
+
+    def test_co_uk_ua_cu_hoac_hong_van_moi(self):
+        for noi_dung in ('{}', 'khong phai json', json.dumps({'so_mon': 0, 'mon': {}, 'cap_nhat': '2020-01-01'})):
+            with tempfile.TemporaryDirectory() as td:
+                dung_repo(td)
+                (pathlib.Path(td) / 'du-lieu' / 'giam-gia-uk-UA.json').write_text(noi_dung)
+                self.assertEqual(k.kiem(td, '2026-10-11'), (True, []), noi_dung)
+                (pathlib.Path(td) / 'du-lieu' / 'bang-gia.json').write_text(json.dumps({'cap_nhat': '2026-10-11', 'so_mon_giu_lai': {**{v: 5 for v in VUNG}, 'UA': 0}}))
+                self.assertEqual(k.kiem(td, '2026-10-11'), (True, []), 'so_mon_giu_lai UA = 0 khong duoc lam cu')
+
+
 class TestMonRong(unittest.TestCase):   # vong 2 #4: so_mon > 0 nhung mon rong / sai kieu => cu/thieu
     def test_mon_rong_hoac_khong_phai_dict_la_cu(self):
         for mon in ({}, [], None, 'x'):

@@ -32,7 +32,7 @@ dong_game=ls.ten_dong_game
 _sp2=importlib.util.spec_from_file_location('sangame_da_noi_bat',str(T.parent.parent/'cong-cu'/'da_noi_bat.py')); DNB=importlib.util.module_from_spec(_sp2); _sp2.loader.exec_module(DNB)   # game da noi bat o dang KHAC (Tin nhanh 're nhat', Keo) trong 3 ngay (Hao 12/10: tin bi trung)
 NB=DNB.da_noi_bat(ngay_dang,'top5',3,ten_goc=t._ten_goc); print('da noi bat 3 ngay (dang khac):',NB.ghi_chu)
 da_len,ghi_chu_ls=ls.da_len(ngay_dang,3); print('lich su Top 5:',ghi_chu_ls,'| dong game da len:',sorted(da_len))
-TIEN_TE={'US':'USD','HK':'HKD','SG':'SGD','ID':'IDR','TH':'THB','IN':'INR'}
+TIEN_TE={'US':'USD','HK':'HKD','SG':'SGD','ID':'IDR','TH':'THB','IN':'INR','UA':'UAH'}
 _trang={}
 def lay_trang(loc,pid):
     k=(loc,pid)
@@ -55,7 +55,9 @@ def xet(h):
     if ly_nb: return None,f'da noi bat o dang khac trong 3 ngay: {ly_nb}'
     if not tr.doc_duoc(h['ten']): return None,f"ten may doc khong on dinh ({tr.hien_thi(h['ten'])})"
     if not h.get('anh'): return None,'khong co anh bia'
-    ma=h['ma']; loc='en-'+ma.lower()
+    ma=h['ma']
+    if ma in tr.VUNG_THAM_KHAO or ma not in tr.LOC_CUA_MA: return None,f'vung {ma} chi tham khao/khong ro (khong the PSN o VN)'   # UA/IN khong bao gio la deal
+    loc=tr.LOC_CUA_MA[ma]
     rec=((d['so']['game'].get(h['khoa']) or {}).get('vung') or {}).get(ma)   # product id + gia CHINH vung co gia duoc chon (khong doan en-us)
     if not rec or not rec.get('id'): return None,f'so khong co product cua vung {ma}'
     if rec.get('giam')!=h['giam']: return None,f"so vung {ma} giam {rec.get('giam')}% khac hang {h['giam']}%"
@@ -70,7 +72,7 @@ def xet(h):
     return dict(h=h,pid=pid,loc=loc,trailer=sorted(m['video']),anh_chup=m['anh_chup'][:6],endTime=g['endTime'],gia_cuc_bo=g['gia_cuc_bo'],tien_te=g['tien_te'] or TIEN_TE.get(ma)),None
 def ung_vien(X):
     u=[h for h in d['hangs'] if h['khoa'] in th and th[h['khoa']][0]+1<=HANG_DEM and h['giam']>0 and h['vnd'] is not None
-       and not t._la_goi_nhieu_game(h) and gia(h)<=X]
+       and h['ma'] not in tr.VUNG_THAM_KHAO and not t._la_goi_nhieu_game(h) and gia(h)<=X]
     u.sort(key=lambda h:(th[h['khoa']][0],-h['giam'])); return u
 _xet={}; ds=[]; X=None; nhat_ky=[]
 for X in MOC:

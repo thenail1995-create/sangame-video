@@ -402,4 +402,15 @@ class BietTruocMenhDe(unittest.TestCase):      # G3 13/10 (Sol #9 #10): menh de 
         r=ns.kiem_menh_de('Game chưa có phụ đề tiếng Việt, không có tiếng Anh.','phu_de','chua'); self.assertTrue(r); self.assertTrue(any('tieng Anh' in x for x in r))
         self.assertTrue(ns.kiem_menh_de('Game chưa có phụ đề tiếng Việt, chẳng có tiếng Anh.','phu_de','chua')); self.assertTrue(ns.kiem_menh_de('Game chưa có phụ đề tiếng Việt.','phu_de','chua'))
 
+class VungUkraine(unittest.TestCase):       # 15/10: UA = vung THAM KHAO; nghe_so phai nhan ten de khong lam rot khi du lieu co UA
+    def test_nhan_ukraine(self):
+        for s in ('store Ukraine','Ukraine','ở Ukraina','Ucraina'):
+            self.assertEqual(vg(s),['UA'],s)
+        self.assertEqual(ns.VUNG_HIEN['UA'],'UKRAINE')
+    def test_ukraine_khong_nuot_vung_khac(self):
+        self.assertEqual(vg('Ukraine rẻ hơn Mỹ, Ấn Độ và Thái Lan'),['UA','US','IN','TH'])   # theo vi tri trong cau
+        for s,m in (('Mỹ','US'),('Hồng Kông','HK'),('Sing','SG'),('Thái','TH'),('Indo','ID'),('Ấn Độ','IN')): self.assertEqual(vg(s),[m],s)
+    def test_doi_chieu_vung_ua(self):
+        self.assertEqual(ns.doi_chieu('ở store Ukraine',vung=['UA']),[]); self.assertTrue(ns.doi_chieu('ở store Ukraine',vung=['IN']))
+
 if __name__=='__main__': unittest.main()

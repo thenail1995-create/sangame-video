@@ -140,7 +140,9 @@ LOAI_GIA={'giam-sau':('GIẢM SÂU','giảm sâu','RẺ NHẤT'),'vua-giam':('M�
           'sap-het':('SẮP HẾT GIẢM','sắp hết giảm','RẺ NHẤT')}
 def xac_minh(h):
     """(thong_tin, None) nếu trang PS Store đúng vùng xác nhận giá khớp + còn hạn; (None, lý do)."""
-    ma=h['ma']; b=d['so']['game'][h['khoa']]['vung'].get(ma) or {}
+    ma=h['ma']
+    if ma in tc.VUNG_THAM_KHAO or ma not in tc.LOC: return None,f'vung {ma} chi tham khao (khong the PSN o VN) - khong bao gio la deal'   # UA/IN: chan o day du du lieu co UA
+    b=d['so']['game'][h['khoa']]['vung'].get(ma) or {}
     if not b.get('id') or not b.get('con'): return None,'so thieu id/gia vung'
     try: html=tc.lay_trang(tc.LOC[ma],b['id'])
     except Exception as e: return None,f'khong mo duoc trang: {e}'

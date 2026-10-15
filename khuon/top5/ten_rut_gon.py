@@ -69,7 +69,9 @@ def doc_duoc(ten):
     if any(re.fullmatch(r'[IVXLCDM]{2,}',w) and w.lower() not in LA_MA for w in d.split()): return False   # XVI, XIV: may doc tung chu cai
     return re.fullmatch(r"[A-Za-zÀ-ỹ0-9 '’.,!\-]+",d) is not None and not re.search(r'\d',d)
 # --- dung chung voi kich-ban.py va kiem/kiem-tat-ca.py (D3) ---
-VUNG={'Hồng Kông':'Hồng Kông','Indonesia':'Indo','Mỹ':'Mỹ','Singapore':'Sing','Thái Lan':'Thái','Ấn Độ':'Ấn Độ'}   # du 6 vung; vung la -> ten day du
+VUNG={'Hồng Kông':'Hồng Kông','Indonesia':'Indo','Mỹ':'Mỹ','Singapore':'Sing','Thái Lan':'Thái','Ấn Độ':'Ấn Độ','Ukraine':'Ukraine'}   # 6 vung + Ukraine (tham khao, khong duoc chon); vung la -> ten day du
+LOC_CUA_MA={'SG':'en-sg','HK':'en-hk','US':'en-us','ID':'en-id','TH':'en-th','IN':'en-in','UA':'uk-ua'}   # ma vung -> locale store (UA = uk-ua, KHONG ghep 'en-'+ma)
+VUNG_THAM_KHAO=('IN','UA')   # gia tham khao, khong the o VN: khong bao gio la vung re nhat mua duoc
 def ten_doc_cua(g): return g.get('ten_doc') or doc(g.get('ten_goc') or g['ten'])   # top5.json cu (fixture) chua co ten_doc -> tinh bang ham
 def vung_doc_cua(g): return VUNG.get(g['vung'],g['vung'])
 def nghin_so(gia): return int(gia.replace('.','').replace('đ',''))//1000   # '167.000đ' -> 167
