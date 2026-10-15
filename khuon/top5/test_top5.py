@@ -196,4 +196,40 @@ class CauMoXoay(unittest.TestCase):   # G2 (13/10, Sol #4/#18): `mo` xoay 3 kieu
         self.assertTrue(chay(k0,mo0,ket='Còn tám mươi lăm game nữa dưới một trăm nghìn'))                     # ket van kiem muc
         self.assertEqual(chay(None,mo0),[])                                                                   # thieu ngay_iso -> kieu 0 (khop kich-ban.py)
 
+def ham_tu_script(duong_dan,ten,ns):
+    """Lay NGUYEN van mot ham cap module trong script chay thang (chon-top5.py khong import duoc) roi exec trong khong gian ns -> test dung code that."""
+    import ast
+    src=pathlib.Path(duong_dan).read_text(encoding='utf-8')
+    for n in ast.parse(src).body:
+        if isinstance(n,ast.FunctionDef) and n.name==ten:
+            exec(compile(ast.Module(body=[n],type_ignores=[]),str(duong_dan),'exec'),ns); return ns[ten]
+    raise AssertionError(f'khong thay ham {ten} trong {duong_dan}')
+
+class VungUkraine(unittest.TestCase):      # 15/10: UA = vung THAM KHAO; du lieu co UA khong gay KeyError va KHONG bao gio duoc chon
+    def test_bang_vung(self):
+        self.assertEqual(tr.LOC_CUA_MA['UA'],'uk-ua'); self.assertEqual(tr.LOC_CUA_MA['IN'],'en-in')
+        for ma,loc in tr.LOC_CUA_MA.items():
+            if ma!='UA': self.assertEqual(loc,'en-'+ma.lower())
+        self.assertNotEqual(tr.LOC_CUA_MA['UA'],'en-ua')
+        self.assertEqual(set(tr.VUNG_THAM_KHAO),{'IN','UA'}); self.assertEqual(tr.vung_doc_cua({'vung':'Ukraine'}),'Ukraine')
+    def test_bang_tien_te_chon_top5(self):
+        import ast
+        src=(T/'chon-top5.py').read_text(encoding='utf-8'); tt=None
+        for n in ast.parse(src).body:
+            if isinstance(n,ast.Assign) and getattr(n.targets[0],'id','')=='TIEN_TE': tt=ast.literal_eval(n.value)
+        self.assertEqual(tt['UA'],'UAH'); self.assertEqual(set(tt),set(tr.LOC_CUA_MA))
+    def test_ung_vien_khong_chon_ua_du_re_nhat(self):
+        ung_vien=ham_tu_script(T/'chon-top5.py','ung_vien',dict(d=dict(hangs=[
+            dict(khoa='ua',ma='UA',giam=70,vnd=40000,ten='Rẻ nhất theo tỷ giá ngân hàng'),dict(khoa='in',ma='IN',giam=70,vnd=45000,ten='Ấn'),
+            dict(khoa='sg',ma='SG',giam=50,vnd=90000,ten='Mua được'),dict(khoa='th',ma='TH',giam=50,vnd=95000,ten='Thái')]),
+            th={k:(i,) for i,k in enumerate(('ua','in','sg','th'))},HANG_DEM=300,tr=tr,t=types.SimpleNamespace(_la_goi_nhieu_game=lambda h:False),gia=lambda h:h['vnd']))
+        self.assertEqual([h['ma'] for h in ung_vien(100000)],['SG','TH'])
+    def test_xet_chan_ua_truoc_khi_goi_mang(self):
+        def mang(*a): raise AssertionError('khong duoc goi mang cho vung tham khao')
+        ns=dict(dong_game=lambda t:t,da_len=set(),NB=types.SimpleNamespace(trung=lambda *a:None),tr=tr,d=dict(so=dict(game={'ua':dict(vung=dict(UA=dict(id='P',giam=70,con='UAH 100')))})),lay_trang=mang,GT=None,han_ms=0,TIEN_TE={})
+        xet=ham_tu_script(T/'chon-top5.py','xet',ns)
+        for ma in ('UA','IN'):
+            r,ly=xet(dict(ten='Steelrising',khoa='ua',anh='x',ma=ma,giam=70)); self.assertIsNone(r); self.assertIn('tham khao',ly)
+        r,ly=xet(dict(ten='Steelrising',khoa='ua',anh='x',ma='SG',giam=70)); self.assertIsNone(r); self.assertIn('so khong co product cua vung SG',ly)   # vung mua duoc van di tiep qua cua chan
+
 if __name__=='__main__': unittest.main(verbosity=1)

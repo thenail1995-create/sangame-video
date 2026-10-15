@@ -6,7 +6,7 @@ hashtag co #SănGame). Co kiem-lai.json -> moi muc phai du pid + loc + gia_cuc_b
 Co tin.json (Tin nhanh) -> MOI THE CO GIA tren hinh phai co DUNG 1 ban ghi kiem_lai (khop pid + loc + gia_vnd), du truong; thieu / rong / trung -> loi (Sol #13)."""
 import json,pathlib,sys
 TRUONG_SO=('gia_cuc_bo',)
-VUNG_LOC={'SG':'en-sg','HK':'en-hk','US':'en-us','ID':'en-id','TH':'en-th','IN':'en-in'}
+VUNG_LOC={'SG':'en-sg','HK':'en-hk','US':'en-us','ID':'en-id','TH':'en-th','IN':'en-in','UA':'uk-ua'}   # UA: dat locale uk-ua (KHONG ghep 'en-'+ma); chi la bang tra, UA khong bao gio duoc chon lam deal
 TRUONG_DONG_NHAT=('gia_vnd','gia_cuc_bo','tien_te','endTime')
 def khu_trung(kl):
     """Nhieu the co the chia chung game => kiem-lai co ban ghi trung (pid,loc). Dong nhat moi truong (TRUONG_DONG_NHAT) thi gop con 1; khac nhau => loi. -> (list da khu, list loi)"""

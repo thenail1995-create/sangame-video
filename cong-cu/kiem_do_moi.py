@@ -10,6 +10,7 @@ Dau ra --github-output: moi=1|0, data_sha=<sha>, ly_do=<chuoi 1 dong>."""
 import argparse,datetime,json,os,pathlib,re,subprocess,sys
 ROOT=pathlib.Path(__file__).resolve().parent.parent
 VUNG=['SG','HK','IN','ID','US','TH']
+# 15/10: Ukraine (UA, giam-gia-uk-UA.json) la vung THAM KHAO + TUY CHON: KHONG nam trong VUNG nay, thieu/cu/hong file UA khong bao gio lam du lieu thanh 'cu'.
 VN=datetime.timezone(datetime.timedelta(hours=7),'Asia/Ho_Chi_Minh')   # VN khong co gio mua he => +07 co dinh tuong duong Asia/Ho_Chi_Minh
 TRUONG_MOC_FEED='cap_nhat'   # moc thoi gian rieng trong moi giam-gia-en-<vung>.json (ISO, co Z/offset hoac chi ngay)
 TEN_DANG={'top5':'Top 5','keo-thom':'Keo thom','keo-thom-2':'Keo thom (khung 15:00)','keo-thom-3':'Keo thom (khung 22:00)','tin-nhanh':'Tin nhanh'}

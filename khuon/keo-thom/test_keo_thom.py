@@ -177,3 +177,14 @@ class TenKhoDoc(unittest.TestCase):
         self.assertFalse(kho_doc('Indiana Jones and the Great Circle'))
         self.assertFalse(kho_doc(None))
         self.assertTrue(kho_doc('Hello Kitty Island Adventure'))   # luat khong hinh meo
+
+class KeoKhongChonUkraine(unittest.TestCase):   # 15/10: Keo chi vung mua duoc bang the PSN -> UA (va IN) KHONG nam trong loi_chu.VUNG
+    def test_vung_keo_khong_co_ua_in(self):
+        self.assertEqual(set(lc.VUNG),{'US','HK','SG','TH','ID'}); self.assertEqual(set(lc.TEN_DAY_DU),set(lc.VUNG))
+        self.assertNotIn('UA',lc.VUNG); self.assertNotIn('IN',lc.VUNG)
+    def test_chon_keo_loc_theo_vung_va_co_the(self):   # bo loc that cua chon-keo.py (dong `vs=`): ma ngoai VUNG hoac khong_co_the bi loai
+        dong=next(l for l in (T/'chon-keo.py').read_text(encoding='utf-8').splitlines() if l.strip().startswith('vs=[v for v in x['))
+        vs=eval(dong.strip()[len('vs='):],{'x':{'vung':[
+            dict(ma='UA',vnd_con=40000,khong_co_the=True),dict(ma='UA',vnd_con=40000),dict(ma='IN',vnd_con=45000,khong_co_the=True),
+            dict(ma='SG',vnd_con=90000),dict(ma='TH',vnd_con=95000)]},'VUNG':lc.VUNG})
+        self.assertEqual([v['ma'] for v in vs],['SG','TH'])   # ke ca UA khong co co khong_co_the van bi loai vi khong thuoc VUNG
