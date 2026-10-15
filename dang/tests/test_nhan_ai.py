@@ -127,14 +127,20 @@ class YouTube(unittest.TestCase):
 
     def test_insert_va_update_deu_co_co(self):
         self.assertEqual(self._insert(), {"privacyStatus": "private", "selfDeclaredMadeForKids": False,
-                                          "containsSyntheticMedia": True})
+                                          "embeddable": True, "publicStatsViewable": True, "license": "youtube", "containsSyntheticMedia": True})
         self.assertEqual(self._update(), {"privacyStatus": "public", "selfDeclaredMadeForKids": False,
-                                          "containsSyntheticMedia": True})
+                                          "embeddable": True, "publicStatsViewable": True, "license": "youtube", "containsSyntheticMedia": True})
+
+    def test_update_giu_nhung_va_luot_xem(self):  # 15/10: update ghi de status -> thieu truong la YouTube tat nhung
+        for st in (self._insert(), self._update()):
+            self.assertIs(st["embeddable"], True)
+            self.assertIs(st["publicStatsViewable"], True)
+            self.assertEqual(st["license"], "youtube")
 
     def test_tat_khong_co_co(self):
         with mock.patch.object(chung, "CO_GIONG_AI", False):
-            self.assertEqual(self._insert(), {"privacyStatus": "private", "selfDeclaredMadeForKids": False})
-            self.assertEqual(self._update(), {"privacyStatus": "public", "selfDeclaredMadeForKids": False})
+            self.assertEqual(self._insert(), {"privacyStatus": "private", "selfDeclaredMadeForKids": False, "embeddable": True, "publicStatsViewable": True, "license": "youtube"})
+            self.assertEqual(self._update(), {"privacyStatus": "public", "selfDeclaredMadeForKids": False, "embeddable": True, "publicStatsViewable": True, "license": "youtube"})
 
 
 class Caption(unittest.TestCase):
