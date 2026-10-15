@@ -121,6 +121,12 @@ class BiDanhVungVaLiteral(unittest.TestCase):   # Opus chot 11/10 cho thu-d
     def test_sing_nghe_thanh_sinh(self):
         self.assertEqual(vg('mua store Hồng Kông hay sinh có rẻ hơn không ta?'),['HK','SG']); self.assertEqual(vg('xinh'),['SG']); self.assertEqual(vg('xin-ga-po'),['SG']); self.assertEqual(vg('xin ga po'),['SG'])
         self.assertEqual(vg('nhanh tay nha, hết giảm trước hai giờ chiều'),[]); self.assertEqual(vg('Săn Game chấm com'),[])
+    def test_sing_nghe_thanh_sync(self):   # Keo 22:00 15/10: turbo viet 'Sing' thanh 'SYNC' -> D3 bao lech, bo khung (ban nghe THAT trong log run 38743258130)
+        nghe='Store Hồng Kông đang rẻ nhất, rẻ hơn SYNC 120, rẻ hơn INDO 150.'
+        self.assertEqual(vg(nghe),['HK','SG','ID'])
+        self.assertEqual(ns.doi_chieu(nghe,cap=[('SG',120000),('ID',150000)]),[])
+        self.assertTrue(ns.doi_chieu('Store Hồng Kông đang rẻ nhất, rẻ hơn SYNC 150, rẻ hơn INDO 120.',cap=[('SG',120000),('ID',150000)]))   # dao so van TRUOT
+        self.assertEqual(vg('synchronize'),[])
     def test_literal_chi_khi_ky_vong_noi_tat(self):
         cap=[('SG',760000)]
         self.assertEqual(ns.noi_tat_literal(760000),706000); self.assertEqual(ns.noi_tat_literal(120000),102000); self.assertIsNone(ns.noi_tat_literal(650000)); self.assertIsNone(ns.noi_tat_literal(706000)); self.assertIsNone(ns.noi_tat_literal(300000))

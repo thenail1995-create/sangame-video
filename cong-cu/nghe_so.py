@@ -161,7 +161,8 @@ def doc_phan_tram(van_ban):
 
 # ---------------------------------------------------------------- vung
 # 'sinh'/'xinh' (SG): Whisper small nghe 'Sing' thanh 'sinh' tren video that thu-d; bi danh CHI dung o doc_vung
-VUNG_MAU=[('US',r'my|hoa ky|usa'),('HK',r'hong ?kong|hong kon|hongkong|honkong'),('SG',r'singapore|singapo|xin[ -]ga[ -]po|sin[ -]ga[ -]po|sing|sinh|xinh'),
+# 'sync' (SG): Whisper turbo viet 'Sing' thanh 'SYNC' (Keo 22:00 15/10: «re hon SYNC 120» -> bo khung)
+VUNG_MAU=[('US',r'my|hoa ky|usa'),('HK',r'hong ?kong|hong kon|hongkong|honkong'),('SG',r'singapore|singapo|xin[ -]ga[ -]po|sin[ -]ga[ -]po|sing|sinh|xinh|sync'),
           ('TH',r'thai lan|thai'),('ID',r'indonesia|indo|in do'),('IN',r'an do|ando|india'),
           ('UA',r'ukraine|ukraina|ucraina|u crai na|u cren')]   # UA: vung THAM KHAO (khong the o VN) - chi la bang tra de nghe/doi chieu khong KeyError, KHONG phai vung duoc chon
 VUNG_HIEN={'US':'MỸ','HK':'HỒNG KÔNG','SG':'SINGAPORE','TH':'THÁI LAN','ID':'INDONESIA','IN':'ẤN ĐỘ','UA':'UKRAINE'}   # chu hoa tren hinh (dung chung khi so DOM)
