@@ -117,12 +117,19 @@ def trang_thai_ai():
     return {"containsSyntheticMedia": True} if chung.CO_GIONG_AI else {}
 
 
+def trang_thai(privacy):
+    """videos.update GHI DE ca muc status: thieu embeddable/publicStatsViewable la YouTube TAT nhung + an luot xem
+    (15/10 moi Shorts tu dong playableInEmbed:false) -> insert lan update deu gui du truong."""
+    return {"privacyStatus": privacy, "selfDeclaredMadeForKids": False, "embeddable": True,
+            "publicStatsViewable": True, "license": "youtube", **trang_thai_ai()}
+
+
 def chuan_bi(tk, nc, luu):
     du_lieu = nc.tep("shorts").read_bytes()
-    trang_thai = {"privacyStatus": "private", "selfDeclaredMadeForKids": False, **trang_thai_ai()}
+    trang_thai_moi = trang_thai("private")
     thong_tin = {"snippet": {"title": nc.tieu_de_youtube(), "description": nc.mo_ta_youtube(),
                         "categoryId": "20", "tags": [h.lstrip("#") for h in nc.hashtags("ig")][:15]},
-            "status": trang_thai}
+            "status": trang_thai_moi}
     try:
         r = http.gui("POST", UPLOAD, timeout=60, params={"uploadType": "resumable", "part": "snippet,status"},
                      json_body=thong_tin, headers={**_hdr(tk), "X-Upload-Content-Length": str(len(du_lieu)),
@@ -163,7 +170,7 @@ def cong_khai(tk, nc, dong):
     ket = {"id_bai": vid, "link": f"https://www.youtube.com/shorts/{vid}"}
     if _privacy(tk, vid) == "public":
         return ket
-    body = {"id": vid, "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False, **trang_thai_ai()}}
+    body = {"id": vid, "status": trang_thai("public")}
     try:
         r = http.gui("PUT", f"{API}/videos", headers=_hdr(tk), params={"part": "status"}, json_body=body, timeout=30)
         ok = r.status == 200
