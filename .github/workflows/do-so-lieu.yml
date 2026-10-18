@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   do-so-lieu:
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/do-so-giu-chan'   # TAM: nhanh do de chay thu; Opus bo ve main khi gop
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
