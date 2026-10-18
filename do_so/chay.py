@@ -36,7 +36,7 @@ RE_NGAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 RE_GIO = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})")
 NEN_TANG = {"Facebook", "Instagram", "Threads", "YouTube", "TikTok"}
 BIGINT = ("luot_xem", "thich", "binh_luan", "chia_se", "luu", "theo_doi_moi")
-NUMERIC = ("xem_tb_giay", "do_dai_giay", "nguoi_la_pct", "xem_het_pct")
+NUMERIC = ("xem_tb_giay", "do_dai_giay", "nguoi_la_pct", "xem_het_pct", "con_giay_3_pct", "bo_qua_3s_pct")
 TEN = {"tin-nhanh": "Tin nhanh 07:30", "top5": "Top 5 12:00", "keo-thom-2": "Kèo 15:00", "keo-thom": "Kèo 20:00",
        "keo-thom-3": "Kèo 22:00", "binh-chon": "Bình chọn", "tin-web": "Tin web"}
 KHONG_DONG_CHU = ("binh-chon", "tin-web")
@@ -115,6 +115,33 @@ def _tong(x):
 
 def _link(s):
     return s[:300] if isinstance(s, str) and s.startswith("https://") else None
+
+
+def con_giay_3(duong_cong, giay=3):
+    """% nguoi xem con o giay `giay` tu retentionCurve cua Zernio ({"0": 1, "1": 0.78, ...}, khoa = giay, gia tri = ti le 0-1).
+    Noi suy tuyen tinh neu khong co dung khoa; ngoai doan do (video ngan hon, duong cong rong/sai) -> None."""
+    if not isinstance(duong_cong, dict):
+        return None
+    diem = []
+    for k, v in duong_cong.items():
+        try:
+            x = float(k)
+        except (TypeError, ValueError):
+            continue
+        y = _so(v)
+        if y is None or not 0 <= y <= 1.5 or not math.isfinite(x):
+            continue
+        diem.append((x, y))
+    diem.sort()
+    for i, (x, y) in enumerate(diem):
+        if x == giay:
+            return round(100 * y, 1)
+        if x > giay:
+            if i == 0:
+                return None
+            x0, y0 = diem[i - 1]
+            return round(100 * (y0 + (y - y0) * (giay - x0) / (x - x0)), 1)
+    return None
 
 
 def nhan_khuon(dang, do_dai, la_chu):
@@ -317,7 +344,7 @@ def _ig_bai(ctx, kq, m, pt):
         return
     metric = "views,reach,likes,comments,shares,saved"
     if m.get("media_product_type") == "REELS":
-        metric += ",ig_reels_avg_watch_time"
+        metric += ",ig_reels_avg_watch_time,reels_skip_rate"
     d = _insights(f"{G}/{mid}/insights", {"metric": metric, "access_token": pt}, kq)
     if d is None:
         return
@@ -325,12 +352,15 @@ def _ig_bai(ctx, kq, m, pt):
         kq.loi_bai += 1
         return
     aw = _so(_ins(d, "ig_reels_avg_watch_time"))      # mili giay
+    bo_qua = _so(_ins(d, "reels_skip_rate"))          # % bo qua trong 3 giay dau (0-100)
+    if bo_qua is not None and not 0 <= bo_qua <= 100:
+        bo_qua = None
     khoa = ctx.khoa_do_dai("ig", mid)
     kq.them(_dong("Instagram", mid, gio, ctx.dang("ig", mid), None, m.get("media_type") in ("IMAGE", "CAROUSEL_ALBUM"),
                   m.get("permalink"), _dong1(m.get("caption")), luot_xem=_ins(d, "views"), thich=_ins(d, "likes"),
                   binh_luan=_ins(d, "comments"), chia_se=_ins(d, "shares"), luu=_ins(d, "saved"),
                   xem_tb_giay=round(aw / 1000, 1) if aw is not None else None,
-                  do_dai_giay=ctx.do_dai.get(khoa) if khoa else None))
+                  do_dai_giay=ctx.do_dai.get(khoa) if khoa else None, bo_qua_3s_pct=bo_qua))
 
 
 def do_instagram(ctx, kq):
@@ -557,6 +587,7 @@ def _tt_bai(kq, gio, p, khop):
                   luot_xem=an.get("views"), thich=an.get("likes"), binh_luan=an.get("comments"), chia_se=an.get("shares"),
                   luu=an.get("saves"), theo_doi_moi=an.get("follows"), do_dai_giay=an.get("videoDurationSeconds"),
                   nguoi_la_pct=round(100 * nl, 1) if nl is not None else None,
+                  con_giay_3_pct=con_giay_3(an.get("retentionCurve")),
                   xem_het_pct=round(100 * hoan_tat, 1) if hoan_tat is not None and an.get("views") else None))
 
 

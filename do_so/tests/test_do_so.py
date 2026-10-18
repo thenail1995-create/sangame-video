@@ -96,7 +96,7 @@ def mang_day_du():
         {"id": "M1", "caption": "Reel 1", "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": MOI, "permalink": "https://www.instagram.com/reel/M1/"},
         {"id": "M2", "caption": "Anh", "media_type": "IMAGE", "media_product_type": "FEED", "timestamp": MOI2, "permalink": "https://www.instagram.com/p/M2/"},
         {"id": "MCU", "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": CU}]}))   # cu: bo
-    m.them("GET", "/M1/insights", P(body={"data": chi_so(views=500, reach=300, likes=9, comments=1, shares=2, saved=3, ig_reels_avg_watch_time=12345)}))
+    m.them("GET", "/M1/insights", P(body={"data": chi_so(views=500, reach=300, likes=9, comments=1, shares=2, saved=3, ig_reels_avg_watch_time=12345, reels_skip_rate=92.3)}))
     m.them("GET", "/M2/insights", P(body={"data": chi_so(views=40, reach=30, likes=1, comments=0, shares=0, saved=0)}))
     m.them("GET", "/IGU1", P(body={"followers_count": 111}))
     # --- Threads ---
@@ -129,7 +129,8 @@ def mang_day_du():
     def pz(pid, gio, **kw):
         return {"_id": pid, "status": "published", "publishedAt": gio, "platformPostUrl": f"https://www.tiktok.com/@s/video/{pid}?lang=vi",
                 "content": f"TT {pid}\nhai", "analytics": {"views": 1000, "likes": 50, "comments": 5, "shares": 4, "saves": 6, "follows": 2,
-                                                          "videoDurationSeconds": 30, "completionRate": 0.456, "audienceTypes": {"nonFollower": 0.9}}, **kw}
+                                                          "videoDurationSeconds": 30, "completionRate": 0.456, "audienceTypes": {"nonFollower": 0.9},
+                                                          "retentionCurve": {"0": 1, "1": 0.78, "2": 0.32, "3": 0.22, "4": 0.17}}, **kw}
     m.them("GET", "zernio.com/api/v1/analytics", lambda mt, url, kw: P(body={
         "posts": [pz("ZP1", "2026-10-14T13:00:00Z", latePostId="Z1"),
                   pz("ZP2", "2026-10-14T05:20:00Z"),           # lech 10 phut so dong hop thu ZH
@@ -218,6 +219,8 @@ class ToanLuot(Chung):
         self.assertNotIn("ig_reels_avg_watch_time", metric["M2"])
         m1 = self.hang(cong, "Instagram", "M1")
         self.assertEqual((m1["luot_xem"], m1["xem_tb_giay"], m1["luu"], m1["chia_se"]), (500, 12.3, 3, 2))
+        self.assertEqual(m1["bo_qua_3s_pct"], 92.3)
+        self.assertIsNone(self.hang(cong, "Instagram", "M2")["bo_qua_3s_pct"])
         self.assertEqual(m1["do_dai_giay"], 30)                      # lay tu bai FB cung (ngay, dang)
         self.assertEqual(m1["khuon"], "Tin nhanh 07:30")
         m2 = self.hang(cong, "Instagram", "M2")
@@ -252,13 +255,15 @@ class ToanLuot(Chung):
         z = ids["ZP1"]
         self.assertEqual((z["luot_xem"], z["luu"], z["theo_doi_moi"], z["nguoi_la_pct"], z["xem_het_pct"], z["do_dai_giay"]),
                          (1000, 6, 2, 90.0, 45.6, 30))
+        self.assertEqual(z["con_giay_3_pct"], 22.0)
         self.assertEqual(z["link"], "https://www.tiktok.com/@s/video/ZP1")        # bo ?query
         self.assertEqual(z["khuon"], "Kèo 20:00")
 
     def test_payload_dung_khoa(self):
         _, cong = self.chay(mang_day_du())
         co = {"nen_tang", "id_bai", "ngay", "gio_dang", "dang", "khuon", "link", "tieu_de", "luot_xem", "thich", "binh_luan",
-              "chia_se", "luu", "theo_doi_moi", "xem_tb_giay", "do_dai_giay", "nguoi_la_pct", "xem_het_pct"}
+              "chia_se", "luu", "theo_doi_moi", "xem_tb_giay", "do_dai_giay", "nguoi_la_pct", "xem_het_pct",
+              "con_giay_3_pct", "bo_qua_3s_pct"}
         for b in cong.bai_da_ghi():
             self.assertEqual(set(b), co)
         self.assertEqual(set(cong.ghi[0]), {"do_luc", "bai", "kenh"})
@@ -504,6 +509,18 @@ class Review(Chung):
 
 
 class NhoLe(unittest.TestCase):
+    def test_con_giay_3_tu_duong_cong(self):
+        f = chay.con_giay_3
+        self.assertEqual(f({"0": 1, "1": 0.78, "2": 0.32, "3": 0.22, "4": 0.17}), 22.0)       # co dung khoa 3
+        self.assertEqual(f({"0": 1, "2": 0.4, "4": 0.2}), 30.0)                               # buoc 2 s: noi suy 2->4
+        self.assertEqual(f({"0": 1, "6": 0.4}), 70.0)                                          # buoc 6 s
+        self.assertIsNone(f({"0": 1, "1": 0.5, "2": 0.3}))                                     # video ngan hon 3 s
+        self.assertIsNone(f({}))
+        self.assertIsNone(f(None))
+        self.assertIsNone(f({"4": 0.2, "5": 0.1}))                                             # khong co diem truoc giay 3
+        self.assertEqual(f({"0": 1, "x": 5, "3": "0.5", "4": None}), 50.0)                     # khoa/gia tri rac bi bo
+        self.assertIsNone(f({"0": 1, "3": 7}))                                                 # ti le vo ly
+
     def test_chia_lo_500_kenh_chi_o_lo_dau(self):
         cong = CongDo()
         gio = dt.datetime(2026, 10, 14, 0, 30, tzinfo=dt.timezone.utc)
