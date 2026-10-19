@@ -74,7 +74,9 @@ def _neo_ws0(ws, ws0):
     diem = lambda j: sum(c in {x[0] for x in wsn[j + 1:j + 8]} for c in khoa[1:4])
     sc = [(diem(j), j) for j in ung]; best = max(s for s, _ in sc); tot = [j for s, j in sc if s == best]
     if len(tot) > 1: return None, f'nhap nhang: {len(tot)} cho khop «{khoa[0]}» ngang diem'
-    if len(khoa) > 1 and best == 0 and len(ung) > 1: return None, 'khong khop tu ke tiep'
+    # 0 tu ke tiep khop = neo khong dang tin, du chi co 1 cho (Keo 18/10: Whisper nghe «Game nhập vai» thanh «Viêm nhập vai»,
+    # cho «game» duy nhat la «Săn Game» o doan ket 29,32 s -> bao lech 16,6 s, dung 2 khung du giong dung)
+    if len(khoa) > 1 and best == 0: return None, f'khong khop tu ke tiep sau «{khoa[0]}»'
     return wsn[tot[0]][1], ''
 
 
