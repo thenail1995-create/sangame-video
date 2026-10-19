@@ -85,6 +85,15 @@ class TestKiemMoc(unittest.TestCase):
         bad = moc_ten(tu, t_dau=(0.2, 7.5, 5.2, 9.0))
         self.assertEqual(km.kiem(bad, self.db, ws0)['ket_qua'], 'lech')
 
+    def test_neo_mot_cho_khong_khop_tu_ke_tiep_la_khong_kiem_duoc(self):   # Keo 18/10 Triangle Strategy: «Game nhập vai» nghe thanh «Viêm nhập vai»
+        moc = [dict(w=w, s=round(5.2 + i * 0.2, 2), e=round(5.38 + i * 0.2, 2), doan='gioi') for i, w in enumerate(('Game', 'nhập', 'vai,', 'người'))]
+        ws0 = [['Viêm', 5.2, 5.4], ['nhập', 5.4, 5.6], ['vai,', 5.6, 5.8], ['người', 5.8, 6.0], ['xan', 9.0, 9.2], ['game', 9.2, 9.4], ['để', 9.4, 9.6], ['không', 9.6, 9.8]]
+        r = km.kiem(moc, self.db, ws0)['lech_tung_doan'][0]
+        self.assertEqual(r['ws0'], 'khong_kiem_duoc'); self.assertIn('khong khop tu ke tiep', r['ly_do_ws0'])
+        # BAT BUOC TRUOT: cung cho duy nhat nhung tu ke tiep KHOP (doan that bi dat sai moc) -> van lech
+        ws0b = [['xan', 9.0, 9.2], ['game', 9.2, 9.4], ['nhập', 9.4, 9.6], ['vai,', 9.6, 9.8]]
+        self.assertEqual(km.kiem(moc, self.db, ws0b)['lech_tung_doan'][0]['ws0'], 'lech')
+
     def test_doan_toan_so_hoac_thieu_ws0_khong_kiem_duoc(self):
         moc = [dict(w='100', s=2.6, e=2.8, doan='gia'), dict(w='mot', s=2.8, e=3.0, doan='gia')]
         kq = km.kiem(moc, self.db, [['x', 1, 1.1]]); self.assertEqual(kq['lech_tung_doan'][0]['ws0'], 'khong_kiem_duoc')
