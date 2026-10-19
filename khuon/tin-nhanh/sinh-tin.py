@@ -120,6 +120,7 @@ for k,r in enumerate(C['tin'],1):
     nen=r.get('trailer') or []
     if nen:
         TRJ[f't{k}']=nen; s=('v',f't{k}'); cuoi_v=s; sl=2
+        if r.get('anh_tep'): nguon[f'du-t{k}']=[['a',pathlib.Path(r['anh_tep'][0]).name,1]]   # moi trailer deu toi -> nen-tin.py dung anh nay (18/10 Tekken 8: 3 trailer khong co doan sang, mat 4 khung)
     else:
         tep=(r.get('anh_chup') or r['anh_tep'])[0]; s=('a',pathlib.Path(tep).name); cuoi_a=s; sl=1
     nguon['mo'].append([s[0],s[1],1]); nguon[f't{k}']=[[s[0],s[1],sl]]
