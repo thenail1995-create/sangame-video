@@ -91,7 +91,10 @@ else:
                 for k in range(len(TRJ[ten])):
                     try: them_trailer(tai_trailer(ten,k),phan,can); break
                     except SystemExit as e: print('bo qua',ten,k,e)
-                else: raise SystemExit(f'het trailer sang cho {ten}')
+                else:
+                    du=[x for x in NGUON.get(f'du-{ten}',[]) if x[0]=='a' and (TS/x[1]).exists()]
+                    if not du: raise SystemExit(f'het trailer sang cho {ten} va khong co anh du phong')
+                    print('het trailer sang cho',ten,'-> dung anh',du[0][1]); them_anh([TS/du[0][1]],phan)
             else: them_anh([TS/ten],phan)
     json.dump(dict(canh=canh,nguon=NGUON_KHOA,tsha=TSHA,seg=SEG),open(DOAN,'w'),indent=1)
 
