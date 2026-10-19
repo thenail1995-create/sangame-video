@@ -30,6 +30,7 @@ sys.path.insert(0,A.repo); os.chdir(A.repo)
 import tin_tu_sinh as t, trang_game
 import tempfile
 import media_xau
+import doan_sang,nen_tang
 import importlib.util
 _sp=importlib.util.spec_from_file_location('sangame_gia_trang',str(T.parent.parent/'cong-cu'/'gia_trang.py')); GT=importlib.util.module_from_spec(_sp); _sp.loader.exec_module(GT)   # doc gia/han/media dung pid (dung chung voi Top 5 va dang/gia.py); nap theo duong dan de khong them cong-cu vao sys.path
 GIAM_MIN=40; HANG_TOI_DA=300; SO_NGAY_LAP=14; CHENH_MIN=20000; CHENH_PCT=0.04; DUNG_SAI_GIA=0.02
@@ -139,6 +140,13 @@ def kiem_ung_vien(u):
         for k in (.25,.5,.75):
             ly=media_xau.kiem_anh(media_xau.khung(f,dai*k,os.path.join(td,'k.png')))
             if ly: return None,f'khung trailer {int(k*100)}% {ly}'
+        # 19/10 (Keo 22:00 18/10 run 39131831379: Triangle Strategy chi 18,0 s doan sang -> chet o job chung): do tong doan SANG nhu nen08.ke_hoach(); < 21 s -> LOAI o day de may chon game ke
+        try:
+            doan,giay=doan_sang.do_trailer(tr[0]['video'],nen_tang.cao('tiktok'),td,san={tr[0]['video'][0]:f})
+            dat,ly,tong=doan_sang.quyet_dinh(doan)
+            print(f'    do doan sang trailer: {tong:.1f}s ({giay:.0f}s do)')
+            if not dat: return None,ly
+        except Exception as e: print(f'    CANH BAO: khong do duoc doan sang trailer ({str(e)[:80]}) — khong loai vi chuyen nay')
         for j,u in enumerate(([tr[0]['anh']] if tr[0]['anh'] else [])+tr[0]['anh_chup'][:2]):
             g=os.path.join(td,f'a{j}.jpg')
             try: urllib.request.urlretrieve(u,g)
