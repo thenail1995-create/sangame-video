@@ -38,9 +38,11 @@ def kho_dir():
     p=pathlib.Path(os.environ.get('GIONG_KHO') or (pathlib.Path.home()/'.cache/sangame-giong')); p.mkdir(parents=True,exist_ok=True); return p
 def thang_vn(): return datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=7))).strftime('%Y-%m')
 class Eleven:
-    def __init__(self,anon): self.anon=anon
+    def __init__(self,anon,khoa=''): self.anon=anon; self.khoa=khoa
     def goi(self,body,timeout=180):
-        rq=urllib.request.Request(URL,data=json.dumps(body).encode(),headers={'Authorization':'Bearer '+self.anon,'content-type':'application/json'})
+        hd={'Authorization':'Bearer '+self.anon,'content-type':'application/json'}
+        if self.khoa: hd['x-khoa']=self.khoa
+        rq=urllib.request.Request(URL,data=json.dumps(body).encode(),headers=hd)
         with urllib.request.urlopen(rq,timeout=timeout) as r: return json.loads(r.read())
 def lay_mp3(url,dich,lan=3,ngu=time.sleep):
     loi=None
@@ -70,10 +72,11 @@ def cmd_giong(a,cong=None,el=None,ngu=time.sleep,tai=None):
     if kho_cuc_bo(khoa): return 'kho',0
     anon=_doc_khoa('SUPABASE_ANON_THENAIL','thenail-supabase-anon'); khoa_cong=_doc_khoa('SG_CONG_KHOA','sangame-sg-cong-khoa')
     if not anon or not khoa_cong: raise Loi('LOI: thieu SUPABASE_ANON_THENAIL hoac SG_CONG_KHOA')
-    bi_mat=[anon,khoa_cong]
+    khoa_giong=_doc_khoa('THENAIL_KHOA_GIONG','thenail-khoa-giong')   # tuy chon: thieu thi goi nhu cu (khong header x-khoa)
+    bi_mat=[anon,khoa_cong,khoa_giong]
     if cong is None:
         from dang.so import Cong; cong=Cong(khoa_cong)
-    el=el or Eleven(anon)
+    el=el or Eleven(anon,khoa_giong)
     def tra(k):   # cong hong => DUNG (khong thu khi khong tra duoc kho)
         try: return cong.goi('tim_credit_khoa',khoa_kho=k)
         except Exception as e: raise Loi(f'DUNG: khong tra duoc kho rieng khoa {k} (cong loi) - khong thu khi chua ro kho: '+che(str(e),bi_mat)[:200])

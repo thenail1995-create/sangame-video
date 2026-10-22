@@ -429,6 +429,7 @@ jobs:
         env:
           GIONG_KHO: ${{ runner.temp }}/giong-kho
           SUPABASE_ANON_THENAIL: ${{ secrets.SUPABASE_ANON_THENAIL }}
+          THENAIL_KHOA_GIONG: ${{ secrets.THENAIL_KHOA_GIONG }}
           SG_CONG_KHOA: ${{ secrets.SG_CONG_KHOA }}
         run: |
           set -euo pipefail
@@ -454,6 +455,7 @@ jobs:
           NGUON_DU_LIEU: ${{ env.LIVE == '1' && env.BA_PHA != '1' && format('{0}/du-lieu', github.workspace) || '' }}
           GIONG_KHO: ${{ runner.temp }}/giong-kho
           SUPABASE_ANON_THENAIL: ${{ env.LIVE == '1' && env.BA_PHA != '1' && secrets.SUPABASE_ANON_THENAIL || '' }}
+          THENAIL_KHOA_GIONG: ${{ env.LIVE == '1' && env.BA_PHA != '1' && secrets.THENAIL_KHOA_GIONG || '' }}
           SG_CONG_KHOA: ${{ env.LIVE == '1' && env.BA_PHA != '1' && secrets.SG_CONG_KHOA || '' }}
         run: |
           set -euo pipefail
