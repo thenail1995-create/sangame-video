@@ -61,7 +61,7 @@ else:
         f=TS/(ten_tep or (f'tr{i}s.mp4' if steam else f'tr{i}.mp4'))   # tep Steam rieng de khong dung nham tep PS cu
         if not f.exists():
             if la_m3u8(u):   # m3u8 khong tai bang urlretrieve; -c copy bao NAL loi (24/10) nen ma hoa lai, toi da 90 s, bo tieng
-                r=chay(['ffmpeg','-v','error','-y','-i',u,'-t','90','-c:v','libx264','-crf','18','-pix_fmt','yuv420p','-an',str(f)],timeout=900)
+                r=chay(['ffmpeg','-v','error','-y','-i',u,'-t','150','-c:v','libx264','-crf','18','-pix_fmt','yuv420p','-an',str(f)],timeout=900)
                 if r.returncode!=0 or not f.exists(): f.unlink(missing_ok=True); print(f'trailer Steam game {i} tai loi: {r.stderr[-300:]}'); return None
             else: urllib.request.urlretrieve(u,f)
         if la_m3u8(u): w,h,d=thong(str(f))   # kich thuoc/thoi luong cua TEP DA TAI (toi da 90 s), ke ca khi dung lai tep cu
@@ -80,12 +80,13 @@ else:
     def sang_ca_doan(f,a,dl,cr=''):   # do sang TUNG KHUNG cua doan (5 diem van lot chop den ngan — LOI-SAI H23)
         y=chay(['ffmpeg','-v','error','-ss',f'{a:.2f}','-t',f'{dl:.2f}','-i',f,'-vf',(cr+',' if cr else '')+'fps=10,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-','-f','null','-']).stdout
         return [float(v) for v in re.findall(r'YAVG=([\d.]+)',y)] or [0.0]
-    def chon_doan(f,d,can,dl,cr='',cat_dau=0.0,cat_cuoi=0.0):
+    def chon_doan(f,d,can,dl,cr='',cat_dau=0.0,cat_cuoi=0.0,long=False):
         # Doan dung phai NAM TRON trong 1 canh, du sang tung khung (Top 5 10/10: chi do diem giua -> lot doan chuyen den, YAVG 0-2; LOI-SAI H23),
         # tranh 10% dau (logo, xep hang tuoi) va 25% cuoi (man chu ket, title card)
         o=chay(['ffmpeg','-v','error','-i',f,'-vf','scdet=threshold=10,metadata=print:key=lavfi.scd.time:file=-','-an','-f','null','-'],timeout=600)
         cut=[0.0]+sorted(float(x) for x in re.findall(r'lavfi.scd.time=([\d.]+)',o.stdout))+[d]
-        shot=[(a,b) for a,b in zip(cut,cut[1:]) if b-a>=dl+0.15 and a>=max(d*0.10,cat_dau) and b<=min(d*0.75,d-cat_cuoi)]   # trailer Steam hay co logo/chu dau-cuoi: bo 3 s dau, 4 s cuoi
+        dau,cuoi=(0.04,0.92) if long else (0.10,0.75)   # long (24/10, Steam SOTTR 90 s khong co doan dat): noi cua so 4%-92%, van bo cat_dau/cat_cuoi
+        shot=[(a,b) for a,b in zip(cut,cut[1:]) if b-a>=dl+0.15 and a>=max(d*dau,cat_dau) and b<=min(d*cuoi,d-cat_cuoi)]   # trailer Steam hay co logo/chu dau-cuoi: bo 3 s dau, 4 s cuoi
         tot=[]
         for a,b in shot:
             s0=a+min(0.1,(b-a-dl)/2); ys=sang_ca_doan(f,s0,dl,cr)
@@ -100,7 +101,11 @@ else:
     SEG=[]
     def them_trailer(info,dd,can):
         f,w,h,d,steam=info; cr=cat_vien(f); dl=dd/can
-        ds=chon_doan(f,d,can,dl,doc_crop(cr,w,h,cao('tiktok')),*((3.0,4.0) if steam else (0.0,0.0)))   # do sang tren DUNG dai se dung (mang rong nhat)
+        cat=(3.0,4.0) if steam else (0.0,0.0)
+        try: ds=chon_doan(f,d,can,dl,doc_crop(cr,w,h,cao('tiktok')),*cat)   # do sang tren DUNG dai se dung (mang rong nhat)
+        except SystemExit as e:
+            print(f'{e} -> thu lai cua so rong 4%-92%', file=sys.stderr)
+            ds=chon_doan(f,d,can,dl,doc_crop(cr,w,h,cao('tiktok')),*cat,long=True)
         for a,b in ds: SEG.append(dict(kieu='v',src=f,ss=a,dl=dl,cr=cr,w=w,h=h))
     def them_anh(paths,dd):
         dl=dd/len(paths)
