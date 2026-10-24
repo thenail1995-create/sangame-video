@@ -57,6 +57,12 @@ class TimVideo(unittest.TestCase):
     def test_pegi_chi_tru_nhe(self):
         v=VS.tim_video('Risk of Rain 2',gia_lap(tim([item(632360,'Risk of Rain 2')]),mv('PEGI EN Launch Trailer','RTX Trailer','Misc',app=632360)))
         self.assertEqual([x['ten'] for x in v],['PEGI EN Launch Trailer','Misc','RTX Trailer'])
+    def test_esrb_trial_demo_ha_hang_trailer_launch_len_truoc(self):   # 24/10: SOTTR «ESRB EN - Trial Trailer» dung dau, khong co doan sang du dai
+        v=VS.tim_video('Shadow of the Tomb Raider',gia_lap(tim([item(750920,'Shadow of the Tomb Raider')]),mv('ESRB EN - Trial Trailer','ESRB EN Launch Trailer','ESRB - tech trailer','Demo Gameplay','Dev Diary',app=750920)))
+        ten=[x['ten'] for x in v]
+        self.assertEqual(ten[:2],['ESRB EN Launch Trailer','ESRB - tech trailer'])
+        self.assertLess(ten.index('ESRB EN Launch Trailer'),ten.index('ESRB EN - Trial Trailer'))
+        self.assertGreater(VS._uu_tien('Game Demo Trailer'),VS._uu_tien('Game Trailer')); self.assertEqual(VS._uu_tien('ESRB Trailer'),VS._uu_tien('PEGI Trailer'))
     def test_app_khong_video_hoac_khong_co_hls_thi_rong(self):
         self.assertEqual(VS.tim_video('Risk of Rain 2',gia_lap(tim([item(632360,'Risk of Rain 2')]),{'632360':{'632360':{'success':True,'data':{'movies':[{'id':1,'name':'t'}]}}}})),[])
         self.assertEqual(VS.tim_video('Risk of Rain 2',gia_lap(tim([item(632360,'Risk of Rain 2')]),{'632360':{'632360':{'success':True,'data':[]}}})),[])
