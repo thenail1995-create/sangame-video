@@ -65,9 +65,13 @@ else:
                 if r.returncode!=0 or not f.exists(): f.unlink(missing_ok=True); print(f'trailer Steam game {i} tai loi: {r.stderr[-300:]}'); return None
             else: urllib.request.urlretrieve(u,f)
         if la_m3u8(u): w,h,d=thong(str(f))   # kich thuoc/thoi luong cua TEP DA TAI (toi da 90 s), ke ca khi dung lai tep cu
-        for fr in (0.3,0.5,0.7):   # K18: khung trailer la anh giu cho -> bo ca trailer (dung anh chup / bia)
+        phang=[]   # K18: khung trailer la anh giu cho -> bo ca trailer. 24/10: chu giu cho (OCR) o 1 khung la bo; con "mang mau phang" chi bo khi CA 3 khung deu phang
+        for fr in (0.3,0.5,0.7):   # (Inscryption: game toi mau phang 78-93% o 1 khung, trailer that bi bo nham -> roi ve anh)
             png=TS/f'_kt{i}.png'; chay(['ffmpeg','-v','error','-y','-ss',f'{d*fr:.2f}','-i',str(f),'-frames:v','1','-vf','scale=960:-2',str(png)])
-            if png.exists() and (ly:=MH.la_giu_cho(png)): print(f'trailer game {i} bo: {ly}'); return None
+            if png.exists() and (ly:=MH.la_giu_cho(png)):
+                if not ly.startswith('mang mau phang'): print(f'trailer game {i} bo: {ly}'); return None
+                phang.append(ly)
+        if len(phang)==3: print(f'trailer game {i} bo: ca 3 khung {phang}'); return None
         return str(f),w,h,d,steam
     def cat_vien(f):   # dai den dien anh: cropdetect tren 6 khung giua trailer
         o=chay(['ffmpeg','-v','info','-ss','20','-t','30','-i',f,'-vf','fps=0.2,cropdetect=24:2:0','-f','null','-'])
