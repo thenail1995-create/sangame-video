@@ -44,8 +44,12 @@ const r=await pg.evaluate(([MOC_DUNG,V,CANH])=>{
      const rg=document.createRange();rg.selectNodeContents(e);const q=rg.getBoundingClientRect();if(!q.width)continue;
      let ho;if(cs){const c=e.closest(cs);if(!c)continue;const k=c.getBoundingClientRect();ho=[k.left,k.right,k.top,k.bottom]}else ho=[120,888,0,1920];
      const dd=(e.scrollWidth>e.clientWidth+1&&getComputedStyle(e).display!=="inline"&&getComputedStyle(e).transform==="none"&&e.clientWidth>0)?" scrollW":"";
-     if(q.right>ho[1]+1||q.left<ho[0]-1||q.bottom>ho[3]+1||dd)out.tranChu.push(t.toFixed(2)+" "+sel+" "+e.textContent.trim().slice(0,28)+" chu "+Math.round(q.left)+"-"+Math.round(q.right)+" hop "+Math.round(ho[0])+"-"+Math.round(ho[1])+dd)}}}
+     const bar=sel===".bar > .v";   // V3b: chu trong thanh (42 px) trong thanh cao 44 px: hop Range cao hon thanh (leading dau tieng Viet) -> chi do NGANG (chieu doc do bang cau truc: dong cao = thanh)
+     if(q.right>ho[1]+1||q.left<ho[0]-1||(!bar&&q.bottom>ho[3]+1)||dd)out.tranChu.push(t.toFixed(2)+" "+sel+" "+e.textContent.trim().slice(0,28)+" chu "+Math.round(q.left)+"-"+Math.round(q.right)+" hop "+Math.round(ho[0])+"-"+Math.round(ho[1])+dd)}}}
  // bo cuc A: do thanh gia o MOI moc dung yen (chieu dai that tren hinh, hang dang sang, vach X, nhan X)
+ // V3b: gia tren THE o moc dung yen (tu luc cham dich TL +0,2 s toi het hang) = dung gia du lieu, khong con so dang chay
+ out.giaDung=[];
+ for(let r=1;r<=5;r++){const c=CANH.find(c=>c.k==="h"+r);for(const t of [+(window.__LAND[r]+.2).toFixed(2),+(c.b-0.3).toFixed(2)]){window.__seek(t);const e=document.getElementById("gia"+r);out.giaDung.push({r,t,hien:vis(e),got:tx(e),mong:TOP[r-1].gia})}}
  out.bang={};
  for(const t of MOC_DUNG){window.__seek(t);const rows={};
    for(let r=1;r<=5;r++){const row=document.getElementById("row"+r),bar=document.getElementById("bar"+r).getBoundingClientRect();
