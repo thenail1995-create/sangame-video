@@ -37,19 +37,34 @@ if cu.get('canh')==canh and cu.get('top')==[g['slug'] for g in top]:
 else:
     if __import__('os').environ.get('NEN_DUNG_LAI')=='1': raise SystemExit('nen-doan.json khong khop canh/nguon - job ban KHONG duoc chon lai doan nen (3 ban phai cung doan)')
     def la_m3u8(u): return '.m3u8' in u.split('?')[0]
-    def tai_trailer(i,g):
-        steam=g.get('nguon_video')=='steam'
-        r=tai_mot(i,g,g.get('trailer') or [],steam)
-        if r is None and not steam:   # Opus 24/10: trailer PS bi K18 loai / tai hong -> thu trailer Steam truoc khi roi ve anh tinh (K18 giu nguyen)
+    def ung_vien(i,g):
+        """Sinh LAN LUOT cac trailer dung duoc cua game i (moi cai: tai + K18 xong): trailer chinh, roi (Steam) cac video Steam ke tiep toi da 4,
+        hoac (PS) cac video Steam khi trailer PS bi K18 loai/tai hong. Khong tai truoc; chi tai cai ke khi cai truoc khong chon duoc doan (them_trailer)."""
+        steam=g.get('nguon_video')=='steam'; urls=g.get('trailer') or []
+        r=tai_mot(i,g,urls,steam)
+        if r: yield r
+        if steam:   # Opus 24/10: trailer Steam dau (vd «ESRB EN - Trial Trailer» cua SOTTR) khong co doan sang du dai -> thu video Steam ke tiep thay vi roi ve anh
+            for k,u in enumerate(urls[:4]):
+                if r and u==r[5]: continue
+                print(f"game {i}: thu video Steam #{k+1} {u.split('?')[0][-40:]}")
+                x=tai_mot(i,g,[u],True,f'tr{i}s{k+1}.mp4')
+                if x: yield x
+        else:   # trailer PS bi K18 loai / tai hong / khong chon duoc doan -> thu trailer Steam truoc khi roi ve anh tinh (K18 giu nguyen)
             vs=[]
             for ten in dict.fromkeys([g.get('ten'),g.get('ten_goc')]):
                 vs=VS.tim_video(ten) if ten else []
                 if vs: break
             for k,v in enumerate(vs[:4]):   # thu TUNG video Steam (K18 xet theo tung trailer; mot trailer toi bi loai thi thu cai ke)
                 print(f"game {i}: trailer PS khong dung duoc -> du phong Steam app {v['app_id']} «{v['ten']}»")
-                r=tai_mot(i,g,[v['url']],True,f'tr{i}s{k}.mp4')
-                if r: break
-        return r
+                x=tai_mot(i,g,[v['url']],True,f'tr{i}s{k}.mp4')
+                if x: yield x
+    UV={}   # i -> dict(ds=[trailer da tai], it=generator, xong=bool, uu=chi so trailer da chon duoc doan)
+    def lay_uv(i,k):
+        u=UV[i]
+        while len(u['ds'])<=k and not u['xong']:
+            try: u['ds'].append(next(u['it']))
+            except StopIteration: u['xong']=True
+        return u['ds'][k] if k<len(u['ds']) else None
     def tai_mot(i,g,urls,steam,ten_tep=None):
         if not urls: return None
         if steam or any(la_m3u8(u) for u in urls):   # trailer Steam (hls m3u8): GIU thu tu uu tien cua video_steam (Trailer/Gameplay/Launch truoc, PEGI sau); lay cai dau tien >= 720p
@@ -72,7 +87,7 @@ else:
                 if not ly.startswith('mang mau phang'): print(f'trailer game {i} bo: {ly}'); return None
                 phang.append(ly)
         if len(phang)==3: print(f'trailer game {i} bo: ca 3 khung {phang}'); return None
-        return str(f),w,h,d,steam
+        return str(f),w,h,d,steam,u
     def cat_vien(f):   # dai den dien anh: cropdetect tren 6 khung giua trailer
         o=chay(['ffmpeg','-v','info','-ss','20','-t','30','-i',f,'-vf','fps=0.2,cropdetect=24:2:0','-f','null','-'])
         c=re.findall(r'crop=(\d+):(\d+):(\d+):(\d+)',o.stderr)
@@ -99,18 +114,31 @@ else:
         if not tot: raise SystemExit(f'KHONG co doan sang du dai trong {f} — dung anh thay trailer')
         return [tot[int(k*(len(tot)-1)/max(1,can-1))] if can>1 else tot[len(tot)//2] for k in range(can)]
     SEG=[]
-    def them_trailer(info,dd,can):
-        f,w,h,d,steam=info; cr=cat_vien(f); dl=dd/can
-        cat=(3.0,4.0) if steam else (0.0,0.0)
-        try: ds=chon_doan(f,d,can,dl,doc_crop(cr,w,h,cao('tiktok')),*cat)   # do sang tren DUNG dai se dung (mang rong nhat)
-        except SystemExit as e:
-            print(f'{e} -> thu lai cua so rong 4%-92%', file=sys.stderr)
-            ds=chon_doan(f,d,can,dl,doc_crop(cr,w,h,cao('tiktok')),*cat,long=True)
-        for a,b in ds: SEG.append(dict(kieu='v',src=f,ss=a,dl=dl,cr=cr,w=w,h=h))
+    def them_trailer(i,dd,can):
+        """Chon doan trong trailer cua game i; khong duoc (ke ca cua so rong 4-92%) -> trailer ke tiep (toi da 5 cai: chinh + 4 du phong). Khong roi ve anh khi con video."""
+        u=UV[i]; dl=dd/can; loi=[]
+        thu=[u['uu']]+[k for k in range(5) if k!=u['uu']]
+        for k in thu:
+            info=lay_uv(i,k)
+            if info is None: continue
+            f,w,h,d,steam,url=info; cr=cat_vien(f)
+            cat=(3.0,4.0) if steam else (0.0,0.0)
+            try:
+                try: ds=chon_doan(f,d,can,dl,doc_crop(cr,w,h,cao('tiktok')),*cat)   # do sang tren DUNG dai se dung (mang rong nhat)
+                except SystemExit as e:
+                    print(f'{e} -> thu lai cua so rong 4%-92%', file=sys.stderr)
+                    ds=chon_doan(f,d,can,dl,doc_crop(cr,w,h,cao('tiktok')),*cat,long=True)
+            except SystemExit as e:
+                loi.append(str(e)); print(f'game {i}: trailer #{k} khong chon duoc doan ({pathlib.Path(f).name}) -> thu video ke tiep', file=sys.stderr); continue
+            u['uu']=k
+            for a,b in ds: SEG.append(dict(kieu='v',src=f,ss=a,dl=dl,cr=cr,w=w,h=h))
+            return
+        raise SystemExit(f'game {i}: KHONG video nao co doan sang du dai ({len(loi)} trailer da thu): '+' | '.join(loi))
     def them_anh(paths,dd):
         dl=dd/len(paths)
         for k,p in enumerate(paths): SEG.append(dict(kieu='a',src=str(p),ss=0,dl=dl,ben='trai' if k%2 else 'phai'))
-    TR={i:tai_trailer(i,g) for i,g in enumerate(top,1)}
+    for i,g in enumerate(top,1): UV[i]=dict(ds=[],it=ung_vien(i,g),xong=False,uu=0)
+    TR={i:lay_uv(i,0) for i,g in enumerate(top,1)}
     ANH={}
     for i,g in enumerate(top,1):
         if TR[i]: continue
@@ -128,13 +156,13 @@ else:
         dd=c['b']-c['a']
         if c['k']=='mo':      # mo dau: 5 canh nhanh, hang 5 -> 1
             for i in (5,4,3,2,1):
-                if TR[i]: them_trailer(TR[i],dd/5,1)
+                if TR[i]: them_trailer(i,dd/5,1)
                 else: them_anh(ANH[i][:1],dd/5)
         elif c['k']=='ket':   # ket: doan sang cua game hang 1
-            them_trailer(TR[1],dd,2) if TR[1] else them_anh(ANH[1][:1],dd)   # 2 canh ngan: trailer hiem canh sang lien 5,7 s
+            them_trailer(1,dd,2) if TR[1] else them_anh(ANH[1][:1],dd)   # 2 canh ngan: trailer hiem canh sang lien 5,7 s
         else:
             i=int(c['k'][1])
-            them_trailer(TR[i],dd,2) if TR[i] else them_anh(ANH[i][:2],dd)
+            them_trailer(i,dd,2) if TR[i] else them_anh(ANH[i][:2],dd)
     json.dump(dict(canh=canh,top=[g['slug'] for g in top],seg=SEG),open(DOAN,'w'),indent=1)
 
 def dung(nt):

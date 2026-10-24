@@ -80,11 +80,12 @@ def tim_app(ten, lay_json=None):
 
 
 def _uu_tien(ten_video):
-    """Diem nho = uu tien: trailer 0, gameplay/launch 1, khac 5. PHAT: PEGI/Rating +3 (nhe); RTX/NVIDIA/GeForce (logo hang card do hoa),
+    """Diem nho = uu tien: trailer 0, gameplay/launch 1, khac 5. PHAT: PEGI/Rating/ESRB +3 (nhe); Trial/Demo +3 nua (24/10: SOTTR «ESRB EN - Trial Trailer»
+    ngang «ESRB EN Launch Trailer» va dung truoc nho thu tu goc, nhung ban Trial khong co doan sang du dai -> Launch len truoc); RTX/NVIDIA/GeForce (logo hang card do hoa),
     Accolade/Review/Award (chu trich danh gia), Teaser (it canh game) +10 -> chi dung khi khong con video nao khac."""
     t = str(ten_video or "").lower()
     diem = 0 if "trailer" in t else 1 if re.search(r"gameplay|launch", t) else 5
-    return diem + (3 if re.search(r"pegi|rating|esrb|cero|usk|classification", t) else 0) + (10 if re.search(r"rtx|nvidia|geforce|accolade|review|award|teaser", t) else 0)
+    return diem + (3 if re.search(r"pegi|rating|esrb|cero|usk|classification", t) else 0) + (3 if re.search(r"\b(trial|demo)\b", t) else 0) + (10 if re.search(r"rtx|nvidia|geforce|accolade|review|award|teaser", t) else 0)
 
 
 def video_cua_app(app_id, lay_json=None):
