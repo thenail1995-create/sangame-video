@@ -33,9 +33,13 @@ concurrency:
   # Moi pha 1 nhom; queue: max de dispatch moi KHONG thay the luot cong-khai dang cho (mac dinh chi giu 1 pending va huy cai cu)
   group: dang-${{ inputs.pha }}-${{ inputs.ngay }}-${{ inputs.dang }}-${{ inputs.che_do }}
   queue: max
+env:
+  SG_KENH_BAT: ${{ vars.SG_KENH_BAT }}   # 24/10/2026: rong = moi kenh; "youtube" = chi YouTube
+
 jobs:
   kiem-dau-vao:
-    if: github.ref == 'refs/heads/main'
+    # 24/10/2026: chi dang that cac dang trong SG_DANG_BAT
+    if: github.ref == 'refs/heads/main' && (inputs.che_do != 'that' || vars.SG_DANG_BAT == '' || contains(format(',{0},', vars.SG_DANG_BAT), format(',{0},', inputs.dang)))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions: {}
@@ -83,7 +87,7 @@ jobs:
 
   # Mot job duy nhat dung site + deploy; MOT nhom chung cho ca repo, xep hang (queue: max) de khong lan nhau
   pages:
-    if: inputs.pha == 'chuan-bi'
+    if: inputs.pha == 'chuan-bi' && (vars.SG_KENH_BAT == '' || contains(format(',{0},', vars.SG_KENH_BAT), ',ig,'))
     needs: kiem
     runs-on: ubuntu-24.04
     timeout-minutes: 40
@@ -170,7 +174,7 @@ jobs:
 
   # IG: can URL cong khai tren Pages (Threads het dang video tu 12/10 - xem threads-chu.yml)
   chuan-bi-pages:
-    if: inputs.pha == 'chuan-bi'
+    if: inputs.pha == 'chuan-bi' && (vars.SG_KENH_BAT == '' || contains(format(',{0},', vars.SG_KENH_BAT), ',ig,'))
     needs: [kiem, pages]
     runs-on: ubuntu-24.04
     timeout-minutes: 40

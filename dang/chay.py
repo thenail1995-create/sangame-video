@@ -25,6 +25,13 @@ DICH_MAC_DINH = pathlib.Path(__file__).resolve().parent.parent / "dich.json"
 TRE_KIEM_GIO = dt.timedelta(minutes=15)
 
 
+def kenh_bat(ds=KENH):
+    """24/10/2026 (Hao: "dung lai i chang video thang"): bien repo SG_KENH_BAT (vd "youtube") gioi han kenh may dang.
+    Rong = moi kenh nhu cu."""
+    bat = {k.strip() for k in (os.environ.get("SG_KENH_BAT") or "").split(",") if k.strip()}
+    return [k for k in ds if not bat or k in bat]
+
+
 def gio_dang_mac_dinh(ngay, dang):
     h, m = map(int, GIO[dang].split(":"))
     d = dt.date.fromisoformat(ngay)
@@ -179,7 +186,7 @@ def pha_chuan_bi(a, cong, thu_muc, kenh_chon=None):
     man, nc = r
     if not kiem_gia(a, cong, nc):
         return 3
-    kenh_chon = [k for k in (kenh_chon or KENH) if k not in ("tiktok", "x")]   # TikTok va X chi lam o pha cong khai
+    kenh_chon = [k for k in kenh_bat(kenh_chon or KENH) if k not in ("tiktok", "x")]   # TikTok va X chi lam o pha cong khai
     if any(k in ("ig", "threads") for k in kenh_chon):
         goc = os.environ.get("PAGES_URL") or "https://{}.github.io/{}".format(*manifest.REPO.split("/"))
         u_video, u_bia = site.url_cong_khai(goc, a.ngay, a.dang, man)
@@ -366,7 +373,7 @@ def pha_cong_khai(a, cong, thu_muc):
     cac_dong = [r for r in cong.doc_dang(a.ngay, a.ngay, a.che_do) if r.get("dang") == a.dang]
     dong_theo_kenh = {r["kenh"]: r for r in cac_dong}
     tin, loi = [], []
-    for kenh in KENH:
+    for kenh in kenh_bat():
         try:
             kq, ket = cong_khai_kenh(kenh, nc, dich, cong, dong_theo_kenh.get(kenh), cac_dong)
             if kq == "da_dang":
@@ -436,7 +443,7 @@ def pha_kiem_gio(a, cong):
     bay = chung.bay_gio()
     dong = {r["kenh"]: r for r in cong.doc_dang(a.ngay, a.ngay, a.che_do) if r.get("dang") == a.dang}
     van, chua_toi = [], 0
-    xet = [k for k in KENH if k != "x" or a.che_do == "that"]   # X chi co o che do that
+    xet = [k for k in kenh_bat() if k != "x" or a.che_do == "that"]   # X chi co o che do that
     for kenh in xet:
         r = dong.get(kenh)
         if bay < _gio_dong(r or {}, mac_dinh) + TRE_KIEM_GIO:
