@@ -194,6 +194,13 @@ if not SOM:   # can video da dung - KIEM SOM bo qua (bo kiem cuoi van chay)
     ghi('Whisper tung cau: ban ghep nghe khong kem giong goc',rv>=rg-0.05 and not xau,f"{len(cau)} cau; khop kich ban: giong goc {rg:.2f}, ban ghep {rv:.2f}"+(f"; cau kem: {xau}" if xau else ''),'A2')
 
 
+# 7a) Hao 24/10/2026 ("clip dang dung hinh thay video, toi muon thay bang video cua game do"): MOI doan nen phai la VIDEO (kieu='v'), 0 doan anh (kieu='a').
+#     Doc nen-doan.json (chon 1 lan, 3 ban dung chung). Thieu file / thieu khoa 'kieu' = LOI (fail-closed).
+try:
+    _sg=json.load(open(B/'nen-doan.json'))['seg']; _anh_nen=[f"doan {k} ({pathlib.Path(x.get('src','?')).name})" for k,x in enumerate(_sg) if x.get('kieu')!='v']
+    ghi('Moi doan nen la VIDEO cua game, 0 doan anh tinh (nen-doan.json)',bool(_sg) and not _anh_nen,f"{len(_sg)} doan; {len(_anh_nen)} doan khong phai video"+(f": {_anh_nen[:4]}" if _anh_nen else ''),'V1')
+except Exception as e: ghi('Moi doan nen la VIDEO cua game, 0 doan anh tinh (nen-doan.json)',False,f'khong doc duoc nen-doan.json: {e}','V1')
+
 # 7) K18: nen trailer/anh KHONG phai anh giu cho cua PS Store ("PLACEHOLDER SCREENSHOTS"). OCR 1 khung GIUA moi doan nen (nen-<nt>.mp4 = lop nen
 # thuan, chua co lop chu) -> thay PLACEHOLDER / SCREENSHOT / COMING SOON / TBA = LOI. Khong co tesseract = LOI (fail-closed).
 if not SOM:   # can video da dung - KIEM SOM bo qua (bo kiem cuoi van chay)
