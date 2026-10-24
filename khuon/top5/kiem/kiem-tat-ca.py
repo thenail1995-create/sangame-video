@@ -71,9 +71,12 @@ X=CFG['muc']//1000
 for kk,got,v in (('tit',ND['tit'],f'TOP 5 GAME PS DƯỚI {X}K'),('xlab',ND['xlab'],f'{X}K'),('con',ND['con'],f"Còn {CFG['con_lai']} game nữa dưới {X}K:"),('ngay1',ND['ngay1'],f"Ngày {CFG['ngay']}"),('ngay6',ND['ngay6'],f"Bảng xếp hạng · Ngày {CFG['ngay']}")):
     if got!=v: sai.append(f"{kk}: hinh '{got}' != du lieu '{v}'")
 ghi('D1 gia/ten/vung/giam tren hinh khop top5.json (DOM that, 5 hang + 5 thanh gia cuoi video + tieu de + nhan X + ngay)',not sai,f"{5*6+5*3+6} gia tri doi chieu; {len(sai)} lech"+(f": {sai[:4]}" if sai else ''),'D1')
+# 2a'') V3b: gia tren the o moc dung yen = dung gia du lieu (khong con so dang chay)
+_gd=[x for x in d['giaDung'] if x['got']!=x['mong'] or not x['hien']]
+ghi('Gia tren the o moc dung yen = dung gia du lieu (2 moc/hang: sau khi cham dich va cuoi hang; khong so dang chay)',not _gd and len(d['giaDung'])==10,f"{len(d['giaDung'])} moc do; {len(_gd)} lech"+(f": {_gd[:2]}" if _gd else ''),'V3b')
 # 2a') BO CUC A "Dua gia" (24/10/2026): do tren TRANG THAT o cac moc dung yen: (1) chieu dai moi thanh = gia/X * (vach X - mep trai thanh) sai <= 2 px,
 #      (2) dung 1 hang sang o moi khung cham (hang dang noi), luc mo tat ca mo, cuoi video ca 5 sang, (3) vach X dung toa do thiet ke (tam x 886) + nhan X khong tran 888.
-BAR_L,X_LINE=286,886   # toa do thiet ke (full.html: BARL, XLINE) — hang so KHAC voi gia tri DOM do duoc, nen doi mot ben thi phep nay trat
+BAR_L,X_LINE=250,886   # toa do thiet ke (full.html: BARL, XLINE) — hang so KHAC voi gia tri DOM do duoc, nen doi mot ben thi phep nay trat
 bang=list(d['bang'].items()); sai_d=[]; sai_s=[]; sai_x=[]
 if len(bang)!=7: sai_d.append(f'can 7 moc do (mo + 5 hang + cuoi), co {len(bang)}')
 else:

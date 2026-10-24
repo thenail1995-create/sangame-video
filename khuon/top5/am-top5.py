@@ -60,6 +60,14 @@ def cham(key):      # khung dau tien vat hien va co <= 1.03 (dau, so hang, gia..
     for f in range(1,F):
         x=K[f][key]
         if x and x[0]<=1.03: return f/FPS
+def pop(key):       # V3b: Pop-in spring (0 -> qua 1 -> 1): khung dau tien scale >= 0.95 (lon toi kich thuoc that)
+    for f in range(1,F):
+        x=K[f][key]
+        if x and x[0]>=0.95: return f/FPS
+def cham_dich(key): # V3b: count-up cham dich -> nay 1+0,07 (Count-up #007): khung dau tien scale > 1.02
+    for f in range(1,F):
+        x=K[f][key]
+        if x and x[0]>1.02: return f/FPS
 def dap_xuong(key): # the/bia bay vao: khung dau tien da dung yen (dich chuyen < 4 px)
     for f in range(1,F):
         x=K[f][key]
@@ -77,12 +85,12 @@ cu(nhanh_nhat(CANH['h5']['a']-0.2,CANH['h5']['a']+0.5),'lat2',-1,540,'bia gap th
 for r in (5,4,3,2,1):
     c=CANH[f'h{r}']
     if r!=5: cu(c['a']-0.2,'lat2',-2,540,f'lat sang hang {r} (khoang nghi tho)')
-    dap(cham(f'so{r}'),'dap',0 if r==1 else -2,540,f'so hang {r} dap giua khung')
+    dap(pop(f'so{r}'),'dap',0 if r==1 else -2,540,f'huy hieu hang {r} pop-in')
     ve=dap_xuong(f'soW{r}')   # so to bay vao o so cua dai duoi: tieng vut nhe, dinh truoc luc cham 0,12 s (bo cuc theo nen tang 10/10)
     if ve: cu(ve-0.12,'vut',-8,250,f'so hang {r} thu vao dai duoi')
     dap(dap_xuong(f'the{r}'),'dau',-5,700 if r%2 else 300,f'bia hang {r} dan xuong')
-    dap(cham(f'giam{r}'),'dau',-7,600,f'nhan giam hang {r}')
-    g=cham(f'gia{r}'); dap(g,'dap',-3,350,f'gia hang {r} dong dau')
+    dap(pop(f'giam{r}'),'dau',-7,600,f'nhan giam hang {r}')
+    g=cham_dich(f'gia{r}'); dap(g,'dap',-3,350,f'gia hang {r} cham dich (count-up)')
     if r==1 and g: cu(g-SOM+0.01,'kaching',-6,350,'hang 1: may tinh tien',g)
 cu(nhanh_nhat(CANH['ket']['a'],CANH['ket']['a']+0.6),'lat2',+1,540,'trang bang xep hang phu xuong')
 for i in range(5): dap(cham(f'dk{i}'),'dau',-10,300,f'dong {i+1} bang ket')
