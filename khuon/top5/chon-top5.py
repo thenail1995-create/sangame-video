@@ -29,6 +29,7 @@ han_ms=int((datetime.datetime.fromisoformat(f'{ngay_dang}T{GIO_DANG}:00+07:00')+
 gia=lambda h:int(t._dong(qd,h['vnd']).replace('.','').replace('đ',''))
 cung_game=lambda ten:t._ten_goc(ten) or ten   # dung de DEM: chi gop cac ban cua cung 1 game
 dong_game=ls.ten_dong_game
+_sp3=importlib.util.spec_from_file_location('sangame_video_steam',str(T.parent.parent/'cong-cu'/'video_steam.py')); VS=importlib.util.module_from_spec(_sp3); _sp3.loader.exec_module(VS)   # nguon video thu 2: trailer chinh chu tren Steam Store (Hao 24/10: moi canh phai la VIDEO cua dung game, bo anh tinh)
 _sp2=importlib.util.spec_from_file_location('sangame_da_noi_bat',str(T.parent.parent/'cong-cu'/'da_noi_bat.py')); DNB=importlib.util.module_from_spec(_sp2); _sp2.loader.exec_module(DNB)   # game da noi bat o dang KHAC (Tin nhanh 're nhat', Keo) trong 3 ngay (Hao 12/10: tin bi trung)
 NB=DNB.da_noi_bat(ngay_dang,'top5',3,ten_goc=t._ten_goc); print('da noi bat 3 ngay (dang khac):',NB.ghi_chu)
 da_len,ghi_chu_ls=ls.da_len(ngay_dang,3); print('lich su Top 5:',ghi_chu_ls,'| dong game da len:',sorted(da_len))
@@ -47,6 +48,15 @@ def lay_trang(loc,pid):
         except Exception: time.sleep(2*(lan+1))
     time.sleep(0.3); _trang[k]=ket; return ket
 bia_da=set()
+_steam={}
+def video_steam(h):
+    """PS Store khong co video -> trailer Steam. Thu ten hien thi roi ten goc (khong lap); loi mang -> [] (game bi loai, khong dung anh)."""
+    if h['khoa'] in _steam: return _steam[h['khoa']]
+    kq=[]
+    for ten in dict.fromkeys([tr.hien_thi(h['ten']),h['ten']]):
+        kq=VS.tim_video(ten)
+        if kq: break
+    _steam[h['khoa']]=kq; return kq
 def xet(h):
     """Ung vien -> dict hoac None (kem ly do). Goi trang PS Store DUNG vung cua gia duoc chon."""
     k=dong_game(h['ten'])
@@ -69,7 +79,12 @@ def xet(h):
     if not g['endTime']: return None,'khong co endTime (khong biet han giam)'
     if int(g['endTime'])<han_ms: return None,f"het han som ({datetime.datetime.fromtimestamp(int(g['endTime'])/1000,VN):%d/%m %H:%M} < gio dang + 2h)"
     m=GT.media(html,pid)   # trailer + anh chup CHI cua Product:{pid}
-    return dict(h=h,pid=pid,loc=loc,trailer=sorted(m['video']),anh_chup=m['anh_chup'][:6],endTime=g['endTime'],gia_cuc_bo=g['gia_cuc_bo'],tien_te=g['tien_te'] or TIEN_TE.get(ma)),None
+    trailer=sorted(m['video']); nguon='ps'; vsteam=[]
+    if not trailer:   # PS Store khong co media video -> Steam; van khong co -> LOAI game, lay game ke tiep (KHONG roi ve anh tinh)
+        vsteam=video_steam(h)
+        if not vsteam: return None,'khong co video game (PS Store khong co trailer, Steam khong co app khop/khong co video)'
+        trailer=[v['url'] for v in vsteam]; nguon='steam'
+    return dict(h=h,pid=pid,loc=loc,trailer=trailer,nguon_video=nguon,video_steam=vsteam,anh_chup=m['anh_chup'][:6],endTime=g['endTime'],gia_cuc_bo=g['gia_cuc_bo'],tien_te=g['tien_te'] or TIEN_TE.get(ma)),None
 def ung_vien(X):
     u=[h for h in d['hangs'] if h['khoa'] in th and th[h['khoa']][0]+1<=HANG_DEM and h['giam']>0 and h['vnd'] is not None
        and h['ma'] not in tr.VUNG_THAM_KHAO and not t._la_goi_nhieu_game(h) and gia(h)<=X]
@@ -101,7 +116,7 @@ for i,c in enumerate(ds,1):
     h=c['h']; anh=t.url_anh_day_du(h['anh'])
     urllib.request.urlretrieve(anh+'?w=720',T/f'tai-san/bia{i}.png')
     out.append(dict(hang_ban_chay=th[h['khoa']][0]+1,ten=tr.hien_thi(h['ten']),ten_the=tr.the(h['ten']),ten_goc=h['ten'],ten_doc=tr.doc(h['ten']),gia=t._dong(qd,h['vnd']),vung=h['vung'],ma=h['ma'],giam=h['giam'],
-                    goc=t._dong(qd,h['goc']),may=h['may_chuoi'],anh=anh,slug=h['slug'],pid=c['pid'],loc=c['loc'],trailer=c['trailer'],anh_chup=c['anh_chup'],
+                    goc=t._dong(qd,h['goc']),may=h['may_chuoi'],anh=anh,slug=h['slug'],pid=c['pid'],loc=c['loc'],trailer=c['trailer'],nguon_video=c['nguon_video'],video_steam=c['video_steam'],anh_chup=c['anh_chup'],
                     endTime=c['endTime'],gia_cuc_bo=c['gia_cuc_bo'],tien_te=c['tien_te']))
 json.dump(out,open(T/'top5.json','w'),ensure_ascii=False,indent=1)
 dd,mm=ngay_dang[8:10],ngay_dang[5:7]
@@ -116,4 +131,4 @@ tit=f"Top 5 game PlayStation bán chạy dưới {X//1000}.000đ hôm nay ({dd}/
 json.dump(dict(tieu_de=tit[:100],mo_ta=mo_ta[:2000],hashtag=['#SănGame','#PlayStation','#PS5','#GiảmGiá'],link='https://sangame.com.vn/'),open(T/'loi-dang.json','w'),ensure_ascii=False,indent=1)
 json.dump(dict(trang_thai='du',muc=X,tong=tong,ngay=ngay_dang,ghi_chu_lich_su=ghi_chu_ls,loai=nhat_ky[-30:]),open(T/'ket-qua-chon.json','w'),ensure_ascii=False,indent=1)
 print(f'muc {X//1000}K, tong {tong} game ban chay duoi muc (con lai {tong-5}); top 5:')
-for i,g in enumerate(out,1): print(f"  {i}. #{g['hang_ban_chay']} {g['ten']} [{g['ten_doc']}] {g['gia']} {g['vung']} -{g['giam']}% {g['gia_cuc_bo']} {g['tien_te']} het {datetime.datetime.fromtimestamp(int(g['endTime'])/1000,VN):%d/%m %H:%M} trailer:{len(g['trailer'])} anh:{len(g['anh_chup'])}")
+for i,g in enumerate(out,1): print(f"  {i}. #{g['hang_ban_chay']} {g['ten']} [{g['ten_doc']}] {g['gia']} {g['vung']} -{g['giam']}% {g['gia_cuc_bo']} {g['tien_te']} het {datetime.datetime.fromtimestamp(int(g['endTime'])/1000,VN):%d/%m %H:%M} trailer:{len(g['trailer'])} nguon:{g['nguon_video']}"+(f" steam_app:{g['video_steam'][0]['app_id']} «{g['video_steam'][0]['ten']}»" if g['nguon_video']=='steam' else ''))
