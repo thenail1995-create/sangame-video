@@ -10,7 +10,7 @@ const r=await pg.evaluate(()=>{
  const ids=["top5so","tem200","logo3"];for(let r=1;r<=5;r++)ids.push("so"+r,"soW"+r,"the"+r,"giam"+r,"gia"+r,"tag"+r);for(let i=0;i<5;i++)ids.push("qb"+i,"dk"+i);
  const nf=Math.round(window.DAI*30), rows=[];
  for(let f=0;f<nf;f++){window.__seek(f/30);const o={f};
-   for(const id of ids){const e=document.getElementById(id);o[id]=vis(e)?mt(e).map(x=>+x.toFixed(3)):0}
+   for(const id of ids){const e=document.getElementById(id);o[id]=(e&&vis(e))?mt(e).map(x=>+x.toFixed(3)):0}   // bo cuc A: vai id cu (tag*, top5so) khong con -> 0
    o.url=document.getElementById("urlc").textContent.length; o.H=parseFloat(document.getElementById("band").style.height); rows.push(o)}
  return rows});
 fs.writeFileSync(B+"/khung.json",JSON.stringify(r));console.log("khung.json",r.length,"khung");await b.close()})();

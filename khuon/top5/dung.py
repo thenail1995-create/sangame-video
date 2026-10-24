@@ -1,6 +1,6 @@
 # Dựng Top 5 THEO NỀN TẢNG (Hào 10/10: "thay đổi cho phù hợp từng nền tảng"; vùng giao diện ở nen-tang.json):
 # chèn dữ liệu + vùng giao diện vào full.html -> full-<nt>.build.html; chụp ảnh tĩnh / lớp alpha / ghép hình / ảnh bìa.
-# Ghép hình: trailer NÉT (nen-<nt>.mp4, cao 1920-S) đặt từ y=S tới đáy; phía trên là chính trailer đó phóng to, làm mờ, tối đi.
+# Ghép hình (bố cục A · Đua giá, 24/10/2026): trailer SẠCH (nen-<nt>.mp4, cao = nen-tang.json 'trailer') đặt ở y 0..cao; nửa dưới nền tối #0b0b10 + thanh giá do lớp chữ (full.html) vẽ.
 #   python3 dung.py build|stills|lop|hinh|bia [tiktok|reels|shorts|tat-ca] [moc giay]
 #   vd: python3 dung.py stills reels 3.6,9.0   |   python3 dung.py lop tat-ca   |   python3 dung.py bia shorts 2.2
 import json,subprocess,sys,pathlib
@@ -14,15 +14,14 @@ NT=json.load(open(B/'nen-tang.json'))
 canh=json.load(open(B/'canh.json')); DAI=canh[-1]['b']
 CFG=json.load(open(B/'cau-hinh.json'))   # {"ngay":"10/10","muc":200000,"tong":90,"con_lai":85}
 GRADE="eq=saturation=0.78:contrast=1.06,curves=r='0/0.07 1/0.98':g='0/0.05 1/0.94':b='0/0.03 1/0.84',noise=alls=8:allf=t"
-def cao(nt): return (1920-(NT[nt]['tren']+104))//2*2   # giong nen-top5.py
-def loc_nen(nt):   # [0:v] = nen-<nt>.mp4 -> khung 1080x1920 da chinh mau, nhan [b]
-    H=cao(nt); S=1920-H; WB=int(1080*1920/H)//2*2
-    # setsar=1: scale WB:1920 khong dung ti le lam ffmpeg chinh SAR (14400:14381) -> app hien lech 1 px (LOI-SAI K11)
+def cao(nt): return int(NT[nt].get('trailer',960))//2*2   # chieu cao trailer SACH (y 0..cao) — giong nen-top5.py; nua duoi la nen toi + thanh gia (full.html)
+def loc_nen(nt):   # [0:v] = nen-<nt>.mp4 (1080 x cao) -> khung 1080x1920: trailer NET o TREN (y 0..cao); phan duoi = chinh trailer do phong to, lam mo manh + toi ~25% (khong chu o do); nhan [b]
+    H=cao(nt); WB=int(1080*1920/H)//2*2
     return (f"[0:v]split[s][m];[m]scale={WB}:1920,setsar=1,crop=1080:1920,scale=270:480,boxblur=6:2,scale=1080:1920,setsar=1,"
-            f"colorchannelmixer=rr=.5:gg=.5:bb=.5,eq=saturation=0.8[mo];[mo][s]overlay=0:{S},{GRADE},setsar=1[b]")
+            f"colorchannelmixer=rr=.25:gg=.25:bb=.25,eq=saturation=0.8[mo];[mo][s]overlay=0:0,{GRADE},setsar=1[b]")
 def build(nt):
     m=json.load(open(V/'moc-chu.json')); s=(B/'full.html').read_text(encoding='utf-8')
-    nt_js=dict(ma=nt,ten=NT[nt]['ten'],tren=NT[nt]['tren'],duoi=NT[nt]['duoi'],S=1920-cao(nt))
+    nt_js=dict(ma=nt,ten=NT[nt]['ten'],tren=NT[nt]['tren'],duoi=NT[nt]['duoi'],yp=cao(nt))
     for k,v in [('__MOC__',m),('__CANH__',canh),('__TOP__',json.load(open(B/'top5.json'))),('__DAI__',DAI),('__NGAY__',CFG['ngay']),
                 ('__MUC__',CFG['muc']),('__DEM__',CFG['con_lai']),('__NT__',nt_js)]:
         s=s.replace(k,json.dumps(v,ensure_ascii=False))

@@ -62,15 +62,34 @@ for r in range(1,6):
     for k,v in mong.items():
         if h.get(k)!=v: sai.append(f"hang {r} {k}: hinh '{h.get(k)}' != du lieu '{v}'")
     if not (h['hienTen'] and h['hienGia']): sai.append(f'hang {r}: ten/gia khong hien luc dung yen')
-for i in range(5):
-    g=TOP[i]; k=ND['ket'][i]
-    if k.get('ten') in (ten_gon(g['ten']),ten_gon(g.get('ten_the') or g['ten'])): k=dict(k,ten=ten_gon(g['ten']))   # trang ket: ten day du, hoac ten the khi day du khong vua >= 26 px
-    for kk,v in (('ten',ten_gon(g['ten'])),('phu',f"−{g['giam']}% · {g['vung']}"),('gia',g['gia'].replace('.000đ','K'))):
-        if k.get(kk)!=v: sai.append(f"bang ket {i+1} {kk}: '{k.get(kk)}' != '{v}'")
+for k in ND['ket']:   # cuoi video: moi thanh co so gia (K) + chip -% dung du lieu (bo cuc A: bang ket cu = 5 thanh sang)
+    g=TOP[k['r']-1]
+    for kk,v in (('gia',g['gia'].replace('.000đ','K')),('giam',f"−{g['giam']}%")):
+        if k.get(kk)!=v: sai.append(f"thanh hang {k['r']} {kk}: '{k.get(kk)}' != '{v}'")
+    if not k['hien']: sai.append(f"thanh hang {k['r']}: so gia/chip khong hien o cuoi video")
 X=CFG['muc']//1000
-for kk,got,v in (('tit',ND['tit'],f'Top 5 bán chạy dưới {X}K'),('con',ND['con'],f"Còn {CFG['con_lai']} game nữa dưới {X}K:"),('ngay1',ND['ngay1'],f"Ngày {CFG['ngay']}"),('ngay6',ND['ngay6'],f"Bảng xếp hạng · Ngày {CFG['ngay']}")):
+for kk,got,v in (('tit',ND['tit'],f'TOP 5 GAME PS DƯỚI {X}K'),('xlab',ND['xlab'],f'{X}K'),('con',ND['con'],f"Còn {CFG['con_lai']} game nữa dưới {X}K:"),('ngay1',ND['ngay1'],f"Ngày {CFG['ngay']}"),('ngay6',ND['ngay6'],f"Bảng xếp hạng · Ngày {CFG['ngay']}")):
     if got!=v: sai.append(f"{kk}: hinh '{got}' != du lieu '{v}'")
-ghi('D1 gia/ten/vung/giam tren hinh khop top5.json (DOM that, 5 hang + bang ket + tit + ngay)',not sai,f"{5*6+15+4} gia tri doi chieu; {len(sai)} lech"+(f": {sai[:4]}" if sai else ''),'D1')
+ghi('D1 gia/ten/vung/giam tren hinh khop top5.json (DOM that, 5 hang + 5 thanh gia cuoi video + tieu de + nhan X + ngay)',not sai,f"{5*6+5*3+6} gia tri doi chieu; {len(sai)} lech"+(f": {sai[:4]}" if sai else ''),'D1')
+# 2a') BO CUC A "Dua gia" (24/10/2026): do tren TRANG THAT o cac moc dung yen: (1) chieu dai moi thanh = gia/X * (vach X - mep trai thanh) sai <= 2 px,
+#      (2) dung 1 hang sang o moi khung cham (hang dang noi), luc mo tat ca mo, cuoi video ca 5 sang, (3) vach X dung toa do thiet ke (tam x 886) + nhan X khong tran 888.
+BAR_L,X_LINE=286,886   # toa do thiet ke (full.html: BARL, XLINE) — hang so KHAC voi gia tri DOM do duoc, nen doi mot ben thi phep nay trat
+bang=list(d['bang'].items()); sai_d=[]; sai_s=[]; sai_x=[]
+if len(bang)!=7: sai_d.append(f'can 7 moc do (mo + 5 hang + cuoi), co {len(bang)}')
+else:
+    for j,(t,bb) in enumerate(bang):
+        for r in range(1,6):
+            rw=bb['rows'][str(r)]; ky=int(''.join(c for c in TOP[r-1]['gia'] if c.isdigit()))/CFG['muc']*(X_LINE-BAR_L)
+            if abs(rw['w']-ky)>2: sai_d.append(f"t={t} hang {r}: thanh {rw['w']:.1f} px != gia/X*{X_LINE-BAR_L} = {ky:.1f}")
+            if abs(rw['left']-BAR_L)>1: sai_d.append(f"t={t} hang {r}: mep trai thanh {rw['left']} != {BAR_L}")
+            sg=rw['sang']; mong=(0 if j==0 else 1 if (j<6 and 6-j==r) else 0) if j<6 else 1   # j=0 mo; j=1..5 -> hang 5..1; j=6 cuoi
+            if (mong==1 and sg<0.99) or (mong==0 and sg>0.01): sai_s.append(f"t={t} hang {r}: sang {sg} (mong {mong})")
+        if abs(bb['xl']-X_LINE)>1: sai_x.append(f"t={t}: vach X tai x {bb['xl']} != {X_LINE}")
+        if bb['lbR']>888.5: sai_x.append(f"t={t}: nhan X tran phai: {bb['lbR']} > 888")
+ghi('Chieu dai moi thanh = gia/X x (vach X - mep trai) (sai <= 2 px, 7 moc x 5 thanh)',not sai_d,f"35 thanh do; {len(sai_d)} lech"+(f": {sai_d[:3]}" if sai_d else ''),'A·dua-gia')
+ghi('Dung 1 hang sang o moi khung cham (mo: 0 hang; cuoi: ca 5)',not sai_s,f"7 moc; {len(sai_s)} sai"+(f": {sai_s[:3]}" if sai_s else ''),'A·dua-gia')
+ghi('Vach X dung vi tri thiet ke + nhan X trong vung an toan',not sai_x,f"{len(bang)} moc; {len(sai_x)} sai"+(f": {sai_x[:2]}" if sai_x else ''),'A·dua-gia')
+
 import nghe_so as NS
 import lien_ket_giong as LK   # D3 doi thiet ke 11/10: noi dung nghe tren GIONG SACH + phep 'giong trong video = giong da kiem'
 HOI_QUY=os.environ.get('HOI_QUY')=='1'   # B6: ngoai le DUY NHAT (workflow chi dat khi co fixture)
@@ -84,22 +103,21 @@ if ND_ is not None and all(g.get('endTime') for g in TOP):
     ghi('D2 deal con it nhat 2 gio sau gio dang (endTime)',not som,f"han toi thieu {han:%d/%m %H:%M}; endTime som nhat {min(datetime.datetime.fromtimestamp(int(e)/1000,vn) for _,e in ket):%d/%m %H:%M}"+(f"; HET HAN SOM: {som}" if som else ''),'D2')
 else: ghi('D2 deal con it nhat 2 gio sau gio dang (endTime)',False,'khong tinh duoc: thieu ngay dang hop le hoac thieu endTime cua mot hang','D2')
 
-# 2b) do tren LOP CHU that (anh alpha) o luc dung yen cua 5 canh hang:
-#   - khoi dau trang nam NGAY DUOI vung giao dien tren (N11/N12): 0..tren khong co giay; tren+20..tren+100 kin giay
-#   - lop chu che <= 30% vung trailer net (tu mep duoi khoi dau trang toi y 1500) (N10)
+# 2b) TRAILER SACH (bo cuc A, SAN-CHAT-LUONG #49): do tren LOP CHU that (anh alpha) — vung trailer y 0..'trailer' (nen-tang.json) KHONG co diem anh do hoa nao
+#   (alpha >= 5%) o cac moc mo / dung yen / cuoi; dai y trailer..1480 phai la nen toi (alpha >= 0.85); y > 1480 la trailer mo toi (khong co do hoa).
 if not SOM:   # can video da dung - KIEM SOM bo qua (bo kiem cuoi van chay)
     from PIL import Image
     CN=json.load(open(B/'canh.json')); MOC_H=[round(c['b']-0.3,2) for c in CN if c['k'].startswith('h')]
+    YP=NTS[NT]['trailer']; MOC_S=sorted(set([0.3,1.0,2.2]+MOC_H+[round(CN[-1]['b']-0.4,2)]))
     CAP=str(SK/'capture.mjs'); (B/'soi').mkdir(exist_ok=True)
     subprocess.run(['node',CAP,str(B/f'full-{NT}.build.html'),str(B/'soi'/f'kiem-{NT}'),'30',str(CN[-1]['b']),'1080','1920','--alpha',
-                    '--stills='+','.join(f'{t:.2f}' for t in MOC_H),'--quiet','--root='+str(B)],check=True)
-    tren_ho=[];giay=[];che=[]
-    for t in MOC_H:
-        a=np.asarray(Image.open(B/'soi'/f'kiem-{NT}_{t:.2f}s.png').convert('RGBA'))[:,:,3]>=217   # alpha >= 0.85 = kin
-        tren_ho.append(a[:TREN].mean()); giay.append(a[TREN+20:TREN+100].mean()); che.append(a[TREN+116:1500].mean())
-    ok_k=max(tren_ho)<=0.01 and min(giay)>=0.95
-    ghi(f'Khoi dau trang ngay duoi vung giao dien ({TREN} px)',ok_k,f"giay trong vung giao dien {max(tren_ho)*100:.1f}%; kin giay y {TREN+20}-{TREN+100}: {min(giay)*100:.0f}%",'N11/N12')
-    ghi('Lop chu che <= 30% vung trailer net (5 canh hang)',max(che)<=0.30,'che '+', '.join(f'{x*100:.0f}%' for x in che),'N10')
+                    '--stills='+','.join(f'{t:.2f}' for t in MOC_S),'--quiet','--root='+str(B)],check=True)
+    tren_ho=[];duoi_kin=[]
+    for t in MOC_S:
+        al=np.asarray(Image.open(B/'soi'/f'kiem-{NT}_{t:.2f}s.png').convert('RGBA'))[:,:,3]
+        tren_ho.append((al[:YP]>=13).mean()); duoi_kin.append((al[YP:1480,:]>=217).mean())
+    ghi(f'Trailer sach: vung y 0-{YP} khong co diem anh do hoa nao (alpha >= 5%), {len(MOC_S)} moc',max(tren_ho)<=0.0005,f"do hoa de len trailer toi da {max(tren_ho)*100:.3f}%",'N10/#49')
+    ghi('Dai thong tin phu nen toi (y trailer-1480, alpha >= 0.85; duoi 1480 chi con trailer mo, khong chu)',min(duoi_kin)>=0.995,f"kin toi thieu {min(duoi_kin)*100:.2f}%",'#49')
 
 # 3) tieng khop khung cham: moi cu co 'hinh' (khung cham do tren trang) -> tim suon len that trong bus quanh do
 bus=np.load(B/'sfx-bus.npy').mean(axis=0); hop=96; n=len(bus)//hop

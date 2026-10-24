@@ -1,5 +1,23 @@
 {
- "tiktok": {"ten": "TikTok", "tren": 240, "duoi": 1260, "ghi": "trên 240, dưới 660 (y 1260), cột nút phải 180 px từ y 840"},
- "reels":  {"ten": "Reels",  "tren": 269, "duoi": 1248, "ghi": "trên 269 (14%), dưới 672 (35%, y 1248), trái/phải 65"},
- "shorts": {"ten": "Shorts", "tren": 288, "duoi": 1248, "ghi": "trên 288, dưới 672 (y 1248), trái 48, phải 192"}
+ "tiktok": {
+  "ten": "TikTok",
+  "tren": 240,
+  "duoi": 1480,
+  "trailer": 880,
+  "ghi": "duoi 1480 = do tren anh chup dien thoai that 21/10 (SAN-CHAT-LUONG #49): bong bong binh luan TikTok 1520, cot nut x>909 tu y 1062; trailer sach y 0..880"
+ },
+ "reels": {
+  "ten": "Reels",
+  "tren": 269,
+  "duoi": 1480,
+  "trailer": 880,
+  "ghi": "duoi 1480: ten kenh Reels tu y 1728, cot nut x>928 tu y 1240 (do 21/10); trailer sach y 0..880"
+ },
+ "shorts": {
+  "ten": "Shorts",
+  "tren": 288,
+  "duoi": 1480,
+  "trailer": 880,
+  "ghi": "duoi 1480: ten kenh Shorts tu y 1490, cot nut x>902 tu y 1135 (do 21/10); trailer sach y 0..880"
+ }
 }
