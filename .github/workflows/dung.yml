@@ -76,7 +76,8 @@ concurrency:
   cancel-in-progress: false
 jobs:
   kiem-moi:
-    if: github.ref == 'refs/heads/main'
+    # 24/10/2026: chi chay that cac dang trong bien repo SG_DANG_BAT (vd "top5"); lich cron-job.org cu van goi het
+    if: github.ref == 'refs/heads/main' && ((github.event.inputs.che_do || github.event.client_payload.che_do || 'thu') != 'that' || vars.SG_DANG_BAT == '' || contains(format(',{0},', vars.SG_DANG_BAT), format(',{0},', github.event.inputs.dang || github.event.client_payload.dang)))
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:

@@ -19,9 +19,12 @@ permissions: {}
 concurrency:
   group: kiem-gio-${{ inputs.ngay }}-${{ inputs.dang }}-${{ inputs.che_do }}
   cancel-in-progress: false
+env:
+  SG_KENH_BAT: ${{ vars.SG_KENH_BAT }}   # 24/10/2026: rong = moi kenh
+
 jobs:
   kiem-gio:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && (inputs.che_do != 'that' || vars.SG_DANG_BAT == '' || contains(format(',{0},', vars.SG_DANG_BAT), format(',{0},', inputs.dang)))
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:

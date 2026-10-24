@@ -477,3 +477,26 @@ class TestKhongLoToken(Khung):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestChiMotKenh(Khung):
+    """24/10/2026: SG_KENH_BAT=youtube -> may chi dang YouTube (Top 5 i chang ban thang), kenh khac khong dung toi."""
+
+    def test_chi_youtube(self):
+        with mock.patch.dict(os.environ, {"SG_KENH_BAT": "youtube"}):
+            self.assertEqual(self.chay("chuan-bi"), 0)
+            self.assertEqual(self.chay("cong-khai"), 0)
+            self.ntfy.clear()
+            with mock.patch.object(chung, "bay_gio", lambda: g.GIO_DANG + dt.timedelta(minutes=16)):
+                self.assertEqual(self.chay("kiem-gio"), 0)
+        self.assertEqual(self.cong.trang_thai("youtube"), "da_dang")
+        self.assertEqual(self.kenh["youtube"].ck, 1)
+        for k in ("fb", "ig", "tiktok"):
+            self.assertEqual(self.kenh[k].cb + self.kenh[k].ck + self.kenh[k].hop, 0, k)
+        self.assertEqual(self.ntfy, [])
+
+    def test_rong_la_moi_kenh(self):
+        with mock.patch.dict(os.environ, {"SG_KENH_BAT": ""}):
+            self.assertEqual(chay.kenh_bat(), list(chay.KENH))
+        with mock.patch.dict(os.environ, {"SG_KENH_BAT": " youtube , fb "}):
+            self.assertEqual(chay.kenh_bat(), ["fb", "youtube"])
