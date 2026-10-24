@@ -1,16 +1,14 @@
 # Nền Top 5 (tự động, không chọn tay): trailer nét nhất của từng game -> dò cắt cảnh -> chọn đoạn sáng ở giữa trailer
 # -> cắt dải đen điện ảnh (LOI-SAI H20); game không có trailer -> ảnh chụp màn hình trượt chậm.
-# Bố cục THEO NỀN TẢNG (Hào 10/10: "thay đổi cho phù hợp từng nền tảng", LOI-SAI N12): khối đầu trang nằm ngay dưới vùng
-# giao diện của nền tảng (nen-tang.json: TikTok 240 / Reels 269 / Shorts 288), trailer NÉT liền một mảng từ mép dưới khối
-# tới đáy khung. Mảng nét cao 1920 - S nên cắt RỘNG hơn 9:16 (lấy trọn chiều cao khung trailer, không cắt đầu/chân);
-# phần trên khối là trailer mờ tối do dung.py ghép.
+# Bố cục A · Đua giá (Hào chọn 24/10/2026): trailer SẠCH ở nửa trên, y 0..'trailer' trong nen-tang.json (960 px cho cả 3 nền tảng),
+# không chữ/khối nào đè; nửa dưới là nền tối + 5 thanh giá do full.html vẽ. Mảng trailer cao 960 nên cắt vuông hơn 16:9 (lấy trọn chiều cao khung).
 # Mốc cảnh lấy từ dau-vao/moc-chu.json (đổi cảnh ở GIỮA khoảng nghỉ thở giữa 2 đoạn — LOI-SAI A6).
 #   python3 nen-top5.py [tiktok|reels|shorts|tat-ca]  -> canh.json, nen-doan.json (chọn đoạn 1 lần, dùng lại), nen-<nt>.mp4
 import json,subprocess,re,pathlib,urllib.request,sys
 import media_hop_le as MH   # K18: loai anh giu cho cua PS Store
 T=pathlib.Path(__file__).resolve().parent; TS=T/'tai-san'; sys.path.insert(0,str(T))
 NT=json.load(open(T/'nen-tang.json'))
-def cao(nt): return (1920-(NT[nt]['tren']+104))//2*2   # chieu cao mang trailer net; S = 1920 - cao = mep tren mang net
+def cao(nt): return int(NT[nt].get('trailer',960))//2*2   # chieu cao trailer SACH (y 0..cao); bo cuc A · Dua gia: phan duoi la nen toi + thanh gia (dung.py/full.html)
 top=json.load(open(T/'top5.json')); moc=json.load(open(T/'dau-vao/moc-chu.json'))
 GIU_CUOI=1.25
 doan=[];
@@ -121,7 +119,7 @@ def dung(nt):
     ra=T/f'nen-{nt}.mp4'
     a+=['-filter_complex',fc,'-map','[o]','-an','-c:v','libx264','-crf','16','-pix_fmt','yuv420p',str(ra)]
     r=subprocess.run(a); assert r.returncode==0
-    print(f'{ra.name}: 1080x{H}, mang net tu y={1920-H}')
+    print(f'{ra.name}: 1080x{H}, trailer sach y 0..{H}')
 # 'chon' = CHI chon doan + tai trailer/anh (canh.json, nen-doan.json, tai-san/): job chung cua CI; job tung ban sau do `python3 nen-... <nt>` dung lai nen-doan.json va chi ma hoa nen cua ban do
 ds=[] if len(sys.argv)>1 and sys.argv[1]=='chon' else list(NT) if len(sys.argv)<2 or sys.argv[1]=='tat-ca' else [sys.argv[1]]
 for nt in ds: dung(nt)
