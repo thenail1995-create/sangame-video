@@ -148,7 +148,31 @@ def chuan_bi(tk, nc, luu):
         luu(id_tai=vid)
     except Exception as e:  # video DA len YouTube ma khong ghi duoc id -> khong_ro, KHONG tai lai
         raise chung.LoiDang(f"YouTube da nhan video {vid} nhung ghi so loi: {type(e).__name__}", khong_ro=True) from None
-    return {"id_tai": vid}
+    ok, ly_do = dat_bia(tk, vid, nc)
+    return {"id_tai": vid, "bia": True if ok else f"loi: {ly_do}"}
+
+
+BIA_TOI_DA = 2 * 1024 * 1024   # thumbnails.set: toi da 2 MB
+
+
+def dat_bia(tk, vid, nc):
+    """thumbnails.set bang bia ban shorts (Hao 25/10: video Top 5 len YouTube khong co bia). Loi bia KHONG lam hong
+    video da tai: tra (ok, ly_do), chay.py ghi log 'bia=...'."""
+    try:
+        du_lieu = nc.tep("shorts", "bia").read_bytes()
+    except (OSError, KeyError) as e:
+        return False, f"khong doc duoc bia: {type(e).__name__}"
+    if not du_lieu or len(du_lieu) > BIA_TOI_DA:
+        return False, "bia rong hoac > 2 MB"
+    try:
+        r = http.gui("POST", f"{UPLOAD.rsplit('/', 1)[0]}/thumbnails/set", timeout=60,
+                     params={"videoId": vid, "uploadType": "media"}, data=du_lieu,
+                     headers={**_hdr(tk), "Content-Type": "image/jpeg"})
+        if r.status == 200:
+            return True, ""
+        return False, f"HTTP {r.status} {chung.cat(r.json())}"
+    except Exception as e:   # moi loi bia (ke ca loi la) KHONG duoc lam hong video da tai len
+        return False, chung.cat(f"{type(e).__name__}: {e}")
 
 
 def _privacy(tk, vid):

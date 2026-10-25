@@ -115,7 +115,7 @@ class YouTube(unittest.TestCase):
         m.them("PUT", "up.example", P(200, {"id": "YV1"}))
         with mock.patch("dang.http.gui", m):
             yt.chuan_bi(TOKEN_GIA["youtube"], tao_nc("that"), lambda **k: None)
-        return [k["json_body"] for me, u, k in m.goi if "upload/youtube" in u][0]["status"]
+        return [k["json_body"] for me, u, k in m.goi if "upload/youtube/v3/videos" in u][0]["status"]
 
     def _update(self):
         m = self._mang()
