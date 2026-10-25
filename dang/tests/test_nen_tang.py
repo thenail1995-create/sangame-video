@@ -157,11 +157,35 @@ class TestYT(unittest.TestCase):
         m.them("PUT", "up.example", P(200, {"id": "YV1"}))
         with mock.patch("dang.http.gui", m), patch_chung():
             r = yt.chuan_bi(TOKEN_GIA["youtube"], nc, luu)
-        body = [k["json_body"] for me, u, k in m.goi if "upload/youtube" in u][0]
+        body = [k["json_body"] for me, u, k in m.goi if "upload/youtube/v3/videos" in u][0]
         self.assertEqual(body["status"]["privacyStatus"], "private")
         self.assertNotIn("publishAt", body["status"])
         self.assertIn("#Shorts", body["snippet"]["description"])
         self.assertEqual((r["id_tai"], luu.ids["id_tai"]), ("YV1", "YV1"))
+
+    def test_chuan_bi_dat_bia_shorts(self):
+        nc, m = tao_nc("that"), self.mang_co_ban()
+        m.them("POST", "upload/youtube/v3/videos", P(headers={"Location": "https://up.example/s"}))
+        m.them("PUT", "up.example", P(200, {"id": "YV1"}))
+        m.them("POST", "youtube/v3/thumbnails/set", P(200, {"kind": "youtube#thumbnailSetResponse"}))
+        with mock.patch("dang.http.gui", m), patch_chung():
+            r = yt.chuan_bi(TOKEN_GIA["youtube"], nc, LuuGia())
+        goi = [(u, k) for me, u, k in m.goi if "thumbnails/set" in u]
+        self.assertEqual(len(goi), 1)
+        self.assertIn("YV1", goi[0][1]["params"]["videoId"])
+        self.assertEqual(goi[0][1]["data"], nc.tep("shorts", "bia").read_bytes())
+        self.assertIs(r["bia"], True)
+
+    def test_chuan_bi_bia_loi_van_tra_id(self):  # loi bia khong lam hong video da tai
+        nc, m = tao_nc("that"), self.mang_co_ban()
+        m.them("POST", "upload/youtube/v3/videos", P(headers={"Location": "https://up.example/s"}))
+        m.them("PUT", "up.example", P(200, {"id": "YV1"}))
+        m.them("POST", "youtube/v3/thumbnails/set", P(403, {"error": {"message": "forbidden"}}))
+        luu = LuuGia()
+        with mock.patch("dang.http.gui", m), patch_chung():
+            r = yt.chuan_bi(TOKEN_GIA["youtube"], nc, luu)
+        self.assertEqual((r["id_tai"], luu.ids["id_tai"]), ("YV1", "YV1"))
+        self.assertTrue(str(r["bia"]).startswith("loi: HTTP 403"))
 
     def test_chuan_bi_thu_chi_private(self):
         nc, m = tao_nc("thu"), self.mang_co_ban()
@@ -169,7 +193,7 @@ class TestYT(unittest.TestCase):
         m.them("PUT", "up.example", P(200, {"id": "YV1"}))
         with mock.patch("dang.http.gui", m), patch_chung():
             yt.chuan_bi(TOKEN_GIA["youtube"], nc, LuuGia())
-        body = [k["json_body"] for me, u, k in m.goi if "upload/youtube" in u][0]
+        body = [k["json_body"] for me, u, k in m.goi if "upload/youtube/v3/videos" in u][0]
         self.assertEqual(body["status"]["privacyStatus"], "private")
         self.assertNotIn("publishAt", body["status"])
 

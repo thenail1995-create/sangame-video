@@ -71,7 +71,7 @@ class TestYoutubeCong(unittest.TestCase):
         m.them("PUT", "up.example", P(200, {"id": "YV1"}))
         with mock.patch("dang.http.gui", m):
             yt.chuan_bi(TOKEN_GIA["youtube"], nc, lambda **k: None)
-        meta = [k["json_body"] for me, u, k in m.goi if "upload/youtube" in u][0]
+        meta = [k["json_body"] for me, u, k in m.goi if "upload/youtube/v3/videos" in u][0]
         self.assertEqual(meta["status"], {"privacyStatus": "private", "selfDeclaredMadeForKids": False, "embeddable": True,
                                           "publicStatsViewable": True, "license": "youtube", "containsSyntheticMedia": True})
         self.assertEqual(m.dem("PUT", "youtube/v3/videos"), 0)
