@@ -98,7 +98,7 @@ else:
     def phang_doan(f,s0,dl,cr=''):
         # 25/10 (run 40159369155, SOTTR Steam): doan du sang (YAVG) nhung khung GIUA doan la canh dem toi 77-78% 1 dai mau -> kiem cuoi K18 truot.
         # Soi DUNG phep cua kiem cuoi (MH.la_giu_cho) tren dai doc da cat, 3 diem quanh giua doan (kiem cuoi lay khung giua, lech khung nho)
-        for fr in (0.35,0.5,0.65):
+        for fr in (0.1,0.35,0.5,0.65,0.9):   # 0,1/0,9: khung den/phang o dau-cuoi doan (25/10: 27,75-28,5 s den 12 luma lot)
             png=TS/'_pd.png'; png.unlink(missing_ok=True)
             chay(['ffmpeg','-v','error','-y','-ss',f'{s0+dl*fr:.2f}','-i',f,'-frames:v','1','-vf',(cr+',' if cr else '')+'scale=960:-2',str(png)])
             if png.exists() and MH.la_giu_cho(png): return True
