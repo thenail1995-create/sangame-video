@@ -95,6 +95,14 @@ else:
     def sang_ca_doan(f,a,dl,cr=''):   # do sang TUNG KHUNG cua doan (5 diem van lot chop den ngan — LOI-SAI H23)
         y=chay(['ffmpeg','-v','error','-ss',f'{a:.2f}','-t',f'{dl:.2f}','-i',f,'-vf',(cr+',' if cr else '')+'fps=10,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-','-f','null','-']).stdout
         return [float(v) for v in re.findall(r'YAVG=([\d.]+)',y)] or [0.0]
+    def phang_doan(f,s0,dl,cr=''):
+        # 25/10 (run 40159369155, SOTTR Steam): doan du sang (YAVG) nhung khung GIUA doan la canh dem toi 77-78% 1 dai mau -> kiem cuoi K18 truot.
+        # Soi DUNG phep cua kiem cuoi (MH.la_giu_cho) tren dai doc da cat, 3 diem quanh giua doan (kiem cuoi lay khung giua, lech khung nho)
+        for fr in (0.35,0.5,0.65):
+            png=TS/'_pd.png'; png.unlink(missing_ok=True)
+            chay(['ffmpeg','-v','error','-y','-ss',f'{s0+dl*fr:.2f}','-i',f,'-frames:v','1','-vf',(cr+',' if cr else '')+'scale=960:-2',str(png)])
+            if png.exists() and MH.la_giu_cho(png): return True
+        return False
     def chon_doan(f,d,can,dl,cr='',cat_dau=0.0,cat_cuoi=0.0,long=False):
         # Doan dung phai NAM TRON trong 1 canh, du sang tung khung (Top 5 10/10: chi do diem giua -> lot doan chuyen den, YAVG 0-2; LOI-SAI H23),
         # tranh 10% dau (logo, xep hang tuoi) va 25% cuoi (man chu ket, title card)
@@ -105,11 +113,11 @@ else:
         tot=[]
         for a,b in shot:
             s0=a+min(0.1,(b-a-dl)/2); ys=sang_ca_doan(f,s0,dl,cr)
-            if min(ys)>=28 and sum(ys)/len(ys)>=45: tot.append((s0,s0+dl))
+            if min(ys)>=28 and sum(ys)/len(ys)>=45 and not phang_doan(f,s0,dl,cr): tot.append((s0,s0+dl))
         if len(tot)<can:   # it doan dat: noi long nguong mot chut, van cam doan den
             for a,b in shot:
                 s0=a+min(0.1,(b-a-dl)/2); ys=sang_ca_doan(f,s0,dl,cr)
-                if min(ys)>=15 and (s0,s0+dl) not in tot: tot.append((s0,s0+dl))
+                if min(ys)>=15 and (s0,s0+dl) not in tot and not phang_doan(f,s0,dl,cr): tot.append((s0,s0+dl))
         tot.sort()
         if not tot: raise SystemExit(f'KHONG co doan sang du dai trong {f} — dung anh thay trailer')
         return [tot[int(k*(len(tot)-1)/max(1,can-1))] if can>1 else tot[len(tot)//2] for k in range(can)]
