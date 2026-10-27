@@ -65,6 +65,15 @@ class Cong:
             tham["che_do"] = che_do
         return self.goi("doc_dang", **tham).get("dong") or []
 
+    # --- sg_keo (bang keo san deal, cong v11) ---
+    def doc_keo(self, ngay) -> list:
+        """Cac hang PS (nen_tang='ps') cua sg_keo ngay `ngay`, da sap theo hang (chi cac cot cong cho phep, toi da 50 dong)."""
+        return self.goi("doc_keo", ngay=ngay).get("dong") or []
+
+    def doc_so_lieu_x(self) -> list:
+        """id_bai cac bai X da co dong trong sg_so_lieu (cong v11, toi da 500) - do_x dung de khong do trung."""
+        return [str(i) for i in (self.goi("doc_so_lieu_x").get("id_bai") or [])]
+
     # --- sg_token ---
     def doc_token(self, kenh):
         """Tra {"du_lieu":…, "het_han":…, "cap_nhat":…} hoac None neu chua nap."""

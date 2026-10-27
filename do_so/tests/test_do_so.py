@@ -56,6 +56,9 @@ class CongDo:
         self.ghi.append(kw)
         return {"ok": True, "so_bai": len(kw["bai"]), "so_kenh": len(kw["kenh"])}
 
+    def doc_so_lieu_x(self):
+        return sorted({b["id_bai"] for b in self.bai_da_ghi() if b["nen_tang"] == "X"} | set(getattr(self, "x_da_do", ())))
+
     def bai_da_ghi(self):
         return [b for lan in self.ghi if lan for b in lan["bai"]]
 
@@ -565,7 +568,7 @@ class NhoLe(unittest.TestCase):
         gio = dt.datetime(2026, 10, 14, 0, 30, tzinfo=dt.timezone.utc)
         d = chay._dong("Facebook", "ok", gio, None, None, False, None, None)
         self.assertTrue(chay.hop_le_cong(d))
-        for sai in ({"nen_tang": "X"}, {"id_bai": "a b"}, {"ngay": "2026-02-30"}, {"gio_dang": "2026-10-14T00:30:00"},
+        for sai in ({"nen_tang": "Zalo"}, {"id_bai": "a b"}, {"ngay": "2026-02-30"}, {"gio_dang": "2026-10-14T00:30:00"},
                     {"gio_dang": None}, {"ngay": None}, {"link": "http://x"}, {"thich": 1.5}, {"thich": True}, {"khuon": 5}):
             self.assertFalse(chay.hop_le_cong({**d, **sai}), sai)
 

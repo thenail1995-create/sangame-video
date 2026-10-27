@@ -104,6 +104,28 @@ def tai_video(khoa, nc):
     return j["publicUrl"]
 
 
+def tai_anh(khoa, duong, ten):
+    """Dua anh PNG len kho tam Zernio (/media/presign) -> URL cong khai (cho Buffer lay). uploadUrl + URL cong khai duoc che khoi log
+    (repo cong khai, anh Sony). Loi truoc khi co bai -> 'chua tao bai'."""
+    du_lieu = open(duong, "rb").read()
+    try:
+        r = http.gui("POST", f"{GOC}/media/presign", headers=_hdr(khoa), timeout=60,
+                     json_body={"filename": ten, "contentType": "image/png", "size": len(du_lieu)})
+    except http.LoiMang as e:
+        raise _chua(f"presign anh: {e}") from None
+    j = r.json()
+    if r.status not in (200, 201) or not j.get("uploadUrl") or not j.get("publicUrl"):
+        raise _chua(f"presign anh HTTP {r.status}")
+    chung.dang_ky_bi_mat(j["uploadUrl"], j["publicUrl"])
+    try:
+        u = http.gui("PUT", j["uploadUrl"], data=du_lieu, headers={"Content-Type": "image/png"}, timeout=120)
+    except http.LoiMang as e:
+        raise _chua(f"PUT anh: {e}") from None
+    if u.status != 200:
+        raise _chua(f"PUT anh HTTP {u.status}")
+    return j["publicUrl"]
+
+
 def khoa_lap(nc):
     return hashlib.sha256(f"sangame|{nc.ngay}|{nc.dang}|{nc.manifest_sha}|tiktok".encode()).hexdigest()
 
