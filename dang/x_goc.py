@@ -473,6 +473,9 @@ def chay(a, cong=None, chup=chup_trang):
         _bao("X goc: thieu/sai SG_X_GOC_NGAY_1", "can bien repo SG_X_GOC_NGAY_1 = YYYY-MM-DD (ngay 1 cua lich X goc)")
         return 2
     ngay = dt.date.fromisoformat(a.ngay)
+    if ngay < ngay_1:   # 27/10: truoc ngay 1 (vd job 19:40 hom truoc) KHONG duoc tinh thanh ngay chan va dang
+        chung.log(f"x_goc: ngày {a.ngay} trước ngày 1 ({ngay_1_chuoi}) - không làm gì")
+        return 0
     hom_nay = khung_hom_nay(ngay, ngay_1)
     if a.khung != hom_nay:
         chung.log(f"x_goc: không phải khung hôm nay (ngày {a.ngay} là khung {hom_nay}, đã gọi khung {a.khung}) - không làm gì")

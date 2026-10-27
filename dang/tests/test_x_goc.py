@@ -401,6 +401,15 @@ class Luong(unittest.TestCase):
         self.assertEqual(self.chay(khung="sang", ngay="2026-10-29", m=m), 0)   # ngay 2 (chan) la khung toi
         self.assertEqual(self.su_kien, [])
 
+    def test_truoc_ngay_1_khong_lam_gi(self):
+        # 27/10: ngay 1 = 28/10 -> job toi 27/10 bi tinh (-1) % 2 = 1 = "toi"; phai thoat 0, khong giu quyen, khong goi mang
+        m = Mang()
+        self.bay_gio = dt.datetime(2026, 10, 27, 19, 40, tzinfo=chung.VN)
+        self.assertEqual(self.chay(khung="toi", ngay="2026-10-27", m=m), 0)
+        self.assertIn("trước ngày 1", self.log)
+        self.assertEqual(self.su_kien, [])
+        self.assertEqual(m.goi, [])
+
     def test_khung_toi_ngay_chan_dang_20h(self):
         self.bay_gio = dt.datetime(2026, 10, 29, 19, 40, tzinfo=chung.VN)
         cong = CongXG([hang(ngay="2026-10-29")], self.su_kien)
