@@ -167,19 +167,25 @@ class TungNenTang(unittest.TestCase):
             self.assertLessEqual(len(s), 2200)
             self.assertFalse(URL.search(s), d)
             self.assertLessEqual(dem_tag(s), 5, d)
-            self.assertIn("Link ở bio", s, d)
+            self.assertIn("Bảng giá đủ vùng: link ở bio.", s, d)
+            self.assertNotIn("#PlayStation", s, d)    # SG-IG-0: bo IG = tag game, #GiảmGiá, #PS5, #SănGame
             self.assertTrue(s.startswith(c.hook()), d)
             self.assertLessEqual(len(c._than()), 2, d)
 
     def test_facebook(self):
+        # SG-FB-2: Reel FB khong link o caption (khong http, khong ten mien tran), hashtag <= 3 = [tag game, #PS5, #SanGame]
         for d in self.CAC:
             c = nc(d)
             s = c.caption_fb()
             self.assertTrue(s.startswith(c.hook() + "\n\n"), d)
-            self.assertIn("https://sangame.com.vn/", s, d)
+            self.assertNotIn("http", s.lower(), d)
+            self.assertNotIn("sangame.com.vn", s.lower(), d)
+            self.assertNotRegex(s, r"(?i)https?://|www\.|sangame\.com\.vn", d)
             self.assertLessEqual(dem_tag(s), 3, d)
-            self.assertEqual(s.count("https://sangame.com.vn/"), 1, d)   # khong lap link
-        self.assertIn("https://sangame.com.vn/game-ninja-gaiden-2-black.html", nc("keo-thom").caption_fb())
+        self.assertEqual(re.findall(r"#\w+", nc("keo-thom").caption_fb()), ["#NinjaGaiden2Black", "#PS5", "#SănGame"])
+        self.assertEqual(re.findall(r"#\w+", nc("top5").caption_fb()), ["#PS5", "#SănGame"])   # Top 5 khong co ten game
+        self.assertIn("Xem giá ở 6 vùng PS Store: web Săn Game", nc("keo-thom").caption_fb())
+        self.assertNotIn("link ở bio", nc("keo-thom").caption_fb())   # FB khong co bio link cho Reel
 
     def test_x_hashtag_toi_da_2(self):
         for d in self.CAC:
@@ -196,7 +202,9 @@ class TungNenTang(unittest.TestCase):
 
     def test_hashtag_game_mat_thi_van_du_bo_co_dinh(self):
         ld = dict(LOI_DANG["keo-thom"], tieu_de="khong dung mau")
-        self.assertEqual(nc("keo-thom", ld=ld).hashtags("ig"), ["#PlayStation", "#PS5", "#SănGame", "#GiảmGiá"])
+        self.assertEqual(nc("keo-thom", ld=ld).hashtags("ig"), ["#GiảmGiá", "#PS5", "#SănGame"])
+        self.assertEqual(nc("keo-thom", ld=ld).hashtags("fb"), ["#PS5", "#SănGame"])
+        self.assertEqual(nc("keo-thom", ld=ld).hashtags("tiktok"), ["#PlayStation", "#PS5", "#SănGame"])   # TikTok khong doi
 
     def test_dang_la_van_chay_dung_tieu_de(self):
         ld = dict(LOI_DANG["keo-thom"])
@@ -250,9 +258,12 @@ class SolSoi(unittest.TestCase):
 
     def test_tag_trung_khong_them_lai(self):
         ld = dict(LOI_DANG["keo-thom"], tieu_de="NINJA GAIDEN 2 Black giảm 60%% #playstation")
-        tags = nc("keo-thom", ld=ld).hashtags("ig", "NINJA GAIDEN 2 Black giảm 60%% #playstation")
+        tags = nc("keo-thom", ld=ld).hashtags("tiktok", "NINJA GAIDEN 2 Black giảm 60%% #playstation")
         self.assertNotIn("#PlayStation", tags)
-        self.assertEqual(len(tags), 4)
+        self.assertEqual(len(tags), 2)
+        tags = nc("keo-thom", ld=ld).hashtags("ig", "NINJA GAIDEN 2 Black giảm 60%% #giảmgiá")
+        self.assertNotIn("#GiảmGiá", tags)
+        self.assertEqual(len(tags), 3)
 
     def test_tran_ve_0_khong_them_tag(self):
         self.assertEqual(nc("top5").hashtags("x", "#A #B #C"), [])
@@ -293,8 +304,30 @@ class SolSoi(unittest.TestCase):
         self.assertEqual(chung.bo_url("khong co url"), "khong co url")
         self.assertEqual(chung.bo_url("mail a@sangame.com.vn"), "mail a@sangame.com.vn")   # khong phai URL
 
-    def test_facebook_van_giu_url(self):
-        self.assertIn("https://sangame.com.vn/game-ninja-gaiden-2-black.html", nc("keo-thom").caption_fb())
+    def test_facebook_khong_url_ke_ca_tieu_de_va_ten_mien_tran(self):
+        # S4: hook (tieu de) va mo_ta deu qua bo_url voi chu thay rieng FB; moi dang URL
+        for u in ("http://example.com/x", "https://www.Sangame.com.vn/a", "www.sangame.com.vn/abc", "sangame.com.vn", "Sangame.Com.VN/Game"):
+            ld = dict(LOI_DANG["keo-thom"], tieu_de=f"NINJA GAIDEN 2 Black giảm 60%% xem {u} nhé", mo_ta=f"Xem {u}. Hết giảm sớm.\nCòn {u}")
+            s = nc("keo-thom", ld=ld).caption_fb()
+            self.assertNotRegex(s, r"(?i)https?://|www\.|sangame\.com\.vn", (u, s))
+            self.assertIn("web Săn Game", s)
+        # FB dung bo nhan URL RONG: ten mien khac cung bi thay; email khong bi bat
+        for u in ("example.org", "shop.vn/a", "sub.domain.com", "bit.ly/abc"):
+            ld = dict(LOI_DANG["keo-thom"], mo_ta=f"Mua tại {u} nhé. Hết giảm sớm.")
+            s = nc("keo-thom", ld=ld).caption_fb()
+            self.assertNotIn(u, s)
+            self.assertIn("Mua tại web Săn Game nhé", s)
+        ld = dict(LOI_DANG["keo-thom"], mo_ta="Liên hệ a@sangame.com.vn nhé.")
+        self.assertIn("a@sangame.com.vn", nc("keo-thom", ld=ld).caption_fb())
+        # TikTok/YT/IG van dung bo cu (khong bat ten mien khac)
+        self.assertEqual(chung.bo_url("Mua tại example.org nhé."), "Mua tại example.org nhé.")
+        self.assertEqual(chung.bo_url("Xem sangame.com.vn.", "web Săn Game"), "Xem web Săn Game.")
+        self.assertEqual(chung.bo_url("Xem sangame.com.vn."), "Xem web Săn Game (link ở bio).")   # mac dinh khong doi
+
+    def test_youtube_tags_giu_bo_cu_doc_lap_voi_ig(self):
+        # S3: snippet.tags cua YouTube = bo cu (tag game + #PlayStation #PS5 #SanGame #GiamGia), khong theo BO_TAG cua IG
+        self.assertEqual(nc("keo-thom").tags_youtube(), ["NinjaGaiden2Black", "PlayStation", "PS5", "SănGame", "GiảmGiá"])
+        self.assertEqual(nc("top5").tags_youtube(), ["PlayStation", "PS5", "SănGame", "GiảmGiá"])
 
 
 if __name__ == "__main__":

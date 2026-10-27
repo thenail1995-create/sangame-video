@@ -4,6 +4,9 @@
 Tai len: chunk la boi so cua 256 KB; loi mang / 5xx -> PHAI xac dinh offset bang 'Content-Range: bytes */tong' truoc khi gui
 tiep du lieu (khong gui lai vung byte cu khi chua biet offset); toi da 5 lan loi lien tiep.
 Can scope https://www.googleapis.com/auth/youtube (videos.update) - nap-token.py da xin.
+Co AI: videos.list KHONG tra containsSyntheticMedia; videos.update part=status TRA no trong phan hoi (do 27/10) -> chuan_bi xac nhan co
+qua phan hoi insert, thieu thi videos.update (van private) doc lai; khong xac nhan duoc = LoiDang khong_ro, KHONG dat bia/KHONG cong khai.
+cong_khai kiem co trong phan hoi update public; thieu -> keo ve private + loi khong_ro (luat Hao 27/10: khong co video AI cong khai thieu nhan).
 # CHUA KIEM: quota videos.insert (tai lieu mau thuan 1 vs 1600 don vi) - https://developers.google.com/youtube/v3/determine_quota_cost
 # CHUA KIEM: Shorts duoc nhan dien nho video doc <= 3 phut + '#Shorts' trong mo ta - https://support.google.com/youtube/answer/10059070
 # CHUA KIEM: categoryId=20 (Gaming), selfDeclaredMadeForKids=false; videos.update part=status ghi de ca khoi status - https://developers.google.com/youtube/v3/docs/videos/update
@@ -128,7 +131,7 @@ def chuan_bi(tk, nc, luu):
     du_lieu = nc.tep("shorts").read_bytes()
     trang_thai_moi = trang_thai("private")
     thong_tin = {"snippet": {"title": nc.tieu_de_youtube(), "description": nc.mo_ta_youtube(),
-                        "categoryId": "20", "tags": [h.lstrip("#") for h in nc.hashtags("ig")][:15]},
+                        "categoryId": "20", "tags": nc.tags_youtube()},
             "status": trang_thai_moi}
     try:
         r = http.gui("POST", UPLOAD, timeout=60, params={"uploadType": "resumable", "part": "snippet,status"},
@@ -148,8 +151,36 @@ def chuan_bi(tk, nc, luu):
         luu(id_tai=vid)
     except Exception as e:  # video DA len YouTube ma khong ghi duoc id -> khong_ro, KHONG tai lai
         raise chung.LoiDang(f"YouTube da nhan video {vid} nhung ghi so loi: {type(e).__name__}", khong_ro=True) from None
+    ket = {"id_tai": vid, **xac_nhan_ai(tk, vid, res)}   # co AI phai xac nhan TRUOC khi dat bia / cong khai
     ok, ly_do = dat_bia(tk, vid, nc)
-    return {"id_tai": vid, "bia": True if ok else f"loi: {ly_do}"}
+    ket["bia"] = True if ok else f"loi: {ly_do}"
+    return ket
+
+
+def doc_co_ai(res):
+    """containsSyntheticMedia trong phan hoi videos.insert/update (khoi status co the thieu)."""
+    j = res if isinstance(res, dict) else {}
+    return (j.get("status") or {}).get("containsSyntheticMedia")
+
+
+def xac_nhan_ai(tk, vid, res):
+    """Bang chung co AI cua video DA tai (private). res = phan hoi insert. Tra {} khi CO_GIONG_AI tat;
+    {"nhan_ai": True, "nhan_ai_tu": "insert"|"update"} khi xac nhan duoc. Insert thieu co -> videos.update part=status (van private)
+    doc lai trong phan hoi. Khong xac nhan duoc / loi bat ky -> LoiDang(khong_ro=True): video da len YouTube, KHONG tai lai."""
+    if not chung.CO_GIONG_AI:
+        return {}
+    if doc_co_ai(res) is True:
+        return {"nhan_ai": True, "nhan_ai_tu": "insert"}
+    ly_do = "insert khong tra co"
+    try:
+        r = http.gui("PUT", f"{API}/videos", headers=_hdr(tk), params={"part": "status"},
+                     json_body={"id": vid, "status": trang_thai("private")}, timeout=30)
+        if r.status == 200 and doc_co_ai(r.json()) is True:
+            return {"nhan_ai": True, "nhan_ai_tu": "update"}
+        ly_do = f"update HTTP {r.status} " + ("khong tra co" if r.status == 200 else chung.cat(r.json(), 120))
+    except http.LoiMang as e:
+        ly_do = f"update loi mang: {e}"
+    raise chung.LoiDang(f"YouTube khong xac nhan duoc co AI ({ly_do}), video {vid} de rieng tu", khong_ro=True)
 
 
 BIA_TOI_DA = 2 * 1024 * 1024   # thumbnails.set: toi da 2 MB
@@ -193,22 +224,45 @@ def cong_khai(tk, nc, dong):
         raise chung.LoiDang("sg_dang khong co id_tai cho YouTube")
     ket = {"id_bai": vid, "link": f"https://www.youtube.com/shorts/{vid}"}
     if _privacy(tk, vid) == "public":
-        return ket
-    body = {"id": vid, "status": trang_thai("public")}
-    try:
-        r = http.gui("PUT", f"{API}/videos", headers=_hdr(tk), params={"part": "status"}, json_body=body, timeout=30)
-        ok = r.status == 200
-        ly_do = f"HTTP {r.status}"
-        chac_chan_that_bai = 400 <= r.status < 500
-    except http.LoiMang as e:
-        ok, ly_do, chac_chan_that_bai = False, str(e), False
+        return _chot_nhan_ai(tk, vid, ket, _put_public(tk, vid) if chung.CO_GIONG_AI else None)   # da public tu truoc: khong co bang chung co -> PUT public (idempotent) doc lai
+    r = _put_public(tk, vid)
+    ok = r is not None and r.status == 200
     if not ok:
-        if chac_chan_that_bai:
+        ly_do = "mạng" if r is None else f"HTTP {r.status}"
+        if r is not None and 400 <= r.status < 500:
             raise chung.LoiDang(f"YouTube videos.update public bi tu choi: {ly_do}")
         try:
-            if _privacy(tk, vid) == "public":
-                return ket
+            da_public = _privacy(tk, vid) == "public"
         except (chung.LoiDang, http.LoiMang):
-            pass
+            da_public = False
+        if da_public:   # PUT bi mat phan hoi nhung video da public: van phai co bang chung co AI
+            return _chot_nhan_ai(tk, vid, ket, _put_public(tk, vid) if chung.CO_GIONG_AI else None)
         raise chung.LoiDang(f"YouTube videos.update public khong chac ket qua: {ly_do}", khong_ro=True)
+    return _chot_nhan_ai(tk, vid, ket, r)
+
+
+def _put_public(tk, vid):
+    """videos.update part=status -> public. Tra Phan hoac None khi loi mang."""
+    try:
+        return http.gui("PUT", f"{API}/videos", headers=_hdr(tk), params={"part": "status"},
+                        json_body={"id": vid, "status": trang_thai("public")}, timeout=30)
+    except http.LoiMang:
+        return None
+
+
+def _chot_nhan_ai(tk, vid, ket, r):
+    """r = phan hoi PUT public (None/khong 200 = khong co bang chung). Video AI public ma thieu co -> keo ve private + loi khong_ro."""
+    nhan = doc_co_ai(r.json()) if r is not None and r.status == 200 else None
+    if chung.CO_GIONG_AI and nhan is not True:
+        try:
+            q = http.gui("PUT", f"{API}/videos", headers=_hdr(tk), params={"part": "status"},
+                         json_body={"id": vid, "status": trang_thai("private")}, timeout=30)
+            keo_ve = q.status == 200
+        except http.LoiMang:
+            keo_ve = False
+        if keo_ve:
+            raise chung.LoiDang(f"YouTube public không xác nhận nhãn AI — đã kéo về riêng tư, kiểm tay (video {vid})", khong_ro=True)
+        raise chung.LoiDang(f"YouTube public không xác nhận nhãn AI VÀ kéo về riêng tư THẤT BẠI — video {vid} đang CÔNG KHAI, xử lý tay ngay", khong_ro=True)
+    if nhan is True:
+        ket["nhan_ai"] = True
     return ket

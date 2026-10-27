@@ -173,8 +173,8 @@ def chuan_bi_kenh(kenh, nc, dich, cong):
         err = LoiDang(f"da chuan bi xong tren nen tang nhung ghi so loi: {e}", khong_ro=True)
         _ghi_loi(cong, nc, kenh, err)
         raise err from None
-    if ket.get("canh_bao") or ket.get("bia"):
-        chung.log(f"{kenh}: {ket.get('canh_bao') or ''} bia={ket.get('bia')}")
+    if ket.get("canh_bao") or ket.get("bia") or "nhan_ai" in ket:
+        chung.log(f"{kenh}: {ket.get('canh_bao') or ''} bia={ket.get('bia')}" + (f" nhan_ai={ket['nhan_ai']}" if "nhan_ai" in ket else ""))
     chung.log(f"{kenh}: chuan bi xong ({', '.join(f'{k}={v}' for k, v in ids.items())})")
     return "xong"
 
@@ -384,6 +384,8 @@ def pha_cong_khai(a, cong, thu_muc):
                         tin.append("TikTok: video da vao hop thu - bam thong bao TikTok de dang")
                 else:
                     tin.append(f"{TEN[kenh]}: {ket.get('link') or ket.get('id_bai') or 'da dang'}")
+                if "nhan_ai" in ket:
+                    chung.log(f"{kenh}: nhan_ai={ket['nhan_ai']}")
                 if ket.get("canh_bao"):
                     chung.log(f"{kenh}: {ket['canh_bao']}")
                     ntfy.loi(f"{TEN[kenh]}: canh bao sau khi dang {a.dang} {a.ngay}", ket["canh_bao"], uu_tien=3)
