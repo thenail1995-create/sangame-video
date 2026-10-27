@@ -6,7 +6,7 @@ on:
       dang:
         required: true
         type: choice
-        options: [tin-nhanh, top5, keo-thom-2, keo-thom, keo-thom-3]
+        options: [tin-nhanh, top5, keo-thom-2, keo-thom, keo-thom-3, flagship]
       ngay:
         description: "Ngay DANG (gio VN) YYYY-MM-DD. De trong = hom nay gio VN (lich cron-job.org gui rong)"
         required: false
@@ -21,6 +21,7 @@ concurrency:
   cancel-in-progress: false
 env:
   SG_KENH_BAT: ${{ vars.SG_KENH_BAT }}   # 24/10/2026: rong = moi kenh
+  SG_FLAGSHIP_NGAY_1: ${{ vars.SG_FLAGSHIP_NGAY_1 }}   # 28/10/2026: ngay dang dau tien cua flagship (YYYY-MM-DD); 3 ngay dau chi TikTok, tu ngay thu 4 them YouTube
 
 jobs:
   kiem-gio:

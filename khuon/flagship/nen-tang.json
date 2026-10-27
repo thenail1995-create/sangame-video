@@ -1,0 +1,8 @@
+{
+ "tiktok": {"ten": "TikTok", "tren": 240, "duoi": 1480, "trailer": 1000,
+  "ghi": "trailer sach y 0..1000; dai thong tin 1000..1480 (SAN-CHAT-LUONG #49); duoi 1480 = bong bong binh luan TikTok 1520"},
+ "reels": {"ten": "Reels", "tren": 269, "duoi": 1480, "trailer": 1000,
+  "ghi": "trailer sach y 0..1000; ten kenh Reels tu y 1728, cot nut x>928 tu y 1240"},
+ "shorts": {"ten": "Shorts", "tren": 288, "duoi": 1480, "trailer": 1000,
+  "ghi": "trailer sach y 0..1000; ten kenh Shorts tu y 1490, cot nut x>902 tu y 1135"}
+}

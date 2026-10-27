@@ -187,6 +187,27 @@ class SauManifestTop5Keo(unittest.TestCase):
         m=self.chay('keo-thom',{'keo.json':dict(che_do_hoi_quy=False,loi_dang=ld,kiem_lai=kl,game=dict(ten='Hogwarts Legacy'))},{})
         self.assertEqual(m['noi_bat'],[dict(ten='Hogwarts Legacy',pids=[x['pid'] for x in kl])])
 
+class Flagship(MoGh):    # 28/10: khuon flagship tham gia chong lap (hai chieu): game flagship ngay D cam Top 5/Keo/... 3 ngay, va nguoc lai
+    KHO_FS=dict(KHO,**{
+        'v-2026-10-13-flagship':mf('flagship',[],noi_bat=[dict(ten='Cyberpunk 2077',pids=['UP4497-PPSA03974_00-0000000000000CP1'])]),
+        'thu-2026-10-13-flagship':mf('flagship',[],noi_bat=[dict(ten='Ban Thu FS',pids=['UP0000-PPSA00009_00-THUFS'])])})
+    def test_dang_hop_le_va_tag(self):
+        self.assertIn('flagship',DN.DANG_HOP_LE)
+        m=DN._RE_TAG.fullmatch('v-2026-10-13-flagship'); self.assertTrue(m); self.assertEqual((m.group(1),m.group(2)),('2026-10-13','flagship'))
+        self.assertTrue(DN._RE_TAG.fullmatch('v-2026-10-13-keo-thom-2')); self.assertEqual(DN._RE_TAG.fullmatch('v-2026-10-13-keo-thom-2').group(2),'keo-thom-2')
+        self.assertIsNone(DN._RE_TAG.fullmatch('v-2026-10-13-flagshipx'))
+    def test_game_flagship_chan_top5_va_keo_trong_3_ngay(self):
+        for dang in ('top5','keo-thom','tin-nhanh'):
+            nb=self.chay('2026-10-14',dang,self.KHO_FS); self.assertIsNone(nb.canh_bao); self.assertTrue(nb.trung('Cyberpunk 2077'),dang)
+            self.assertTrue(nb.trung(None,['HP4497-PPSA03974_00-0000000000000CP1']),dang)    # khop theo PID (bo tien to vung)
+            self.assertFalse(nb.trung('Ban Thu FS'),dang)                  # thu-… khong tinh
+    def test_ngoai_3_ngay_thi_het_chan(self):
+        self.assertFalse(self.chay('2026-10-17','flagship',self.KHO_FS).trung('Cyberpunk 2077'))
+    def test_flagship_tranh_game_cua_cac_khuon_khac_nhung_khong_tu_chan_chinh_dong_cua_minh(self):
+        nb=self.chay('2026-10-13','flagship',self.KHO_FS)
+        self.assertTrue(nb.trung('Resident Evil 4')); self.assertTrue(nb.trung('Gran Turismo 7'))     # top5 12/10, keo-thom-2 13/10
+        self.assertFalse(nb.trung('Cyberpunk 2077'))    # luot dang chay (13/10 flagship) bi loai khoi lich su
+
 class KhuonDungNoiBat(unittest.TestCase):    # 3 bo chon deu goi NB.trung (kiem nguon: chon-* la script, khong import duoc)
     def test_goi_trung(self):
         for f,dang in (('tin-nhanh/chon-tin.py','tin-nhanh'),('top5/chon-top5.py','top5'),('keo-thom/chon-keo.py','DANG')):

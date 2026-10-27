@@ -7,7 +7,7 @@ ap=argparse.ArgumentParser(); ap.add_argument('--khuon',required=True); ap.add_a
 ap.add_argument('--ngay',required=True); ap.add_argument('--che-do',default='thu'); a=ap.parse_args()
 K=pathlib.Path(a.khuon); R=pathlib.Path(a.ra); R.mkdir(parents=True,exist_ok=True)
 sha=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
-GIO={'tin-nhanh':'07:30','top5':'12:00','keo-thom-2':'15:00','keo-thom':'20:00','keo-thom-3':'22:00'}
+GIO={'tin-nhanh':'07:30','top5':'12:00','keo-thom-2':'15:00','keo-thom':'20:00','keo-thom-3':'22:00','flagship':'15:30'}
 loi=[]; nts=json.load(open(K/'nen-tang.json')); files={}
 for nt in nts:
     v=K/f'video-{nt}.mp4'; b=K/f'bia-{nt}.jpg'; j=K/'kiem'/f'kiem-{nt}.json'
@@ -28,7 +28,7 @@ for nt,(v,b,kj) in files.items():
     ban[nt]=dict(video=f'video-{nt}.mp4',sha256=sha(R/f'video-{nt}.mp4'),bia=f'bia-{nt}.jpg',bia_sha256=sha(R/f'bia-{nt}.jpg'),giay=dur(v),
                  kiem=dict(dat=True,phep=[dict(ten=p['ten'],dat=bool(p['dat']),so_do=p['so_do']) for p in kj['phep']]))
 # loi dang tam: tu kich ban (B/C/D se thay bang tieu de + mo ta tu du lieu ngay)
-TD={'tin-nhanh':'Bản tin game PlayStation sáng nay: 3 tin nóng','top5':'Top 5 game PlayStation bán chạy giá rẻ hôm nay','keo-thom':'Kèo thơm hôm nay: game PlayStation đang giảm sâu','keo-thom-2':'Kèo thơm hôm nay: game PlayStation đang giảm sâu','keo-thom-3':'Kèo thơm hôm nay: game PlayStation đang giảm sâu'}
+TD={'tin-nhanh':'Bản tin game PlayStation sáng nay: 3 tin nóng','top5':'Top 5 game PlayStation bán chạy giá rẻ hôm nay','keo-thom':'Kèo thơm hôm nay: game PlayStation đang giảm sâu','keo-thom-2':'Kèo thơm hôm nay: game PlayStation đang giảm sâu','keo-thom-3':'Kèo thơm hôm nay: game PlayStation đang giảm sâu','flagship':'Game PlayStation đang giảm giá: thẻ nào cho khít tiền'}
 loi_txt=(K/'loi.txt').read_text(encoding='utf-8').strip() if (K/'loi.txt').exists() else ''
 loi_txt=re.sub(r'\[[^\]]*\]\s*','',loi_txt)
 loi_dang=dict(tieu_de=TD[a.dang][:100],mo_ta=(loi_txt+'\n\nTra giá mọi game ở 6 vùng PS Store: https://sangame.com.vn/')[:2000],

@@ -292,13 +292,15 @@ def _ren_nhat(mo_ta):
 
 
 def ten_game_tu_loi_dang(dang, ld):
-    """Tin nhanh: game re nhat; Keo: phan truoc ' giam N%' cua tieu de; Top 5: khong co (None)."""
+    """Tin nhanh: game re nhat; Keo: phan truoc ' giam N%' cua tieu de; Flagship: loi_dang.ten_game; Top 5: khong co (None)."""
     if dang.startswith("tin-nhanh"):
         r = _ren_nhat(ld.get("mo_ta"))
         return r[0] if r else None
     if dang.startswith("keo-thom"):
         m = re.match(r"^(.+?)\s+giảm\s+\d+%", ld.get("tieu_de") or "")
         return m.group(1).strip() if m else None
+    if dang == "flagship":
+        return (ld.get("ten_game") or "").strip() or None
     return None
 
 
@@ -315,6 +317,8 @@ def hook_tu_loi_dang(dang, ld):
         m = re.search(r"dưới\s+(\d{1,3}(?:\.\d{3})+)đ", td)
         if m:
             return f"Top 5 game PS dưới {m.group(1)}đ hôm nay"
+    elif dang == "flagship":
+        return td   # tieu de da la hook (tieu de + con so tien Viet) - nhu bai Cyberpunk 21/10
     return td
 
 
@@ -338,6 +342,10 @@ def than_ngan(dang, ld):
         if sm:
             c.append(sm.group(0))
         return c[:2]
+    if dang == "flagship":
+        # 2 cau dau cua mo ta (bo URL): gia + thẻ, khong cat giua so thap phan ("19,99")
+        cau = [x.strip() for x in re.split(r"(?<=[.!?])\s+", mo_ta.replace("\n", " ")) if x.strip()]
+        return cau[:2]
     cau = [x.strip() for x in re.split(r"(?<=[.!?])\s+", mo_ta.replace("\n", " ")) if x.strip()]
     cau = [x for x in cau[1:] if not x.startswith(("Giá quy đổi", "Xem giá", "Tra giá"))]
     return cau[:2]
