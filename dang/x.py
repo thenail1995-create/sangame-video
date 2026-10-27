@@ -124,6 +124,29 @@ def tao_bai(khoa, nc, text, video):
     q = ('mutation { createPost(input: {text: %s, channelId: %s, schedulingType: automatic, mode: shareNow, '
          'assets: [{video: {url: %s}}]}) { __typename ... on PostActionSuccess { post { id status } } '
          '... on MutationError { message } } }') % (json.dumps(text, ensure_ascii=False), json.dumps(_kenh()), json.dumps(video))
+    return _doc_ket_qua_tao(khoa, q)
+
+
+def tao_bai_anh(khoa, text, anh_url, alt, due_at):
+    """Bai X GOC co 1 anh + ALT, hen gio (dang/x_goc.py). createPost DUNG MOT LAN. -> id bai. Quy uoc loi nhu tao_bai.
+    Schema Buffer THAT (introspection 27/10/2026, chi doc):
+      CreatePostInput: text String, channelId ChannelId!, schedulingType SchedulingType! (automatic|notification),
+                       mode ShareMode! (addToQueue|customScheduled|shareNext|shareNow), dueAt DateTime, assets [AssetInput!]!
+      AssetInput: {document: DocumentAssetInput, image: ImageAssetInput, video: VideoAssetInput}
+      ImageAssetInput: {url String!, thumbnailUrl String, metadata ImageMetadataInput}
+      ImageMetadataInput: {altText String!, animatedThumbnail String, userTags [UserTagInput!]}
+      PostActionPayload = PostActionSuccess | NotFoundError | UnauthorizedError | UnexpectedError | RestProxyError | LimitReachedError | InvalidInputError
+      Post.status: draft|error|needs_approval|scheduled|sending|sent; Post co externalLink, dueAt, error{message}.
+    due_at: chuoi ISO UTC (vd 2026-10-28T05:00:00Z)."""
+    q = ('mutation { createPost(input: {text: %s, channelId: %s, schedulingType: automatic, mode: customScheduled, dueAt: %s, '
+         'assets: [{image: {url: %s, metadata: {altText: %s}}}]}) { __typename ... on PostActionSuccess { post { id status } } '
+         '... on MutationError { message } } }') % (json.dumps(text, ensure_ascii=False), json.dumps(_kenh()), json.dumps(due_at),
+                                                    json.dumps(anh_url), json.dumps(alt, ensure_ascii=False))
+    return _doc_ket_qua_tao(khoa, q)
+
+
+def _doc_ket_qua_tao(khoa, q):
+    """Goi createPost DUNG MOT LAN roi doc ket qua (dung chung cho tao_bai video va tao_bai_anh). -> id bai."""
     try:
         r = _goi(khoa, q, 60)
     except http.LoiMang as e:
@@ -152,10 +175,14 @@ def tao_bai(khoa, nc, text, video):
     raise _khong_ro("createPost tra ket qua la, khong co id bai")
 
 
-def hoi_den_xong(khoa, post_id):
-    """Hoi post(input:{id}) moi 15 s, toi da 10 phut."""
-    q = 'query { post(input: {id: %s}) { id status externalLink error { message } } }' % json.dumps(post_id)
-    for _ in range(SO_LAN_HOI):
+def hoi_den_xong(khoa, post_id, toi_da_giay=None, han_tuyet_doi=None):
+    """Hoi post(input:{id}) moi 15 s, toi da 10 phut (mac dinh); toi_da_giay keo dai cho bai hen gio; han_tuyet_doi (datetime) = dung hoi khi
+    chung.bay_gio() cham moc nay (tinh ca thoi gian mang). Tra {"id_bai","link","kieu","sent_luc"} (sent_luc = sentAt cua Buffer hoac None)."""
+    q = 'query { post(input: {id: %s}) { id status externalLink sentAt error { message } } }' % json.dumps(post_id)
+    so_lan = SO_LAN_HOI if toi_da_giay is None else max(1, -(-int(toi_da_giay) // NHIP_HOI))
+    for _ in range(so_lan):
+        if han_tuyet_doi is not None and chung.bay_gio() >= han_tuyet_doi:
+            break
         chung.ngu(NHIP_HOI)
         try:
             r = _goi(khoa, q, 30)
@@ -167,11 +194,29 @@ def hoi_den_xong(khoa, post_id):
         p = (j.get("data") or {}).get("post") or {}
         st = str(p.get("status") or "").lower()
         if st == "sent":
-            return {"id_bai": post_id, "link": p.get("externalLink"), "kieu": "buffer"}
+            return {"id_bai": post_id, "link": p.get("externalLink"), "kieu": "buffer", "sent_luc": p.get("sentAt")}
         if st == "error":
             raise chung.LoiDang(f"Buffer: bai loi, chua len X ({chung.cat((p.get('error') or {}).get('message') or '', 200)})")
         # sending / scheduled / khac: cho tiep
-    raise _khong_ro(f"het 10 phut cho bai {post_id} van chua sent")
+    raise _khong_ro(f"het {so_lan * NHIP_HOI // 60} phut cho bai {post_id} van chua sent")
+
+
+def hoi_them_link(khoa, post_id, toi_da_giay=120):
+    """Bai da 'sent' nhung chua co externalLink: hoi lai moi 15 s toi da toi_da_giay. -> (link hoac None, sentAt hoac None). Khong nem loi."""
+    q = 'query { post(input: {id: %s}) { id status externalLink sentAt } }' % json.dumps(post_id)
+    link = sent = None
+    for _ in range(max(1, int(toi_da_giay) // NHIP_HOI)):
+        chung.ngu(NHIP_HOI)
+        try:
+            r = _goi(khoa, q, 30)
+            p = ((r.json().get("data") or {}).get("post") or {}) if r.status == 200 and isinstance(r.json(), dict) else {}
+        except Exception:
+            continue
+        sent = p.get("sentAt") or sent
+        link = p.get("externalLink") or None
+        if link:
+            break
+    return link, sent
 
 
 def cong_khai(nc):

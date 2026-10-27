@@ -1,0 +1,113 @@
+name: X bai goc
+# 27/10/2026 (ke-hoach-x-goc-27-10.md + THU-NGHIEM SG-X-A nhanh (ii)/SG-X-B): moi ngay 1 bai X goc (chu + anh chup trang PS Store + ALT,
+# KHONG link/hashtag) qua Buffer. Ngay le (tinh tu bien repo SG_X_GOC_NGAY_1 = ngay 1) dang 10:00 VN, ngay chan 20:00 VN.
+# Lich that = cron-job.org goi workflow_dispatch: khung=sang luc ~09:40 VN, khung=toi luc ~19:40 VN (che_do=that); khung khong khop ngay thi script thoat 0.
+# Pha that CHI chay khi bien repo SG_X_GOC_BAT = "1" (mac dinh tat); tat thi workflow thoat sach, khong ghi so, khong goi Buffer.
+# Anh Sony chi nam tren runner (khong upload-artifact); URL anh Zernio duoc che khoi log. Khong co `schedule` cua GitHub.
+on:
+  workflow_dispatch:
+    inputs:
+      che_do:
+        description: "thu = in chu/ALT/kich thuoc anh, khong upload, khong Buffer; that = dang that (can SG_X_GOC_BAT=1)"
+        required: true
+        type: choice
+        default: thu
+        options: [thu, that]
+      khung:
+        description: "sang (ngay le, 10:00 VN) hoac toi (ngay chan, 20:00 VN)"
+        required: true
+        type: choice
+        options: [sang, toi]
+      ngay:
+        description: "Ngay DANG (gio VN) YYYY-MM-DD. De trong = hom nay gio VN"
+        required: false
+        type: string
+permissions: {}
+concurrency:
+  group: x-goc-${{ inputs.che_do }}   # thu khong chan that
+  cancel-in-progress: false
+jobs:
+  x-goc:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    permissions:
+      contents: read
+    env:
+      CHE_DO: ${{ inputs.che_do }}
+      KHUNG: ${{ inputs.khung }}
+      NGAY_VAO: ${{ inputs.ngay }}
+      BAT: ${{ vars.SG_X_GOC_BAT }}
+    steps:
+      - name: Quyet dinh chay (pha that can SG_X_GOC_BAT=1) + kiem ngay
+        id: vao
+        run: |
+          set -euo pipefail
+          if [ "$CHE_DO" = "that" ] && [ "$BAT" != "1" ]; then
+            echo "::notice::SG_X_GOC_BAT khac 1 - pha that dang tat, khong lam gi"
+            echo "chay=0" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          NGAY="${NGAY_VAO:-$(TZ=Asia/Ho_Chi_Minh date +%F)}"
+          [[ "$NGAY" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "ngay khong hop le"; exit 1; }
+          { echo "chay=1"; echo "ngay=$NGAY"; } >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.vao.outputs.chay == '1'
+        with:
+          persist-credentials: false
+      - name: Du lieu rieng tu (gia-the.json)
+        if: steps.vao.outputs.chay == '1'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: thenail1995-create/kenh-game-du-lieu
+          ref: main
+          ssh-key: ${{ secrets.DATA_DEPLOY_KEY }}
+          path: du-lieu
+          sparse-checkout: |
+            du-lieu
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        if: steps.vao.outputs.chay == '1'
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.vao.outputs.chay == '1'
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: cong-cu/package-lock.json
+      - name: Cache trinh duyet Playwright (khoa theo package-lock = ban Playwright ghim)
+        if: steps.vao.outputs.chay == '1'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('cong-cu/package-lock.json') }}
+      - name: Playwright (ban ghim trong package-lock) + Chromium
+        if: steps.vao.outputs.chay == '1'
+        run: |
+          set -euo pipefail
+          cd cong-cu && npm ci --ignore-scripts
+          npx playwright install --with-deps chromium
+      - name: Bai X goc
+        if: steps.vao.outputs.chay == '1'
+        timeout-minutes: 45   # job 50; Python tu dung o dueAt + 15 phut - 60 s: du de buoc bao loi cuoi van chay khi cho Buffer lau
+        env:
+          SG_CONG_KHOA: ${{ secrets.SG_CONG_KHOA }}
+          BUFFER_KHOA: ${{ secrets.BUFFER_KHOA }}
+          ZERNIO_KHOA: ${{ secrets.ZERNIO_KHOA }}
+          NTFY_TIN: ${{ secrets.NTFY_TIN }}
+          NTFY_BAO_LOI: ${{ secrets.NTFY_BAO_LOI }}
+          NGAY: ${{ steps.vao.outputs.ngay }}
+          SG_X_GOC_NGAY_1: ${{ vars.SG_X_GOC_NGAY_1 }}
+          DA_BAO_FILE: ${{ runner.temp }}/x-goc-da-bao   # x_goc.py tao file nay khi ntfy da gui THANH CONG
+        run: |
+          set -euo pipefail
+          python -m dang.x_goc --ngay "$NGAY" --khung "$KHUNG" --che-do "$CHE_DO" --gia-the du-lieu/du-lieu/gia-the.json
+      - name: Bao loi workflow (setup / het gio / loi ngoai script)
+        if: failure()
+        env:
+          NTFY_BAO_LOI: ${{ secrets.NTFY_BAO_LOI }}
+          DA_BAO_FILE: ${{ runner.temp }}/x-goc-da-bao
+          LIEN_KET: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -e "$DA_BAO_FILE" ]; then echo "da bao ntfy trong script"; exit 0; fi
+          python3 -c "import os; from dang import ntfy; l = os.environ['LIEN_KET']; ntfy.loi('X gốc Săn Game: workflow lỗi', l, click=l)"

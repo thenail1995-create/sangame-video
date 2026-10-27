@@ -34,12 +34,12 @@ LY_DO_GIOI_HAN = {"quotaExceeded", "rateLimitExceeded", "userRateLimitExceeded",
 RE_ID = re.compile(r"[A-Za-z0-9_.:-]{1,100}")
 RE_NGAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 RE_GIO = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})")
-NEN_TANG = {"Facebook", "Instagram", "Threads", "YouTube", "TikTok"}
+NEN_TANG = {"Facebook", "Instagram", "Threads", "YouTube", "TikTok", "X"}
 BIGINT = ("luot_xem", "thich", "binh_luan", "chia_se", "luu", "theo_doi_moi")
 NUMERIC = ("xem_tb_giay", "do_dai_giay", "nguoi_la_pct", "xem_het_pct", "con_giay_3_pct", "bo_qua_3s_pct")
 TEN = {"tin-nhanh": "Tin nhanh 07:30", "top5": "Top 5 12:00", "keo-thom-2": "Kèo 15:00", "keo-thom": "Kèo 20:00",
-       "keo-thom-3": "Kèo 22:00", "binh-chon": "Bình chọn", "tin-web": "Tin web"}
-KHONG_DONG_CHU = ("binh-chon", "tin-web")
+       "keo-thom-3": "Kèo 22:00", "binh-chon": "Bình chọn", "tin-web": "Tin web", "x-goc": "X bài gốc"}
+KHONG_DONG_CHU = ("binh-chon", "tin-web", "x-goc")
 
 
 class LoiKenh(Exception):
@@ -591,8 +591,52 @@ def _tt_bai(kq, gio, p, khop):
                   xem_het_pct=round(100 * hoan_tat, 1) if hoan_tat is not None and an.get("views") else None))
 
 
+FX = "https://api.fxtwitter.com/2/status/"          # tai lieu that (27/10): /2/status/<id> -> {"status": {...views, likes, replies, reposts, quotes, author}}
+X_TAI_KHOAN = "sangamecomvn"
+X_TUOI_TU, X_TUOI_DEN = dt.timedelta(hours=48), dt.timedelta(hours=60)   # do-so-lieu chay 16:30 + 23:30 -> moi bai trung dung 1 luot
+RE_X_LINK = re.compile(r"^https://(?:www\.)?(?:x|twitter)\.com/[A-Za-z0-9_]+/status/(\d{5,25})(?:[/?#]|$)")
+
+
+def _x_bai(ctx, kq, r, id_x, gio):
+    """FxTwitter (cong khai, khong khoa): id trong tra loi + chu bai phai khop sangamecomvn. views null (X khong tra) -> de null.
+    chia_se = reposts (retweets o ban v1) + quotes; thieu ca hai -> null."""
+    ok, j, _ = _lay(FX + id_x, headers={"User-Agent": "sangame-do-so/1.0 (+https://sangame.com.vn)"})
+    st = j.get("status") if ok else None
+    tac_gia = st.get("author") if isinstance(st, dict) else None
+    if (not isinstance(st, dict) or str(st.get("id")) != id_x or not isinstance(tac_gia, dict)
+            or str(tac_gia.get("screen_name") or "").lower() != X_TAI_KHOAN):
+        kq.loi_bai += 1
+        return
+    rp, qt = _so(st.get("reposts", st.get("retweets")), True), _so(st.get("quotes"), True)
+    kq.them(_dong("X", id_x, gio, r.get("dang"), None, False, f"https://x.com/{X_TAI_KHOAN}/status/{id_x}", _dong1(st.get("text")),
+                  luot_xem=st.get("views"), thich=st.get("likes"), binh_luan=st.get("replies"),
+                  chia_se=None if rp is None and qt is None else (rp or 0) + (qt or 0)))
+
+
+def do_x(ctx, kq):
+    """Bai X goc (sg_dang: kenh x, dang x-goc, da_dang, co link x.com/.../status/<id>) tuoi trong [48 h, 60 h) tinh tu gio_cong_khai
+    (= sentAt cua Buffer) va CHUA co dong nao trong sg_so_lieu (cong doc_so_lieu_x) -> moi bai do dung 1 lan. Doc so da do loi -> loi kenh."""
+    cho, da_do = [], None
+    for r in ctx.so:
+        if r.get("kenh") != "x" or r.get("dang") != "x-goc" or r.get("trang_thai") != "da_dang":
+            continue
+        m = RE_X_LINK.match(str(r.get("link") or ""))
+        gio = tg(r.get("gio_cong_khai"))
+        if m and gio is not None and X_TUOI_TU <= ctx.bay_gio - gio < X_TUOI_DEN:
+            cho.append((r, m.group(1), gio))
+    if not cho:
+        return
+    try:
+        da_do = set(ctx.cong.doc_so_lieu_x())
+    except Exception as e:
+        raise LoiKenh(f"khong doc duoc so da do cua X: {chung.cat(type(e).__name__ + ': ' + str(e), 120)}") from None
+    for r, id_x, gio in cho:
+        if id_x not in da_do:
+            _co_lap(kq, _x_bai, ctx, kq, r, id_x, gio)
+
+
 KENH = (("Facebook", do_facebook), ("Instagram", do_instagram), ("Threads", do_threads),
-        ("YouTube", do_youtube), ("TikTok", do_tiktok))     # Facebook truoc Instagram (do_dai dung chung)
+        ("YouTube", do_youtube), ("TikTok", do_tiktok), ("X", do_x))     # Facebook truoc Instagram (do_dai dung chung)
 
 
 def qua_nguong(so_bai, loi_bai):
