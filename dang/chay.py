@@ -27,9 +27,11 @@ TRE_KIEM_GIO = dt.timedelta(minutes=15)
 
 def kenh_bat(ds=KENH):
     """24/10/2026 (Hao: "dung lai i chang video thang"): bien repo SG_KENH_BAT (vd "youtube") gioi han kenh may dang.
-    Rong = moi kenh nhu cu."""
+    Rong = moi kenh nhu cu.
+    27/10/2026 (SG-X-A): X thoi dang "video may + link" -> luon bo "x" khoi luong video, ke ca khi bien rong; X chi con bai goc
+    (dang/x_goc.py)."""
     bat = {k.strip() for k in (os.environ.get("SG_KENH_BAT") or "").split(",") if k.strip()}
-    return [k for k in ds if not bat or k in bat]
+    return [k for k in ds if k != "x" and (not bat or k in bat)]
 
 
 def gio_dang_mac_dinh(ngay, dang):

@@ -315,9 +315,10 @@ class X(unittest.TestCase):
         self.assertEqual(self.kiem_gio("thu", ("fb", "ig", "threads", "youtube", "tiktok")), 0)
         self.assertEqual(self.ntfy, [])
 
-    def test_kiem_gio_that_thieu_dong_x_bao(self):
-        self.assertEqual(self.kiem_gio("that", ("fb", "ig", "threads", "youtube", "tiktok")), 1)
-        self.assertIn("X: khong co dong so", self.ntfy[0][1])
+    def test_kiem_gio_that_khong_doi_dong_x_video(self):
+        # 27/10 (SG-X-A): X thoi nhan video may -> kiem gio khong doi dong X cua khung video nua
+        self.assertEqual(self.kiem_gio("that", ("fb", "ig", "threads", "youtube", "tiktok")), 0)
+        self.assertEqual(self.ntfy, [])
 
     def test_kiem_gio_that_du_x_im(self):
         self.assertEqual(self.kiem_gio("that", chay.KENH), 0)
