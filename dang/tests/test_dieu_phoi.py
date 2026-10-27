@@ -495,8 +495,11 @@ class TestChiMotKenh(Khung):
             self.assertEqual(self.kenh[k].cb + self.kenh[k].ck + self.kenh[k].hop, 0, k)
         self.assertEqual(self.ntfy, [])
 
-    def test_rong_la_moi_kenh(self):
+    def test_rong_la_moi_kenh_tru_x(self):
+        # 27/10 (SG-X-A): X thoi nhan video may, ke ca khi bien rong hoac ghi ro "x"
         with mock.patch.dict(os.environ, {"SG_KENH_BAT": ""}):
-            self.assertEqual(chay.kenh_bat(), list(chay.KENH))
+            self.assertEqual(chay.kenh_bat(), [k for k in chay.KENH if k != "x"])
         with mock.patch.dict(os.environ, {"SG_KENH_BAT": " youtube , fb "}):
             self.assertEqual(chay.kenh_bat(), ["fb", "youtube"])
+        with mock.patch.dict(os.environ, {"SG_KENH_BAT": "fb,ig,x"}):
+            self.assertEqual(chay.kenh_bat(), ["fb", "ig"])
