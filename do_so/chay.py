@@ -38,7 +38,7 @@ NEN_TANG = {"Facebook", "Instagram", "Threads", "YouTube", "TikTok", "X"}
 BIGINT = ("luot_xem", "thich", "binh_luan", "chia_se", "luu", "theo_doi_moi")
 NUMERIC = ("xem_tb_giay", "do_dai_giay", "nguoi_la_pct", "xem_het_pct", "con_giay_3_pct", "bo_qua_3s_pct")
 TEN = {"tin-nhanh": "Tin nhanh 07:30", "top5": "Top 5 12:00", "keo-thom-2": "Kèo 15:00", "keo-thom": "Kèo 20:00",
-       "keo-thom-3": "Kèo 22:00", "binh-chon": "Bình chọn", "tin-web": "Tin web", "x-goc": "X bài gốc"}
+       "keo-thom-3": "Kèo 22:00", "flagship": "Flagship 15:30", "binh-chon": "Bình chọn", "tin-web": "Tin web", "x-goc": "X bài gốc"}
 KHONG_DONG_CHU = ("binh-chon", "tin-web", "x-goc")
 
 

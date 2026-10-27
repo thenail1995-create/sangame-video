@@ -11,9 +11,9 @@ Nguon: manifest.json cua cac Release `v-<ngay>-<dang>` (tin-nhanh, top5, keo-tho
   da_noi_bat(ngay, dang, so_ngay=3, ten_goc=None) -> NoiBat ; ten_goc = tin_tu_sinh._ten_goc neu co (mac dinh: chuan hoa don gian).
   Thu tren Mac khong co mang: env NOI_BAT_LICH_SU = duong dan json {"v-2026-10-12-top5": <manifest>, ...}."""
 import datetime,json,os,re,subprocess,time
-DANG_HOP_LE=('tin-nhanh','top5','keo-thom','keo-thom-2','keo-thom-3')
+DANG_HOP_LE=('tin-nhanh','top5','keo-thom','keo-thom-2','keo-thom-3','flagship')
 REPO_MAC_DINH='thenail1995-create/sangame-video'
-_RE_TAG=re.compile(r'v-(\d{4}-\d{2}-\d{2})-(tin-nhanh|top5|keo-thom(?:-[23])?)')
+_RE_TAG=re.compile(r'v-(\d{4}-\d{2}-\d{2})-(tin-nhanh|top5|keo-thom(?:-[23])?|flagship)')
 _RE_RE_NHAT=re.compile(r'rẻ nhất\s+(.+?),\s*([\d.]+)\s*đ')
 
 def pid_loi(pid):

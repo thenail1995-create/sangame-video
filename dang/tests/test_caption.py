@@ -329,6 +329,71 @@ class SolSoi(unittest.TestCase):
         self.assertEqual(nc("keo-thom").tags_youtube(), ["NinjaGaiden2Black", "PlayStation", "PS5", "SănGame", "GiảmGiá"])
         self.assertEqual(nc("top5").tags_youtube(), ["PlayStation", "PS5", "SănGame", "GiảmGiá"])
 
+LOI_DANG_FLAGSHIP = {
+    # bai thang Cyberpunk 21/10 (dang-lam/video-ngan-01-cyberpunk/bai/chu-video.md) theo hop dong loi-dang.json cua khuon flagship
+    "tieu_de": "Cyberpunk 2077 còn 560 nghìn, mua sao cho khít tiền?",
+    "mo_ta": ("Cyberpunk 2077 đang giảm 60% trên PS Store Mỹ: $19,99 (giá gốc $49,99), giảm tới 5/11.\n"
+              "Hai thẻ PSN Mỹ 10 đô là vừa khít, khoảng 560 nghìn đồng (giá thẻ sáng 21/10).\n"
+              "22/10 game nhận bản cập nhật 2.5 miễn phí.\n"
+              "Lưu ý: mua ở store Mỹ thì cần tài khoản PSN Mỹ.\n\nTra giá: https://sangame.com.vn/"),
+    "hashtag": ["#SănGame", "#PlayStation", "#PS5", "#GiảmGiá"],
+    "link": "https://sangame.com.vn/",
+    "ten_game": "Cyberpunk 2077",
+}
+
+
+class Flagship(unittest.TestCase):
+    """28/10/2026: khuon flagship (15:30): hook = tieu_de, ten game = loi_dang.ten_game, than ngan = 2 cau dau mo ta (bo URL)."""
+
+    def test_ten_game_va_hook(self):
+        c = nc("flagship", ld=LOI_DANG_FLAGSHIP)
+        self.assertEqual(c.ten_game(), "Cyberpunk 2077")
+        self.assertEqual(c.hook(), LOI_DANG_FLAGSHIP["tieu_de"])
+        self.assertEqual(c.hook_sach(), LOI_DANG_FLAGSHIP["tieu_de"])
+
+    def test_thieu_ten_game_thi_none_khong_no(self):
+        ld = {k: v for k, v in LOI_DANG_FLAGSHIP.items() if k != "ten_game"}
+        self.assertIsNone(nc("flagship", ld=ld).ten_game())
+        self.assertIsNone(chung.ten_game_tu_loi_dang("flagship", dict(LOI_DANG_FLAGSHIP, ten_game="  ")))
+        self.assertEqual(nc("flagship", ld=ld).caption_tiktok().split("\n")[0], LOI_DANG_FLAGSHIP["tieu_de"])   # van ra caption
+
+    def test_than_ngan_hai_cau_dau_khong_cat_so_thap_phan(self):
+        t = chung.than_ngan("flagship", LOI_DANG_FLAGSHIP)
+        self.assertEqual(t, ["Cyberpunk 2077 đang giảm 60% trên PS Store Mỹ: $19,99 (giá gốc $49,99), giảm tới 5/11.",
+                             "Hai thẻ PSN Mỹ 10 đô là vừa khít, khoảng 560 nghìn đồng (giá thẻ sáng 21/10)."])
+        for x_ in t:
+            self.assertFalse(URL.search(x_))
+        ld = dict(LOI_DANG_FLAGSHIP, mo_ta="Một cầu duy nhất https://sangame.com.vn/ xong.")
+        self.assertEqual(len(chung.than_ngan("flagship", ld)), 1)
+
+    def test_tiktok_chuan_kieu_cyberpunk(self):
+        s = nc("flagship", ld=LOI_DANG_FLAGSHIP).caption_tiktok()
+        self.assertLessEqual(len(s), 150)
+        self.assertFalse(URL.search(s))
+        dong1, tags = s.split("\n")
+        self.assertEqual(dong1, LOI_DANG_FLAGSHIP["tieu_de"])
+        self.assertIn("#cyberpunk2077", tags.lower())
+        self.assertLessEqual(len(re.findall(r"#\w+", tags)), 3)
+
+    def test_cac_nen_tang_khac(self):
+        c = nc("flagship", ld=LOI_DANG_FLAGSHIP)
+        self.assertLessEqual(len(c.tieu_de_youtube()), 100)
+        self.assertEqual(c.tieu_de_youtube(), LOI_DANG_FLAGSHIP["tieu_de"])
+        self.assertIn("Cyberpunk2077", c.tags_youtube())
+        yt = c.mo_ta_youtube()
+        self.assertFalse(URL.search(yt)); self.assertIn("#Shorts", yt)
+        ig = c.caption_ig()
+        self.assertFalse(URL.search(ig)); self.assertIn("Hai thẻ PSN Mỹ 10 đô", ig); self.assertIn("link ở bio", ig)
+        self.assertFalse(re.search(r"(?i)https?://|sangame\.com\.vn", c.caption_fb()))
+
+    def test_khuon_khac_khong_doi(self):
+        # thay doi chung.py khong lam lech 3 khuon cu
+        self.assertEqual(nc("top5").hook(), "Top 5 game PS dưới 300.000đ hôm nay")
+        self.assertEqual(nc("keo-thom").ten_game(), "NINJA GAIDEN 2 Black")
+        self.assertIsNone(nc("top5").ten_game())
+        self.assertIsNone(chung.ten_game_tu_loi_dang("top5", dict(LOI_DANG["top5"], ten_game="X")))   # ten_game chi co nghia voi flagship
+
+
 
 if __name__ == "__main__":
     unittest.main()

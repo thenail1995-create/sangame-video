@@ -1,5 +1,5 @@
 """Dieu phoi bo dang. CLI:
-  python -m dang.chay --pha kiem|chuan-bi|cong-khai|kiem-gio|gia-han --dang tin-nhanh|top5|keo-thom-2|keo-thom|keo-thom-3 --ngay YYYY-MM-DD --che-do thu|that
+  python -m dang.chay --pha kiem|chuan-bi|cong-khai|kiem-gio|gia-han --dang tin-nhanh|top5|keo-thom-2|keo-thom|keo-thom-3|flagship --ngay YYYY-MM-DD --che-do thu|that
 Ma thoat: 0 xong · 1 co kenh loi / kiem that bai · 3 bo khung (manifest sai hoac gia/han lech)."""
 import argparse
 import datetime as dt
@@ -15,7 +15,7 @@ from . import chung, fb, gia, ig, manifest, ntfy, site, threads, tiktok, x, yt, 
 from .chung import LoiDang
 from .so import Cong, LoiCong
 
-GIO = {"tin-nhanh": "07:30", "top5": "12:00", "keo-thom-2": "15:00", "keo-thom": "20:00", "keo-thom-3": "22:00"}
+GIO = {"tin-nhanh": "07:30", "top5": "12:00", "keo-thom-2": "15:00", "keo-thom": "20:00", "keo-thom-3": "22:00", "flagship": "15:30"}
 KENH = ("fb", "ig", "youtube", "tiktok", "x")   # x = Buffer, khong co token/danh tinh sg_token (khong nam trong MOD/KHOA_DICH)
 # 12/10/2026 (Hao chot): Threads THOI dang lai video; Threads chi con bai chu rieng (dang/threads_chu.py) + gia han token (pha_gia_han). MOD/KHOA_DICH/TEN van giu threads.
 MOD = {"fb": fb, "ig": ig, "threads": threads, "youtube": yt, "tiktok": tiktok}
@@ -25,13 +25,31 @@ DICH_MAC_DINH = pathlib.Path(__file__).resolve().parent.parent / "dich.json"
 TRE_KIEM_GIO = dt.timedelta(minutes=15)
 
 
-def kenh_bat(ds=KENH):
+def kenh_flagship(ngay, ngay_1=None):
+    """28/10/2026 (cong 10): khuon flagship 3 ngay dau chi 1 nen tang (tiktok); tu ngay thu 4 them youtube.
+    ngay_1 = bien repo SG_FLAGSHIP_NGAY_1 (YYYY-MM-DD). Rong/sai dinh dang -> luon 'chi tiktok' (an toan)."""
+    if ngay_1 is None:
+        ngay_1 = os.environ.get("SG_FLAGSHIP_NGAY_1")
+    ngay_1 = (ngay_1 or "").strip()
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", ngay_1):
+        return ("tiktok",)
+    try:
+        n1 = dt.date.fromisoformat(ngay_1)
+        n = dt.date.fromisoformat(ngay)
+    except (ValueError, TypeError):
+        return ("tiktok",)
+    return ("tiktok",) if n < n1 + dt.timedelta(days=3) else ("tiktok", "youtube")
+
+
+def kenh_bat(ds=KENH, dang=None, ngay=None):
     """24/10/2026 (Hao: "dung lai i chang video thang"): bien repo SG_KENH_BAT (vd "youtube") gioi han kenh may dang.
     Rong = moi kenh nhu cu.
     27/10/2026 (SG-X-A): X thoi dang "video may + link" -> luon bo "x" khoi luong video, ke ca khi bien rong; X chi con bai goc
-    (dang/x_goc.py)."""
+    (dang/x_goc.py).
+    28/10/2026: dang='flagship' -> giao them voi kenh_flagship(ngay) (3 ngay dau chi tiktok). Khuon khac khong doi."""
     bat = {k.strip() for k in (os.environ.get("SG_KENH_BAT") or "").split(",") if k.strip()}
-    return [k for k in ds if k != "x" and (not bat or k in bat)]
+    gioi_han = set(kenh_flagship(ngay)) if dang == "flagship" else None
+    return [k for k in ds if k != "x" and (not bat or k in bat) and (gioi_han is None or k in gioi_han)]
 
 
 def gio_dang_mac_dinh(ngay, dang):
@@ -188,7 +206,7 @@ def pha_chuan_bi(a, cong, thu_muc, kenh_chon=None):
     man, nc = r
     if not kiem_gia(a, cong, nc):
         return 3
-    kenh_chon = [k for k in kenh_bat(kenh_chon or KENH) if k not in ("tiktok", "x")]   # TikTok va X chi lam o pha cong khai
+    kenh_chon = [k for k in kenh_bat(kenh_chon or KENH, a.dang, a.ngay) if k not in ("tiktok", "x")]   # TikTok va X chi lam o pha cong khai
     if any(k in ("ig", "threads") for k in kenh_chon):
         goc = os.environ.get("PAGES_URL") or "https://{}.github.io/{}".format(*manifest.REPO.split("/"))
         u_video, u_bia = site.url_cong_khai(goc, a.ngay, a.dang, man)
@@ -375,7 +393,7 @@ def pha_cong_khai(a, cong, thu_muc):
     cac_dong = [r for r in cong.doc_dang(a.ngay, a.ngay, a.che_do) if r.get("dang") == a.dang]
     dong_theo_kenh = {r["kenh"]: r for r in cac_dong}
     tin, loi = [], []
-    for kenh in kenh_bat():
+    for kenh in kenh_bat(dang=a.dang, ngay=a.ngay):
         try:
             kq, ket = cong_khai_kenh(kenh, nc, dich, cong, dong_theo_kenh.get(kenh), cac_dong)
             if kq == "da_dang":
@@ -447,7 +465,7 @@ def pha_kiem_gio(a, cong):
     bay = chung.bay_gio()
     dong = {r["kenh"]: r for r in cong.doc_dang(a.ngay, a.ngay, a.che_do) if r.get("dang") == a.dang}
     van, chua_toi = [], 0
-    xet = [k for k in kenh_bat() if k != "x" or a.che_do == "that"]   # X chi co o che do that
+    xet = [k for k in kenh_bat(dang=a.dang, ngay=a.ngay) if k != "x" or a.che_do == "that"]   # X chi co o che do that
     for kenh in xet:
         r = dong.get(kenh)
         if bay < _gio_dong(r or {}, mac_dinh) + TRE_KIEM_GIO:

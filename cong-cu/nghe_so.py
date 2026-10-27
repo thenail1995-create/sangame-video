@@ -725,7 +725,7 @@ def nghe_doan(x16,cua_so,nghe,thu_muc_cache,rev=''):
     return heard,dict(pcm_sha256=sha,dung_lai=dung_lai,nghe_moi=len(cua_so)-dung_lai)
 
 # ---------------------------------------------------------------- ngay du lieu = ngay DANG cua luot chay (B6)
-GIO_DANG_MAC_DINH={'top5':'12:00','tin-nhanh':'07:30','keo-thom-2':'15:00','keo-thom':'20:00','keo-thom-3':'22:00'}
+GIO_DANG_MAC_DINH={'top5':'12:00','tin-nhanh':'07:30','keo-thom-2':'15:00','keo-thom':'20:00','keo-thom-3':'22:00','flagship':'15:30'}
 THU_VN=['Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy','Chủ Nhật']
 def ngay_tu_ddmm(ddmm,thu=None,moc=None):
     """'10/10' (+ 'Thứ Bảy') -> date gan `moc` nhat (nam moc +-1) khop thu; khong suy ra duoc -> None. Dung cho du lieu cu (fixture) khong co ngay_dang khi HOI_QUY=1."""

@@ -171,8 +171,24 @@ class DungNhanhMatrix(unittest.TestCase):
         def tinh(dang):    # 'X == a && V1 || X == b && V2 || ... || MAC_DINH'
             bang = dict(re.findall(r"== '([a-z0-9-]+)' && '(\d\d:\d\d)'", bt[0]))
             return bang.get(dang) or re.search(r"\|\| '(\d\d:\d\d)'$", bt[0]).group(1)
-        self.assertEqual([tinh(d) for d in ('tin-nhanh', 'top5', 'keo-thom-2', 'keo-thom', 'keo-thom-3')], ['07:30', '12:00', '15:00', '20:00', '22:00'])
+        self.assertEqual([tinh(d) for d in ('tin-nhanh', 'top5', 'keo-thom-2', 'keo-thom', 'keo-thom-3', 'flagship')], ['07:30', '12:00', '15:00', '20:00', '22:00', '15:30'])   # 28/10: flagship 15:30 (khong roi vao mac dinh 20:00)
         self.assertEqual(bt[0], bt[1]); self.assertEqual(bt[1], bt[2])
+
+    def test_flagship_nhan_dang_va_checkout_bang_keo_chi_o_job_chon(self):    # 28/10: khuon flagship doc bang keo (nhanh san-deal repo rieng tu); khuon khac KHONG doi
+        self.assertIn('options: [tin-nhanh, top5, keo-thom-2, keo-thom, keo-thom-3, flagship]', Y.split('jobs:')[0])
+        self.assertIn('tin-nhanh|top5|keo-thom|keo-thom-2|keo-thom-3|flagship) ;;', khoi_job('kiem-moi'))
+        self.assertEqual(Y.count('keo-du-lieu'), 2)   # dung 2 cho: path checkout + KEO_DIR
+        for j in ('kiem-moi', 'chung', 'ban', 'gom', 'phat-hanh'):
+            self.assertNotIn('keo-du-lieu', khoi_job(j), j)
+        c = khoi_job('chon'); b = buoc_trong(c, '- name: Bang keo hang ngay')
+        self.assertIn("if: env.KHUON == 'flagship'", b)
+        for can in ('repository: thenail1995-create/kenh-game-du-lieu', 'ref: san-deal', 'ssh-key: ${{ secrets.DATA_DEPLOY_KEY }}', 'path: keo-du-lieu',
+                    'sparse-checkout: |\n            keo\n', 'persist-credentials: false', 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'):
+            self.assertIn(can, b, can)
+        self.assertLess(c.index('- name: Bang keo hang ngay'), c.index('- name: Chon game + loi doc (B1/B2)'))   # checkout truoc buoc chon
+        self.assertIn('KEO_DIR: ${{ github.workspace }}/keo-du-lieu', buoc_trong(c, '- name: Chon game + loi doc (B1/B2)'))
+        # KHUON = chinh dang (flagship) -> khuon/flagship/chuan-bi.sh; khong rot vao nhanh keo-thom
+        self.assertIn("(github.event.inputs.dang || github.event.client_payload.dang) }}", c)
 
     def test_bo_khung_khong_vao_ban(self):    # chung xuat bo_khung; chi buoc dong goi/upload chay khi bo_khung != 1
         c = khoi_job('chung'); self.assertIn('bo_khung: ${{ steps.dung.outputs.bo_khung }}', c)

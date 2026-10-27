@@ -503,3 +503,114 @@ class TestChiMotKenh(Khung):
             self.assertEqual(chay.kenh_bat(), ["fb", "youtube"])
         with mock.patch.dict(os.environ, {"SG_KENH_BAT": "fb,ig,x"}):
             self.assertEqual(chay.kenh_bat(), ["fb", "ig"])
+
+
+class TestKenhFlagship(Khung):
+    """28/10/2026 (cong 10): flagship 3 ngay dau chi TikTok (SG_FLAGSHIP_NGAY_1 + 0..2), tu ngay thu 4 them YouTube; luon giao voi SG_KENH_BAT;
+    khuon khac (top5...) KHONG doi hanh vi."""
+    NGAY_FS = "2026-10-30"
+
+    def setUp(self):
+        super().setUp()
+        p = mock.patch.object(chung, "bay_gio", lambda: dt.datetime(2026, 10, 30, 12, 0, tzinfo=chung.VN))   # = gio_dang trong manifest gia (T12:00)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def chay_fs(self, pha, dang="flagship"):
+        return chay.main(["--pha", pha, "--dang", dang, "--ngay", self.NGAY_FS, "--che-do", "that"], cong=self.cong)
+
+    def dem(self, *ks):
+        return {k: (self.kenh[k].cb, self.kenh[k].ck, self.kenh[k].hop) for k in ks}
+
+    def trong_env(self, **kw):
+        return mock.patch.dict(os.environ, kw)
+
+    # ---- ham thuan ----
+    def test_kenh_flagship_ba_nhanh(self):
+        f = chay.kenh_flagship
+        self.assertEqual(f(self.NGAY_FS, ""), ("tiktok",))            # khong dat bien
+        self.assertEqual(f(self.NGAY_FS, "28/10/2026"), ("tiktok",))  # sai dinh dang
+        self.assertEqual(f(self.NGAY_FS, "2026-13-45"), ("tiktok",))  # dung dang chuoi nhung khong phai ngay
+        self.assertEqual(f("2026-10-28", "2026-10-28"), ("tiktok",))  # ngay 1
+        self.assertEqual(f("2026-10-30", "2026-10-28"), ("tiktok",))  # ngay 3
+        self.assertEqual(f("2026-10-31", "2026-10-28"), ("tiktok", "youtube"))   # ngay 4
+        self.assertEqual(f("2026-11-15", "2026-10-28"), ("tiktok", "youtube"))
+        self.assertEqual(f("2026-10-27", "2026-10-28"), ("tiktok",))  # truoc ngay 1 van chi tiktok
+        with self.trong_env(SG_FLAGSHIP_NGAY_1="2026-10-28"):
+            self.assertEqual(f("2026-10-31"), ("tiktok", "youtube"))  # doc tu env
+
+    def test_kenh_bat_flagship_giao_voi_sg_kenh_bat(self):
+        with self.trong_env(SG_KENH_BAT="", SG_FLAGSHIP_NGAY_1="2026-10-28"):
+            self.assertEqual(chay.kenh_bat(dang="flagship", ngay="2026-10-30"), ["tiktok"])
+            self.assertEqual(chay.kenh_bat(dang="flagship", ngay="2026-10-31"), ["youtube", "tiktok"])
+        with self.trong_env(SG_KENH_BAT="youtube", SG_FLAGSHIP_NGAY_1="2026-10-28"):
+            self.assertEqual(chay.kenh_bat(dang="flagship", ngay="2026-10-30"), [])        # 3 ngay dau: youtube bi chan
+            self.assertEqual(chay.kenh_bat(dang="flagship", ngay="2026-10-31"), ["youtube"])
+        with self.trong_env(SG_KENH_BAT="fb,ig,x,tiktok", SG_FLAGSHIP_NGAY_1="2026-10-28"):
+            self.assertEqual(chay.kenh_bat(dang="flagship", ngay="2026-10-31"), ["tiktok"])  # fb/ig khong bao gio; x luon bo
+
+    def test_khuon_khac_khong_doi(self):
+        tat_ca = [k for k in chay.KENH if k != "x"]
+        for env in ({"SG_FLAGSHIP_NGAY_1": ""}, {"SG_FLAGSHIP_NGAY_1": "2026-10-28"}):
+            with self.trong_env(SG_KENH_BAT="", **env):
+                for d in ("top5", "tin-nhanh", "keo-thom", "keo-thom-2", "keo-thom-3"):
+                    for ngay in ("2026-10-28", "2026-10-31"):
+                        self.assertEqual(chay.kenh_bat(dang=d, ngay=ngay), tat_ca, (d, ngay))
+                self.assertEqual(chay.kenh_bat(), tat_ca)
+            with self.trong_env(SG_KENH_BAT="youtube", **env):
+                self.assertEqual(chay.kenh_bat(dang="top5", ngay="2026-10-28"), ["youtube"])
+
+    def test_gio_flagship(self):
+        self.assertEqual(chay.GIO["flagship"], "15:30")
+        self.assertEqual(chay.gio_dang_mac_dinh("2026-10-30", "flagship"), dt.datetime(2026, 10, 30, 15, 30, tzinfo=chung.VN))
+
+    # ---- qua cac pha (fake cong) ----
+    def test_ngay_1_den_3_chi_tiktok_chuan_bi_cong_khai_kiem_gio(self):
+        for ngay_1 in ("", "2026-10-30", "2026-10-28", "rac"):   # khong bien / ngay 1 / ngay 3 / sai dinh dang
+            self.setUp()
+            with self.trong_env(SG_KENH_BAT="", SG_FLAGSHIP_NGAY_1=ngay_1):
+                self.assertEqual(self.chay_fs("chuan-bi"), 0, ngay_1)
+                self.assertEqual(self.dem("fb", "ig", "youtube"), {k: (0, 0, 0) for k in ("fb", "ig", "youtube")}, ngay_1)
+                self.assertEqual(self.chay_fs("cong-khai"), 0, ngay_1)
+                self.assertEqual(self.dem("fb", "ig", "youtube"), {k: (0, 0, 0) for k in ("fb", "ig", "youtube")}, ngay_1)
+                self.assertEqual(self.kenh["tiktok"].hop, 1, ngay_1)
+                self.assertEqual(set(k[2] for k in self.cong.dong if k[1] == "flagship"), {"tiktok"}, ngay_1)
+                with mock.patch.object(chung, "bay_gio", lambda: dt.datetime(2026, 10, 30, 15, 50, tzinfo=chung.VN)):
+                    self.assertEqual(self.chay_fs("kiem-gio"), 0, ngay_1)
+                self.assertEqual([x for x in self.ntfy if x[0] == "loi" and "Qua gio" in x[1]], [], ngay_1)
+
+    def test_tu_ngay_thu_4_them_youtube(self):
+        with self.trong_env(SG_KENH_BAT="", SG_FLAGSHIP_NGAY_1="2026-10-27"):   # 30/10 = ngay thu 4
+            self.assertEqual(self.chay_fs("chuan-bi"), 0)
+            self.assertEqual(self.kenh["youtube"].cb, 1)
+            self.assertEqual((self.kenh["fb"].cb, self.kenh["ig"].cb), (0, 0))
+            self.assertEqual(self.chay_fs("cong-khai"), 0)
+            self.assertEqual(self.kenh["youtube"].ck, 1)
+            self.assertEqual(self.kenh["tiktok"].hop, 1)
+            self.assertEqual((self.kenh["fb"].ck, self.kenh["ig"].ck), (0, 0))
+            self.assertEqual(self.cong.dong[(self.NGAY_FS, "flagship", "youtube", "that")]["trang_thai"], "da_dang")
+            with mock.patch.object(chung, "bay_gio", lambda: dt.datetime(2026, 10, 30, 15, 50, tzinfo=chung.VN)):
+                self.assertEqual(self.chay_fs("kiem-gio"), 0)
+
+    def test_sg_kenh_bat_chan_youtube_ke_ca_ngay_thu_4(self):
+        with self.trong_env(SG_KENH_BAT="tiktok", SG_FLAGSHIP_NGAY_1="2026-10-20"):
+            self.assertEqual(self.chay_fs("chuan-bi"), 0)
+            self.assertEqual(self.chay_fs("cong-khai"), 0)
+        self.assertEqual((self.kenh["youtube"].cb, self.kenh["youtube"].ck), (0, 0))
+        self.assertEqual(self.kenh["tiktok"].hop, 1)
+
+    def test_kiem_gio_flagship_bao_thieu_tiktok_nhung_khong_doi_youtube_3_ngay_dau(self):
+        with self.trong_env(SG_KENH_BAT="", SG_FLAGSHIP_NGAY_1="2026-10-30"):
+            with mock.patch.object(chung, "bay_gio", lambda: dt.datetime(2026, 10, 30, 15, 50, tzinfo=chung.VN)):
+                self.assertEqual(self.chay_fs("kiem-gio"), 1)   # chua chay gi -> thieu dong TikTok
+        loi = [x for x in self.ntfy if x[0] == "loi"]
+        self.assertEqual(len(loi), 1)
+        self.assertIn("TikTok", loi[0][2])
+        self.assertNotIn("YouTube", loi[0][2])
+
+    def test_top5_van_du_kenh_du_da_dat_bien_flagship(self):
+        with self.trong_env(SG_KENH_BAT="", SG_FLAGSHIP_NGAY_1="2026-10-29"), mock.patch.object(chung, "bay_gio", lambda: g.GIO_DANG):
+            self.assertEqual(self.chay("chuan-bi"), 0)    # top5 NGAY 12/10 cua Khung
+            self.assertEqual(self.chay("cong-khai"), 0)
+        for k in ("fb", "ig", "youtube"):
+            self.assertEqual((self.kenh[k].cb, self.kenh[k].ck), (1, 1), k)

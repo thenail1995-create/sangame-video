@@ -19,7 +19,7 @@ on:
       dang:
         description: Dang video
         type: choice
-        options: [tin-nhanh, top5, keo-thom-2, keo-thom, keo-thom-3]
+        options: [tin-nhanh, top5, keo-thom-2, keo-thom, keo-thom-3, flagship]
         required: true
       ngay:
         description: Ngay DANG (YYYY-MM-DD, gio VN). De trong = hom nay gio VN
@@ -101,7 +101,7 @@ jobs:
         id: vao
         run: |
           set -euo pipefail
-          case "$DANG" in tin-nhanh|top5|keo-thom|keo-thom-2|keo-thom-3) ;; *) echo "dang khong hop le: $DANG"; exit 1;; esac
+          case "$DANG" in tin-nhanh|top5|keo-thom|keo-thom-2|keo-thom-3|flagship) ;; *) echo "dang khong hop le: $DANG"; exit 1;; esac
           # Tin nhanh dung luc 21:00 de dang 07:30 NGAY MAI (gio VN); Top 5 / Keo thom dang cung ngay
           if [ "$DANG" = "tin-nhanh" ]; then MAC_DINH="$(TZ=Asia/Ho_Chi_Minh date -d '+1 day' +%F)"; else MAC_DINH="$(TZ=Asia/Ho_Chi_Minh date +%F)"; fi
           NGAY="${NGAY_IN:-$MAC_DINH}"
@@ -189,7 +189,7 @@ jobs:
       DANG: ${{ github.event.inputs.dang || github.event.client_payload.dang }}
       KHUON: ${{ startsWith(github.event.inputs.dang || github.event.client_payload.dang, 'keo-thom') && 'keo-thom' || (github.event.inputs.dang || github.event.client_payload.dang) }}
       NGAY: ${{ needs.kiem-moi.outputs.ngay }}
-      GIO_DANG: ${{ (github.event.inputs.dang || github.event.client_payload.dang) == 'top5' && '12:00' || (github.event.inputs.dang || github.event.client_payload.dang) == 'tin-nhanh' && '07:30' || (github.event.inputs.dang || github.event.client_payload.dang) == 'keo-thom-2' && '15:00' || (github.event.inputs.dang || github.event.client_payload.dang) == 'keo-thom-3' && '22:00' || '20:00' }}
+      GIO_DANG: ${{ (github.event.inputs.dang || github.event.client_payload.dang) == 'top5' && '12:00' || (github.event.inputs.dang || github.event.client_payload.dang) == 'tin-nhanh' && '07:30' || (github.event.inputs.dang || github.event.client_payload.dang) == 'keo-thom-2' && '15:00' || (github.event.inputs.dang || github.event.client_payload.dang) == 'keo-thom-3' && '22:00' || (github.event.inputs.dang || github.event.client_payload.dang) == 'flagship' && '15:30' || '20:00' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -203,6 +203,17 @@ jobs:
           path: du-lieu
           sparse-checkout: |
             du-lieu
+          persist-credentials: false
+      - name: Bang keo hang ngay (nhanh san-deal cua repo rieng tu) - chi khuon flagship
+        if: env.KHUON == 'flagship'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: thenail1995-create/kenh-game-du-lieu
+          ref: san-deal
+          ssh-key: ${{ secrets.DATA_DEPLOY_KEY }}
+          path: keo-du-lieu
+          sparse-checkout: |
+            keo
           persist-credentials: false
       - name: Khoa cache apt (doi moi tuan)
         id: apt
@@ -245,6 +256,7 @@ jobs:
           NTFY_BAO_LOI: ${{ secrets.NTFY_BAO_LOI }}
           UV_PYTHON_PREFERENCE: managed
           DU_LIEU_REPO: ${{ github.workspace }}/du-lieu
+          KEO_DIR: ${{ github.workspace }}/keo-du-lieu
           CHE_DO: ${{ github.event.inputs.che_do || github.event.client_payload.che_do || 'thu' }}
         run: |
           set -uo pipefail
@@ -304,7 +316,7 @@ jobs:
       DATA_REF: ${{ needs.kiem-moi.outputs.data_sha }}
       EP_TRUOT: ${{ github.event.inputs.ep_truot || 'false' }}
       GIONG_MUOI: ${{ (github.event.inputs.lan || github.event.client_payload.lan) == '2' && 'lan2' || '' }}
-      GIO_DANG: ${{ (github.event.inputs.dang || github.event.client_payload.dang) == 'top5' && '12:00' || (github.event.inputs.dang || github.event.client_payload.dang) == 'tin-nhanh' && '07:30' || (github.event.inputs.dang || github.event.client_payload.dang) == 'keo-thom-2' && '15:00' || (github.event.inputs.dang || github.event.client_payload.dang) == 'keo-thom-3' && '22:00' || '20:00' }}
+      GIO_DANG: ${{ (github.event.inputs.dang || github.event.client_payload.dang) == 'top5' && '12:00' || (github.event.inputs.dang || github.event.client_payload.dang) == 'tin-nhanh' && '07:30' || (github.event.inputs.dang || github.event.client_payload.dang) == 'keo-thom-2' && '15:00' || (github.event.inputs.dang || github.event.client_payload.dang) == 'keo-thom-3' && '22:00' || (github.event.inputs.dang || github.event.client_payload.dang) == 'flagship' && '15:30' || '20:00' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -556,7 +568,7 @@ jobs:
       BA_PHA: ${{ needs.kiem-moi.outputs.ba_pha }}
       DATA_SHA: ${{ needs.chung.outputs.data_sha }}
       BAN: ${{ matrix.ban }}
-      GIO_DANG: ${{ (github.event.inputs.dang || github.event.client_payload.dang) == 'top5' && '12:00' || (github.event.inputs.dang || github.event.client_payload.dang) == 'tin-nhanh' && '07:30' || (github.event.inputs.dang || github.event.client_payload.dang) == 'keo-thom-2' && '15:00' || (github.event.inputs.dang || github.event.client_payload.dang) == 'keo-thom-3' && '22:00' || '20:00' }}
+      GIO_DANG: ${{ (github.event.inputs.dang || github.event.client_payload.dang) == 'top5' && '12:00' || (github.event.inputs.dang || github.event.client_payload.dang) == 'tin-nhanh' && '07:30' || (github.event.inputs.dang || github.event.client_payload.dang) == 'keo-thom-2' && '15:00' || (github.event.inputs.dang || github.event.client_payload.dang) == 'keo-thom-3' && '22:00' || (github.event.inputs.dang || github.event.client_payload.dang) == 'flagship' && '15:30' || '20:00' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
