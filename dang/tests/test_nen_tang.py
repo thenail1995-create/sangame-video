@@ -155,6 +155,7 @@ class TestYT(unittest.TestCase):
         nc, m, luu = tao_nc("that"), self.mang_co_ban(), LuuGia()
         m.them("POST", "upload/youtube/v3/videos", P(headers={"Location": "https://up.example/session1"}))
         m.them("PUT", "up.example", P(200, {"id": "YV1"}))
+        m.them("PUT", "youtube/v3/videos", P(body={"status": {"containsSyntheticMedia": True}}))   # insert khong tra status -> xac nhan co AI qua videos.update
         with mock.patch("dang.http.gui", m), patch_chung():
             r = yt.chuan_bi(TOKEN_GIA["youtube"], nc, luu)
         body = [k["json_body"] for me, u, k in m.goi if "upload/youtube/v3/videos" in u][0]
@@ -167,6 +168,7 @@ class TestYT(unittest.TestCase):
         nc, m = tao_nc("that"), self.mang_co_ban()
         m.them("POST", "upload/youtube/v3/videos", P(headers={"Location": "https://up.example/s"}))
         m.them("PUT", "up.example", P(200, {"id": "YV1"}))
+        m.them("PUT", "youtube/v3/videos", P(body={"status": {"containsSyntheticMedia": True}}))   # insert khong tra status -> xac nhan co AI qua videos.update
         m.them("POST", "youtube/v3/thumbnails/set", P(200, {"kind": "youtube#thumbnailSetResponse"}))
         with mock.patch("dang.http.gui", m), patch_chung():
             r = yt.chuan_bi(TOKEN_GIA["youtube"], nc, LuuGia())
@@ -180,6 +182,7 @@ class TestYT(unittest.TestCase):
         nc, m = tao_nc("that"), self.mang_co_ban()
         m.them("POST", "upload/youtube/v3/videos", P(headers={"Location": "https://up.example/s"}))
         m.them("PUT", "up.example", P(200, {"id": "YV1"}))
+        m.them("PUT", "youtube/v3/videos", P(body={"status": {"containsSyntheticMedia": True}}))   # insert khong tra status -> xac nhan co AI qua videos.update
         m.them("POST", "youtube/v3/thumbnails/set", P(403, {"error": {"message": "forbidden"}}))
         luu = LuuGia()
         with mock.patch("dang.http.gui", m), patch_chung():
@@ -191,6 +194,7 @@ class TestYT(unittest.TestCase):
         nc, m = tao_nc("thu"), self.mang_co_ban()
         m.them("POST", "upload/youtube/v3/videos", P(headers={"Location": "https://up.example/s"}))
         m.them("PUT", "up.example", P(200, {"id": "YV1"}))
+        m.them("PUT", "youtube/v3/videos", P(body={"status": {"containsSyntheticMedia": True}}))   # insert khong tra status -> xac nhan co AI qua videos.update
         with mock.patch("dang.http.gui", m), patch_chung():
             yt.chuan_bi(TOKEN_GIA["youtube"], nc, LuuGia())
         body = [k["json_body"] for me, u, k in m.goi if "upload/youtube/v3/videos" in u][0]
@@ -230,10 +234,12 @@ class TestYT(unittest.TestCase):
     def test_cong_khai_da_public(self):
         nc, m = tao_nc("that"), self.mang_co_ban()
         m.them("GET", "youtube/v3/videos", P(body={"items": [{"status": {"privacyStatus": "public"}}]}))
+        m.them("PUT", "youtube/v3/videos", P(body={"status": {"containsSyntheticMedia": True}}))
         with mock.patch("dang.http.gui", m), patch_chung():
             r = yt.cong_khai(TOKEN_GIA["youtube"], nc, {"id_tai": "YV1"})
         self.assertIn("shorts/YV1", r["link"])
-        self.assertEqual(m.dem("PUT", "youtube/v3/videos"), 0)
+        self.assertEqual(m.dem("PUT", "youtube/v3/videos"), 1)   # da public: PUT public (idempotent) de co bang chung co AI
+        self.assertIs(r["nhan_ai"], True)
 
     def test_danh_tinh(self):
         m = self.mang_co_ban().them("GET", "youtube/v3/channels", P(body={"items": [{"id": "UCYT1"}]}))

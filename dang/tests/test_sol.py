@@ -69,17 +69,19 @@ class TestYoutubeCong(unittest.TestCase):
         nc, m = tao_nc("that"), self.mang()
         m.them("POST", "upload/youtube", P(headers={"Location": "https://up.example/s"}))
         m.them("PUT", "up.example", P(200, {"id": "YV1"}))
+        m.them("PUT", "youtube/v3/videos", P(body={"status": {"containsSyntheticMedia": True}}))   # insert khong tra status -> xac nhan co AI qua videos.update
         with mock.patch("dang.http.gui", m):
             yt.chuan_bi(TOKEN_GIA["youtube"], nc, lambda **k: None)
         meta = [k["json_body"] for me, u, k in m.goi if "upload/youtube/v3/videos" in u][0]
         self.assertEqual(meta["status"], {"privacyStatus": "private", "selfDeclaredMadeForKids": False, "embeddable": True,
                                           "publicStatsViewable": True, "license": "youtube", "containsSyntheticMedia": True})
-        self.assertEqual(m.dem("PUT", "youtube/v3/videos"), 0)
+        self.assertEqual(m.dem("PUT", "youtube/v3/videos"), 1)   # 1 lan videos.update (private) de xac nhan co AI, KHONG public
+        self.assertEqual([k["json_body"]["status"]["privacyStatus"] for me, u, k in m.goi if me == "PUT" and "youtube/v3/videos" in u], ["private"])
 
     def test_cong_khai_dat_public_bang_update(self):
         nc, m = tao_nc("that"), self.mang()
         m.them("GET", "youtube/v3/videos", P(body={"items": [{"status": {"privacyStatus": "private"}}]}))
-        m.them("PUT", "youtube/v3/videos", P(body={}))
+        m.them("PUT", "youtube/v3/videos", P(body={"status": {"containsSyntheticMedia": True}}))
         with mock.patch("dang.http.gui", m):
             yt.cong_khai(TOKEN_GIA["youtube"], nc, {"id_tai": "YV1"})
         body = [k["json_body"] for me, u, k in m.goi if me == "PUT" and "videos" in u][0]

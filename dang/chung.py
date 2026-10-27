@@ -103,11 +103,16 @@ GIO_HET_SANG = 10
 TIKTOK_TOI_DA = 150
 TRAN_HASHTAG = {"ig": 5, "tiktok": 3, "youtube": 3, "x": 2, "fb": 3}
 _BO_CO_DINH = ["#PlayStation", "#PS5", "#SănGame", "#GiảmGiá"]
+# 27/10 (SG-FB-2, SG-IG-0): bo hashtag co dinh rieng IG/FB (sau tag game). Nen tang khac giu _BO_CO_DINH (YouTube toi luot SG-3).
+BO_TAG = {"ig": ["#GiảmGiá", "#PS5", "#SănGame"], "fb": ["#PS5", "#SănGame"]}
 _RE_BAN_TIN_SANG = re.compile(r"Bản tin sáng")
 _RE_SANG_NAY = re.compile(r"(?i)\bsáng nay\b")
 _RE_URL = re.compile(r"(?i)(?<![\w@])(?:https?://|www\.)\S+|(?<![\w@.])sangame\.com\.vn\S*")
+# Bo nhan URL RONG (co giao thuc, www., moi ten mien tran dang abc.xyz[/duong]; khong bat email). Dung cho FB va chu dang tay (dang/ngan.py).
+_RE_URL_RONG = re.compile(r"(?i)https?://\S+|(?<![\w@.-])www\.\S+|(?<![\w@.-])(?:[a-z0-9][a-z0-9-]*\.)+[a-z]{2,24}(?![\w@-])(?:/\S*)?")
 _RE_TAG = re.compile(r"#\w+")
 THAY_URL = "web Săn Game (link ở bio)"
+THAY_URL_FB = "web Săn Game"   # FB khong co link o bio cho Reel -> khong nhac "link o bio"
 TIEU_DE_DU_PHONG = "Săn Game: tin giảm giá PlayStation hôm nay"
 _RE_GIA_DONG = re.compile(r"\s-\s(\d{1,3}(?:\.\d{3})+)đ")
 _RE_REN_NHAT = re.compile(r"rẻ nhất (.+?),\s*(\d{1,3}(?:\.\d{3})+)đ")
@@ -129,14 +134,14 @@ def _cat_chu(s, n):
     return s[:max(n - 1, 0)].rstrip() + "…"
 
 
-def bo_url(s):
-    """Thay moi URL (http/https/www/ten mien sangame.com.vn, khong phan biet hoa thuong) bang 'web Săn Game (link ở bio)'.
+def bo_url(s, thay=THAY_URL, mau=None):
+    """Thay moi URL (http/https/www/ten mien sangame.com.vn, khong phan biet hoa thuong) bang `thay` (mac dinh 'web Săn Game (link ở bio)').
     'Tra gia ...: https://x.vn/a.' -> 'Tra gia ...: web Săn Game (link ở bio).' (giu dau cau cuoi)."""
     def doi(m):
         u = m.group(0)
         dau = re.search(r"[.,;:!?)]+$", u)
-        return THAY_URL + (dau.group(0) if dau else "")
-    return _RE_URL.sub(doi, s or "").strip()
+        return thay + (dau.group(0) if dau else "")
+    return (mau or _RE_URL).sub(doi, s or "").strip()
 
 
 def tag_co_san(*van_ban):
@@ -159,12 +164,12 @@ def hashtag_game(ten):
     return "#" + than if than else ""
 
 
-def bo_hashtag(ten, tran, co_san=()):
-    """[tag game, #PlayStation, #PS5, #SanGame, #GiamGia] cat theo tran tung nen tang.
+def bo_hashtag(ten, tran, co_san=(), co_dinh=None):
+    """[tag game] + bo co dinh (mac dinh #PlayStation #PS5 #SanGame #GiamGia) cat theo tran tung nen tang.
     co_san: hashtag da nam trong van ban cua bai (tinh vao tran, khong them lai tag trung)."""
     tag = hashtag_game(ten)
     con = tran - len(co_san)
-    ung = [t for t in (([tag] if tag else []) + _BO_CO_DINH) if t.lower() not in co_san]
+    ung = [t for t in (([tag] if tag else []) + (_BO_CO_DINH if co_dinh is None else co_dinh)) if t.lower() not in co_san]
     return ung[:max(con, 0)]
 
 
@@ -214,7 +219,12 @@ class NguCanh:
 
     def hashtags(self, nen_tang, *co_san):
         """Hashtag them vao: tran nen tang tru so hashtag da co trong van ban (co_san) cua bai."""
-        return bo_hashtag(self.ten_game(), TRAN_HASHTAG[nen_tang], tag_co_san(*co_san))
+        return bo_hashtag(self.ten_game(), TRAN_HASHTAG[nen_tang], tag_co_san(*co_san), BO_TAG.get(nen_tang))
+
+    def tags_youtube(self):
+        """Truong tags (khong '#') cua YouTube: GIU bo cu (tag game + #PlayStation #PS5 #SănGame #GiảmGiá), toi da 15,
+        doc lap voi BO_TAG cua IG/FB (S3 soi Sol 27/10)."""
+        return [h.lstrip("#") for h in bo_hashtag(self.ten_game(), TRAN_HASHTAG["ig"])][:15]
 
     def _than(self):
         return [self._nhan(c) for c in than_ngan(self.dang, self.loi_dang)]
@@ -239,22 +249,19 @@ class NguCanh:
         return s[:4900]
 
     def caption_ig(self, toi_da=2200):
-        """hook + 1-2 cau + 'Link o bio' + <= 5 hashtag, khong URL."""
+        """hook + 1-2 cau + 'Bang gia du vung: link o bio' + <= 5 hashtag (tag game, #GiamGia, #PS5, #SanGame), khong URL."""
         hook, than = self.hook_sach(), " ".join(self._than())
-        phan = [hook, than, "Link ở bio.", " ".join(self.hashtags("ig", hook, than))]
+        phan = [hook, than, "Bảng giá đủ vùng: link ở bio.", " ".join(self.hashtags("ig", hook, than))]
         return "\n\n".join(p for p in phan if p)[:toi_da]
 
     def caption_fb(self, toi_da=2200):
-        """Dong dau la hook, giu mo ta day du + URL (FB bam duoc), <= 3 hashtag."""
-        ld = self.loi_dang
-        mo_ta = self._nhan(ld.get("mo_ta", ""))
-        link = ld.get("link", "")
-        if link and link in mo_ta:
-            link = ""
-        hook = self.hook()
+        """Dong dau la hook, giu mo ta day du, KHONG URL/ten mien o bat ky cho nao (SG-FB-2: Reel FB khong link o caption lan binh luan),
+        <= 3 hashtag (tag game, #PS5, #SanGame)."""
+        mo_ta = bo_url(self._nhan(self.loi_dang.get("mo_ta", "")), THAY_URL_FB, _RE_URL_RONG)
+        hook = bo_url(self.hook(), THAY_URL_FB, _RE_URL_RONG)
         tags = " ".join(self.hashtags("fb", hook, mo_ta))
         nhan = DONG_NHAN_AI if CO_GIONG_AI else ""
-        phan = [hook, mo_ta, link, tags]
+        phan = [hook, mo_ta, tags]
         # dong nhan o CUOI: cat noi dung truoc, khong cat nhan
         ben = "\n\n".join(p for p in phan if p)
         if not nhan:

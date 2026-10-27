@@ -7,7 +7,7 @@ Luong: start -> rupload nhi phan (header offset/file_size) -> cho upload xong ->
 """
 import pathlib
 
-from . import chung, http, meta
+from . import chung, http, meta, ntfy
 
 G = "https://graph.facebook.com/v26.0"
 RUPLOAD = "https://rupload.facebook.com/video-upload/v26.0"
@@ -86,10 +86,32 @@ def _dat_bia(tk, video_id, du_lieu, mime="image/jpeg"):
     return False, chung.cat(cuoi)
 
 
+def tham_finish(video_id, mo_ta, video_state, hen_unix=None):
+    """Tham so buoc finish cua Reels. Nhan AI (is_ai_generated) co o MOI video_state (DRAFT/PUBLISHED/SCHEDULED) khi CO_GIONG_AI.
+    SCHEDULED them scheduled_publish_time (Unix). Thuan, khong goi mang - dung chung voi bo dang tay (dang/ngan.py)."""
+    tham = {"upload_phase": "finish", "video_id": video_id, "video_state": video_state, "description": mo_ta}
+    if hen_unix is not None:
+        tham["scheduled_publish_time"] = str(int(hen_unix))
+    if chung.CO_GIONG_AI:
+        tham["is_ai_generated"] = "true"
+    return tham
+
+
+def finish(tk, page_id, tham):
+    """POST finish. Meta TU CHOI rieng nhan AI (400 + nhac is_ai_generated) -> LoiDang chac chan chua dang + ntfy; KHONG thu lai
+    khong nhan (luat Hao 27/10: khong co duong lui 'dang khong nhan'). Loi khac nem nhu cu."""
+    try:
+        return meta.goi(G, "POST", f"/{page_id}/video_reels", token=tk["page_token"], co_tac_dung=True, timeout=120, tham_so=tham)
+    except chung.LoiDang as e:
+        if chung.CO_GIONG_AI and e.ma_http == 400 and "is_ai_generated" in (e.thong_diep or "").lower():
+            ntfy.loi("FB từ chối nhãn AI — chưa đăng", f"Meta từ chối is_ai_generated ở bước finish ({tham.get('video_state')}); "
+                     f"KHÔNG đăng lại không nhãn. video_id={tham.get('video_id')}: {e}", uu_tien=4)
+            raise chung.LoiDang(f"FB tu choi nhan AI (is_ai_generated), chua dang gi: {e}", ma_http=400, thong_diep=e.thong_diep) from None
+        raise
+
+
 def _finish(tk, page_id, video_id, mo_ta, cong_khai):
-    return meta.goi(G, "POST", f"/{page_id}/video_reels", token=tk["page_token"], co_tac_dung=True, timeout=120,
-                    tham_so={"upload_phase": "finish", "video_id": video_id,
-                             "video_state": "PUBLISHED" if cong_khai else "DRAFT", "description": mo_ta})
+    return finish(tk, page_id, tham_finish(video_id, mo_ta, "PUBLISHED" if cong_khai else "DRAFT"))
 
 
 def _bat_dau_upload(tk, nc, page, luu=None):
