@@ -3,14 +3,18 @@
 Ghim mo hinh: vieneu 3.8.3 goi hf_hub_download KHONG co revision (onnx_runtime_lite.py:_fetch) va codec khong cho truyen duong dan => boc hf_hub_download
 TRUOC khi import vieneu, them revision ghim cho dung 2 repo cua no (giong preset nam trong wheel nen duoc ghim theo vieneu==3.8.3). Chi mang toi HuggingFace.
   python -I vieneu_doc.py --loi-file loi.txt --giong "Adam bựa" --ra x.wav"""
-import argparse,pathlib,sys
+import argparse,os,pathlib,sys
 GHIM={'pnnbao-ump/VieNeu-TTS-v3-Turbo':'61b85e3d937fbbacb387714180e8182823512523','OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano-ONNX':'ceff0d0749bfb3fa2d61149794ec6feef0d1e1ae'}   # gitleaks:allow (commit Hugging Face cong khai, khong phai khoa)
+# Tai vao THU MUC THAT (local_dir), khong qua kho blob/symlink cua HF: onnxruntime doi tep .onnx va .data nam cung thu muc (CI 28/10 run 40669447104 truot vi blob tach thu muc)
+MO_HINH=pathlib.Path(os.environ.get('VIENEU_MO_HINH') or pathlib.Path.home()/'.cache/vieneu-mo-hinh')
 def ghim_mo_hinh(thay=None):
     import huggingface_hub as hh
     goc=hh.hf_hub_download; thay=thay if thay is not None else []
     def hf_hub_download(*a,**kw):
         rid=a[0] if a else kw.get('repo_id')
-        if rid in GHIM and not kw.get('revision'): kw['revision']=GHIM[rid]; thay.append(rid)
+        if rid in GHIM:
+            if not kw.get('revision'): kw['revision']=GHIM[rid]; thay.append(rid)
+            kw.setdefault('local_dir',str(MO_HINH/(rid.replace('/','--')+'@'+kw['revision'])))
         return goc(*a,**kw)
     hh.hf_hub_download=hf_hub_download
 def main(argv=None):

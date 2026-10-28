@@ -7,6 +7,7 @@ Khong import gi nang o cap module (giong.py import file nay luc khoi dong)."""
 import json,os,pathlib,re,shutil,subprocess,tempfile
 GIONG_MAY_MAC_DINH='Adam bựa'
 VIENEU_PIN='vieneu==3.8.3'
+GOI_KEM=('huggingface_hub==2.3.0','onnxruntime==1.31.1')   # ghim ban da chay that tren Mac 28/10; CI 28/10 run 40669447104: ban moi tren runner -> onnxruntime chan '.data' nam o blob khac (External data path escapes model directory)
 REV_BACKBONE=('pnnbao-ump/VieNeu-TTS-v3-Turbo','61b85e3d937fbbacb387714180e8182823512523')
 REV_CODEC=('OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano-ONNX','ceff0d0749bfb3fa2d61149794ec6feef0d1e1ae')   # gitleaks:allow (commit Hugging Face cong khai, khong phai khoa)
 PHIEN_BAN_MO_HINH=f'{VIENEU_PIN}|{REV_BACKBONE[0]}@{REV_BACKBONE[1]}|{REV_CODEC[0]}@{REV_CODEC[1]}'
@@ -24,7 +25,7 @@ def ghi_nguon(ra,**kw):
     p=pathlib.Path(ra).parent/NGUON_TEN; p.write_text(json.dumps(kw,ensure_ascii=False,indent=1),encoding='utf-8'); return p
 def _env_con():
     # env TOI THIEU cho tien trinh con: khong SUPABASE_*, SG_*, THENAIL_*
-    e={k:v for k,v in os.environ.items() if k in ('PATH','HOME','LANG','LC_ALL','TMPDIR','XDG_CACHE_HOME') or k.startswith(('HF_','UV_'))}
+    e={k:v for k,v in os.environ.items() if k in ('PATH','HOME','LANG','LC_ALL','TMPDIR','XDG_CACHE_HOME') or k.startswith(('HF_','UV_','VIENEU_'))}
     e['HF_HUB_DISABLE_TELEMETRY']='1'; return e
 def _thoi_luong(p,chay):
     import giong as G
@@ -54,7 +55,7 @@ def doc_may(loi,ra,giong=GIONG_MAY_MAC_DINH,ly_do='',muoi='',bi_mat=(),chay=subp
         except (ValueError,G.Loi): kho.unlink(missing_ok=True)
     with tempfile.TemporaryDirectory() as td:
         td=pathlib.Path(td); lt=td/'loi.txt'; lt.write_text(sach,encoding='utf-8'); wav=td/'x.wav'
-        cmd=['uv','run','-q','--no-project','--python','3.13','--with',VIENEU_PIN,'python','-I',str(pathlib.Path(__file__).resolve().parent/'vieneu_doc.py'),
+        cmd=['uv','run','-q','--no-project','--python','3.13','--with',VIENEU_PIN,*[x for g in GOI_KEM for x in ('--with',g)],'python','-I',str(pathlib.Path(__file__).resolve().parent/'vieneu_doc.py'),
              '--loi-file',str(lt),'--giong',giong,'--ra',str(wav)]
         try: r=chay(cmd,capture_output=True,text=True,timeout=TIMEOUT_DOC,env=_env_con())
         except Exception as e: raise G.Loi('LOI giong may: khong chay duoc VieNeu: '+G.che(str(e),bi_mat)[:300])
