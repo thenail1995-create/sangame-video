@@ -9,8 +9,9 @@ Thu muc bai co:
                  moi khoi la mot hang rao ``` ... ``` (nhu script cu)
   ra/            ket qua: ra/<kenh>.json  trang_thai dang_lam -> xong (chong dang trung)
 
-Luat Hao 27/10: video giong AI phai co nhan AI tren moi kenh, cong cu khong gan duoc thi KHONG dung -> moi lenh dang di qua
-yt.xac_nhan_ai / fb.tham_finish / ig.tham_container / body TikTok video_made_with_ai; khong co duong lui "dang khong nhan".
+Luat nhan AI (Hao 27/10, sua 28/10 "mấy cái không gẵn nhãn ai được thì cứ đăng luôn"): kenh CO co nhan AI phai gui co -> moi lenh
+dang o day di qua yt.xac_nhan_ai / fb.tham_finish / ig.tham_container / body TikTok video_made_with_ai; co bi tu choi thi DUNG,
+khong co duong lui "dang khong nhan". Kenh KHONG co co qua API (X, Threads) duoc dang, caption kem chung.DONG_NHAN_AI.
 Moi lenh dang chay cac phep kiem chu (kiem_chu / kiem_tieu_de_yt / cach_gio_tiktok qua Zernio) TRUOC moi goi mang co tac dung.
 """
 import contextlib
