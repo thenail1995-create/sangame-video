@@ -18,7 +18,7 @@ class TestDungYml(unittest.TestCase):
         self.assertEqual(len(re.findall(r'actions/cache/(?:save|restore)@', Y)), 2)
         self.assertEqual(Y.count('GIONG_KHO: ${{ runner.temp }}/giong-kho'), 2)   # chi job chung (thu giong + chay chung); job ban/gom KHONG thay giong tho qua cache
         # dung nhanh 11/10: duoc cache MO HINH, trinh duyet, goi Python, .deb - KHONG BAO GIO giong / khoa / du lieu rieng tu / khuon
-        CHO_PHEP = ('whisper', 'apt-deb', 'playwright', 'uv-')
+        CHO_PHEP = ('whisper', 'apt-deb', 'playwright', 'uv-', 'vieneu-')
         dem = 0
         for ten, n in TATCA.items():
             for m in re.finditer(r'actions/cache@[^\n]*\n        with:\n          path:([^\n]*(?:\n            [^\n]*)*)\n          key: ([^\n]*)', n):

@@ -87,10 +87,15 @@ class Giong(unittest.TestCase):
         # lan 2 cung loi: kho -> 0 credit, khong goi mang/so
         cong2=CongGia(); el2=ElevenGia({'nghe_thu':'x'}); ra2=self.d/'giong2.mp3'
         self.assertEqual(gi.cmd_giong(args(self.loi,ra2),cong2,el2),('kho',0)); self.assertEqual(cong2.goi_,[]); self.assertEqual(el2.goi_,[])
+    def may(self,**kw): return unittest.mock.patch.object(gi.giong_may,'doc_may',**kw)   # KHONG chay VieNeu that trong test
     def test_vuot_tran_tu_choi(self):
         cong=CongGia(vuot=True); el=ElevenGia({'nghe_thu':'x'})
-        with self.assertRaises(SystemExit) as c: gi.cmd_giong(args(self.loi,self.d/'g.mp3'),cong,el)
-        self.assertIn('vuot tran',str(c.exception)); self.assertEqual(el.goi_,[])   # chua goi ElevenLabs
+        with unittest.mock.patch.dict(os.environ,{'SG_GIONG_MAY':'0'}), self.may() as dm, self.assertRaises(SystemExit) as c: gi.cmd_giong(args(self.loi,self.d/'g.mp3'),cong,el)
+        self.assertIn('vuot tran',str(c.exception)); self.assertEqual(el.goi_,[]); dm.assert_not_called()   # chua goi ElevenLabs, khong doc may
+    def test_vuot_tran_doc_bang_may(self):
+        cong=CongGia(vuot=True); el=ElevenGia({'nghe_thu':'x'})
+        with self.may(return_value=('may',0)) as dm: kq=gi.cmd_giong(args(self.loi,self.d/'g.mp3'),cong,el)
+        self.assertEqual(kq,('may',0)); self.assertEqual(el.goi_,[]); self.assertEqual(dm.call_args.kwargs['ly_do'],'vuot_tran')
     def test_tts_5xx_khong_ro_4xx_huy(self):
         for ma,viec in ((502,'khong_ro_credit'),(400,'huy_credit')):
             cong=CongGia(); el=ElevenGia(urllib.error.HTTPError('u',ma,'e',{},None))
@@ -104,12 +109,18 @@ class Giong(unittest.TestCase):
         # doc-giong tra HTTP 200 kem {"ok":false,"loi":"tts 4xx: ..."} khi ElevenLabs tu choi => huy; loi khong ro dang => khong_ro (Sol bcd #6)
         for tts,viec in (({'ok':False,'loi':'tts 401: quota_exceeded'},'huy_credit'),({'loi':'quota'},'khong_ro_credit')):
             cong=CongGia(); el=ElevenGia(tts)
-            with self.assertRaises(SystemExit): gi.cmd_giong(args(self.loi,self.d/'g.mp3'),cong,el)
-            self.assertEqual([c[0] for c in cong.goi_],['tim_credit_khoa','giu_credit',viec])
+            with unittest.mock.patch.dict(os.environ,{'SG_GIONG_MAY':'0'}), self.may() as dm, self.assertRaises(SystemExit): gi.cmd_giong(args(self.loi,self.d/'g.mp3'),cong,el)
+            self.assertEqual([c[0] for c in cong.goi_],['tim_credit_khoa','giu_credit',viec]); dm.assert_not_called()
+        cong=CongGia(); el=ElevenGia({'ok':False,'loi':'tts 401: quota_exceeded'})   # mac dinh: huy giu cho roi doc may
+        with self.may(return_value=('may',0)) as dm: self.assertEqual(gi.cmd_giong(args(self.loi,self.d/'g2.mp3'),cong,el),('may',0))
+        self.assertEqual([c[0] for c in cong.goi_],['tim_credit_khoa','giu_credit','huy_credit']); self.assertEqual(dm.call_args.kwargs['ly_do'],'quota_exceeded')
     def test_du_phong_huy_giu_cho(self):
         cong=CongGia(); el=ElevenGia({'nghe_thu':'x'},da_dung=(99900,))
-        with self.assertRaises(SystemExit) as c: gi.cmd_giong(args(self.loi,self.d/'g.mp3'),cong,el)
-        self.assertIn('du phong',str(c.exception)); self.assertEqual([c[0] for c in cong.goi_],['tim_credit_khoa','giu_credit','huy_credit']); self.assertNotIn('tts',el.goi_)
+        with unittest.mock.patch.dict(os.environ,{'SG_GIONG_MAY':'0'}), self.may() as dm, self.assertRaises(SystemExit) as c: gi.cmd_giong(args(self.loi,self.d/'g.mp3'),cong,el)
+        self.assertIn('du phong',str(c.exception)); self.assertEqual([c[0] for c in cong.goi_],['tim_credit_khoa','giu_credit','huy_credit']); self.assertNotIn('tts',el.goi_); dm.assert_not_called()
+        cong=CongGia(); el=ElevenGia({'nghe_thu':'x'},da_dung=(99900,))   # mac dinh: huy giu cho roi doc may
+        with self.may(return_value=('may',0)) as dm: self.assertEqual(gi.cmd_giong(args(self.loi,self.d/'g3.mp3'),cong,el),('may',0))
+        self.assertEqual([c[0] for c in cong.goi_],['tim_credit_khoa','giu_credit','huy_credit']); self.assertEqual(dm.call_args.kwargs['ly_do'],'du_phong_tai_khoan')
     def test_bo_cai_dat_chua_thu_ngan_tu_choi(self):
         cong=CongGia(); el=ElevenGia({'nghe_thu':'x'})
         with self.assertRaises(SystemExit) as c: gi.cmd_giong(args(self.loi,self.d/'g.mp3',on_dinh=0.5),cong,el)
