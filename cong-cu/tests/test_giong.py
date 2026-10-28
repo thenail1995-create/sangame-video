@@ -51,7 +51,7 @@ class Khung(unittest.TestCase):
         p = mock.patch.dict(os.environ, {'GIONG_KHO': str(self.t / 'kho'), 'SUPABASE_ANON_THENAIL': ANON_GIA, 'SG_CONG_KHOA': KHOA_GIA}); p.start(); self.addCleanup(p.stop)
     def args(self, loi='xin chao ' * 10, **kw):
         d = dict(loi=loi, loi_file=None, voice=giong.VOICE_MAC_DINH, model='eleven_v3', on_dinh=0.0, toc_do=1.0, muoi='', ra=str(self.t / 'ra' / 'g.mp3'),
-                 du_an='san-game', dang='top5', tran=None, du_phong=10000, cho_vuot=False); d.update(kw); return argparse.Namespace(**d)
+                 du_an='san-game', dang='top5', tran=None, du_phong=10000, cho_vuot=False, khong_may=False); d.update(kw); return argparse.Namespace(**d)
     def chay(self, cong, el, tai=tai_ok, **kw):
         o = io.StringIO(); e = io.StringIO()
         with contextlib.redirect_stdout(o), contextlib.redirect_stderr(e):
@@ -123,16 +123,74 @@ class TestGiong(Khung):
         self.assertEqual(cong.kw('giu_credit')[0]['credit_uoc'], 250.0)
         self.assertEqual(giong.GIA_TOI_DA[(giong.VOICE_MAC_DINH, 'eleven_v3')], 1.0)
 
-    def test_vuot_tran_tu_choi_truoc_tts(self):  # #4
-        cong = Cong(kho={'vuot': True}); el = El(); r, exc, _ = self.chay(cong, el)
-        self.assertIsNotNone(exc); self.assertEqual(el.tts_n, 0)
+    def test_vuot_tran_tu_choi_truoc_tts(self):  # #4: SG_GIONG_MAY=0 (hoac --khong-may) => giu raise cu
+        for kw, env in (({}, {'SG_GIONG_MAY': '0'}), ({'khong_may': True}, {})):
+            cong = Cong(kho={'vuot': True}); el = El()
+            with mock.patch.dict(os.environ, env), mock.patch.object(giong.giong_may, 'doc_may') as dm: r, exc, _ = self.chay(cong, el, **kw)
+            self.assertIsNotNone(exc); self.assertIn('TU CHOI', str(exc)); self.assertEqual(el.tts_n, 0); dm.assert_not_called()
 
-    def test_du_phong_tinh_theo_giu_khong_theo_uoc_thap(self):  # #4: con 10050, giu 100 -> con-giu=9950 < 10000 => tu choi, huy, 0 tts
-        class El2(El):
-            def goi(s, body, timeout=180):
-                return {'gioi_han': 20000, 'da_dung': 9950} if body['action'] == 'goi' else super().goi(body)
-        cong = Cong(); el = El2(); r, exc, _ = self.chay(cong, el)
+    def test_vuot_tran_thi_doc_bang_may(self):   # SG-GIONG-may: vuot_tran la True => dich vu may, khong goi ElevenLabs, ly do vuot_tran
+        cong = Cong(kho={'vuot': True}); el = El()
+        with mock.patch.object(giong.giong_may, 'doc_may', return_value=('may', 0)) as dm: r, exc, out = self.chay(cong, el, muoi='lan2')
+        self.assertIsNone(exc); self.assertEqual(r, ('may', 0)); self.assertEqual(el.tts_n, 0); self.assertEqual(el.goi_n, 0)
+        self.assertEqual(dm.call_args.kwargs['ly_do'], 'vuot_tran'); self.assertEqual(dm.call_args.kwargs['muoi'], 'lan2'); self.assertEqual(dm.call_args.args[0].strip(), ('xin chao ' * 10).strip())
+        self.assertNotIn('huy_credit', cong.ten()); self.assertIn('DU PHONG', out)
+
+    def test_thieu_id_ma_khong_vuot_tran_thi_van_raise(self):   # Sol #1: id None nhung vuot_tran khong phai True => KHONG dung may
+        class Cong2(Cong):
+            def goi(s, viec, lap_lai=True, **kw):
+                return {'ok': True, 'id': None} if viec == 'giu_credit' else super().goi(viec, lap_lai, **kw)
+        with mock.patch.object(giong.giong_may, 'doc_may') as dm: r, exc, _ = self.chay(Cong2(), El())
+        self.assertIsNotNone(exc); dm.assert_not_called()
+
+    def test_loi_may_thi_loi_ca_hai_ly_do(self):
+        with mock.patch.object(giong.giong_may, 'doc_may', side_effect=giong.Loi('LOI giong may: x')): r, exc, _ = self.chay(Cong(kho={'vuot': True}), El())
+        self.assertIn('vuot tran', str(exc.code)); self.assertIn('LOI giong may: x', str(exc.code))
+
+    class El2(El):
+        def goi(s, body, timeout=180):
+            return {'gioi_han': 20000, 'da_dung': 9950} if body['action'] == 'goi' else super().goi(body)
+
+    def test_du_phong_tinh_theo_giu_khong_theo_uoc_thap(self):  # #4: con 10050, giu 100 -> con-giu=9950 < 10000 => tu choi, huy, 0 tts (SG_GIONG_MAY=0)
+        cong = Cong(); el = self.El2()
+        with mock.patch.dict(os.environ, {'SG_GIONG_MAY': '0'}): r, exc, _ = self.chay(cong, el)
         self.assertIsNotNone(exc); self.assertEqual(el.tts_n, 0); self.assertIn('huy_credit', cong.ten())
+
+    def test_du_phong_tai_khoan_huy_roi_doc_may(self):   # huy_credit nhu cu roi doc bang may, ly do du_phong_tai_khoan
+        cong = Cong(); el = self.El2()
+        with mock.patch.object(giong.giong_may, 'doc_may', return_value=('may', 0)) as dm: r, exc, _ = self.chay(cong, el)
+        self.assertIsNone(exc); self.assertEqual(r, ('may', 0)); self.assertEqual(el.tts_n, 0); self.assertEqual(cong.ten()[-1], 'huy_credit')
+        self.assertEqual(dm.call_args.kwargs['ly_do'], 'du_phong_tai_khoan')
+
+    def test_tts_quota_exceeded_huy_roi_doc_may(self):   # chi 'tts 4xx: quota_exceeded'
+        cong = Cong(); el = El(tts={'ok': False, 'loi': 'tts 401: quota_exceeded'})
+        with mock.patch.object(giong.giong_may, 'doc_may', return_value=('may', 0)) as dm: r, exc, _ = self.chay(cong, el)
+        self.assertIsNone(exc); self.assertEqual(r, ('may', 0)); self.assertEqual(cong.ten()[-1], 'huy_credit'); self.assertNotIn('khong_ro_credit', cong.ten())
+        self.assertEqual(dm.call_args.kwargs['ly_do'], 'quota_exceeded')
+        cong = Cong(); el = El(tts={'ok': False, 'loi': 'tts 401: quota_exceeded'})
+        with mock.patch.dict(os.environ, {'SG_GIONG_MAY': '0'}), mock.patch.object(giong.giong_may, 'doc_may') as dm: r, exc, _ = self.chay(cong, el)
+        self.assertIsNotNone(exc); self.assertIn('huy_credit', cong.ten()); dm.assert_not_called()
+
+    def test_tts_4xx_khac_hoac_khong_ro_khong_doc_may(self):   # khoa sai, loi 5xx, chua_ro, cong hong, HTTPError => nguyen hanh vi dung
+        for tts, exc_ in (({'ok': False, 'loi': 'tts 401: bad key'}, None), ({'ok': False, 'loi': 'tts 500: quota_exceeded'}, None), ({'ok': False, 'loi': 'luu: quota_exceeded'}, None),
+                          ({'ok': False, 'loi': 'tts 429: not_quota_exceeded_x'}, None), (None, urllib.error.HTTPError('u', 429, 'quota_exceeded', {}, None))):
+            cong = Cong(); el = El(tts=tts, exc=exc_)
+            with mock.patch.object(giong.giong_may, 'doc_may') as dm: r, exc, _ = self.chay(cong, el)
+            self.assertIsNotNone(exc, tts); dm.assert_not_called()
+        for cong in (Cong(hong={'tim_credit_khoa'}), Cong(kho={'dong': None, 'chua_ro': [{'id': 3}]})):
+            with mock.patch.object(giong.giong_may, 'doc_may') as dm: r, exc, _ = self.chay(cong, El())
+            self.assertIsNotNone(exc); dm.assert_not_called()
+
+    def test_giong_nguon_ghi_moi_lan_thanh_cong(self):
+        import json
+        g = self.t / 'ra' / 'giong-nguon.json'
+        r, exc, _ = self.chay(Cong(), El(da_dung=(100.0, 137.2, 137.2))); self.assertEqual(r[0], 'goi')
+        d = json.loads(g.read_text(encoding='utf-8')); self.assertEqual((d['nguon'], d['cach']), ('elevenlabs', 'goi'))
+        r, exc, _ = self.chay(Cong(), El()); self.assertEqual(r, ('kho', 0)); self.assertEqual(json.loads(g.read_text(encoding='utf-8'))['cach'], 'kho')
+        r, exc, _ = self.chay(Cong(kho={'dong': {'id': 5, 'trang_thai': 'xong', 'tep': PATH}, 'link': LINK_GIA}), El(), loi='kho rieng ' * 10)
+        self.assertEqual(json.loads(g.read_text(encoding='utf-8'))['cach'], 'kho-rieng')
+        g.write_text('{"nguon":"may"}')   # tep cu khong duoc lan sang luot loi
+        r, exc, _ = self.chay(Cong(hong={'tim_credit_khoa'}), El(), loi='loi khac ' * 10); self.assertIsNotNone(exc); self.assertFalse(g.exists())
 
     def test_khong_in_khoa(self):
         cong = Cong(hong={'ghi_tep_credit', 'xong_credit'}); r, exc, out = self.chay(cong, El(da_dung=(1.0, 2.0)))

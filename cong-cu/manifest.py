@@ -45,9 +45,15 @@ tu_sua={}
 if (K/'kiem'/'tu-sua.json').exists():
     try: tu_sua=json.load(open(K/'kiem'/'tu-sua.json'))
     except ValueError: tu_sua={'loi':'tu-sua.json hong'}
+# giong_nguon: dau-vao/giong-nguon.json do giong.py ghi (nguon elevenlabs|may + ly do); khong co / hong => bo truong (khong them tai san Release)
+giong_nguon=None
+if (K/'dau-vao'/'giong-nguon.json').exists():
+    try: giong_nguon=json.load(open(K/'dau-vao'/'giong-nguon.json',encoding='utf-8'))
+    except ValueError: giong_nguon=None
 vn=datetime.timezone(datetime.timedelta(hours=7))
 m=dict(phien_ban=1,ngay_dang=a.ngay,dang=a.dang,gio_dang=f'{a.ngay}T{GIO[a.dang]}:00+07:00',che_do=a.che_do,
        sha_code=os.environ.get('CODE_SHA') or subprocess.run(['git','rev-parse','HEAD'],capture_output=True,text=True).stdout.strip(),
        sha_du_lieu=os.environ.get('DATA_SHA',''),tao_luc=datetime.datetime.now(vn).isoformat(timespec='seconds'),ban=ban,loi_dang=loi_dang,kiem_lai=kiem_lai,tu_sua=tu_sua)
+if giong_nguon is not None: m['giong_nguon']=giong_nguon
 json.dump(m,open(R/'manifest.json','w'),ensure_ascii=False,indent=1)
 print('MANIFEST DAT:',a.dang,a.ngay,{nt:(x['giay'],len(x['kiem']['phep'])) for nt,x in ban.items()},'kiem_lai',len(kiem_lai))
