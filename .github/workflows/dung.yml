@@ -443,7 +443,7 @@ jobs:
           mkdir -p "khuon/$KHUON/tai-san" "khuon/$KHUON/dau-vao"
           openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass env:GOI_KHOA -in chon-ra/chon-ra.enc | tar -xf - -C "khuon/$KHUON"
           ls "khuon/$KHUON"
-      - name: "Thu giong (3 pha: kho rieng -> giu cho credit -> doc-giong -> ghi tep -> sap so; tran 20000/thang)"
+      - name: "Thu giong (3 pha: kho rieng -> giu cho credit -> doc-giong -> ghi tep -> sap so; tran du an 200000/thang, du phong tai khoan 10000)"
         if: env.LIVE == '1' && env.BA_PHA == '1'
         env:
           GIONG_KHO: ${{ runner.temp }}/giong-kho

@@ -82,7 +82,7 @@ class Giong(unittest.TestCase):
         cong=CongGia(); el=ElevenGia(TTS_OK); ra=self.d/'o'/'giong.mp3'
         with self.mp3(): kq=gi.cmd_giong(args(self.loi,ra),cong,el)
         self.assertEqual(kq[0],'goi'); self.assertEqual(kq[1],230.0)   # chenh da_dung 330-100 (<= 3 x uoc) la credit that
-        self.assertEqual([c[0] for c in cong.goi_],['tim_credit_khoa','giu_credit','ghi_tep_credit','xong_credit']); self.assertEqual(cong.goi_[1][1]['tran'],20000); self.assertEqual(cong.goi_[3][1]['credit_that'],230.0)
+        self.assertEqual([c[0] for c in cong.goi_],['tim_credit_khoa','giu_credit','ghi_tep_credit','xong_credit']); self.assertEqual(cong.goi_[1][1]['tran'],200000); self.assertEqual(cong.goi_[3][1]['credit_that'],230.0)
         self.assertTrue(ra.exists())
         # lan 2 cung loi: kho -> 0 credit, khong goi mang/so
         cong2=CongGia(); el2=ElevenGia({'nghe_thu':'x'}); ra2=self.d/'giong2.mp3'
