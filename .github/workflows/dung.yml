@@ -139,6 +139,17 @@ jobs:
           sparse-checkout: |
             du-lieu
           persist-credentials: false
+      - name: So dang da dong khung nay chua (khong dung -> khong Release mo coi; SG-TOP5-hong 30/10)
+        id: khung
+        if: steps.vao.outputs.live == '1' && env.CHE_DO == 'that'
+        env:
+          SG_CONG_KHOA: ${{ secrets.SG_CONG_KHOA }}
+          NGAY: ${{ steps.vao.outputs.ngay }}
+        run: |
+          set -euo pipefail
+          # 29/10: dung lai 22:11 sau khi 12:00 ghi `bo` ca 5 kenh -> Release v-2026-10-29-top5 mo coi (sg_giu_dang chi mo lai dong that_bai).
+          # Dang bu hop le: doi dong cua khung sang that_bai truoc roi moi chay. Loi cong = coi la mo (khong chan lich binh thuong).
+          python3 -m dang.khung_dong --ngay "$NGAY" --dang "$DANG" --github-output
       - name: Da co Release cua ngay nay chua (lan 2 khong dung lai)
         id: da
         if: steps.vao.outputs.live == '1' && env.CHE_DO == 'that'
@@ -157,6 +168,7 @@ jobs:
         env:
           LIVE: ${{ steps.vao.outputs.live }}
           DA: ${{ steps.da.outputs.da }}
+          KHUNG_DONG: ${{ steps.khung.outputs.dong }}
           NGAY: ${{ steps.vao.outputs.ngay_du_lieu }}
           NTFY_BAO_LOI: ${{ secrets.NTFY_BAO_LOI }}
           BO_QUA: ${{ github.event.inputs.bo_qua_do_moi || 'false' }}
@@ -166,6 +178,10 @@ jobs:
             { echo "moi=1"; echo "data_sha=$DATA_REF"; } >> "$GITHUB_OUTPUT"; exit 0
           fi
           if [ "${DA:-0}" = "1" ]; then
+            { echo "moi=0"; echo "data_sha="; } >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ "${KHUNG_DONG:-0}" = "1" ]; then
+            echo "::notice::Khung $DANG $NGAY da dong trong sg_dang - khong dung (xem buoc 'So dang da dong khung')"
             { echo "moi=0"; echo "data_sha="; } >> "$GITHUB_OUTPUT"; exit 0
           fi
           CO=()
