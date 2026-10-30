@@ -13,6 +13,7 @@ NT=json.load(open(T/'nen-tang.json'))
 def cao(nt): return int(NT[nt].get('trailer',960))//2*2   # chieu cao trailer SACH (y 0..cao); bo cuc A · Dua gia: phan duoi la nen toi + thanh gia (dung.py/full.html)
 top=json.load(open(T/'top5.json')); moc=json.load(open(T/'dau-vao/moc-chu.json'))
 GIU_CUOI=1.25
+NGUONG_PHANG_CHON=0.70   # chon doan nen chat hon kiem cuoi K18 (0,75 trong media_hop_le.la_giu_cho) de chua bien sai so khi dung ban that
 doan=[];
 for w in moc:
     if not doan or doan[-1][0]!=w['doan']: doan.append([w['doan'],w['s'],w['e']])
@@ -102,6 +103,9 @@ else:
             png=TS/'_pd.png'; png.unlink(missing_ok=True)
             chay(['ffmpeg','-v','error','-y','-ss',f'{s0+dl*fr:.2f}','-i',f,'-frames:v','1','-vf',(cr+',' if cr else '')+'scale=960:-2',str(png)])
             if png.exists() and MH.la_giu_cho(png): return True
+            # 30/10 (run 40811086734, 29/10): khung nguon do duoi nguong 75% nhung ban dung (scale lanczos + unsharp) do 76% -> kiem cuoi K18 truot ca bai.
+            # Chon doan chua bien: bo doan khi 1 dai mau > 70% (kiem cuoi van 75%) -> thay doan/trailer khac thay vi truot.
+            if png.exists() and MH.phang(png)[0]>NGUONG_PHANG_CHON: return True
             # 25/10 (run 40204868164, Risk of Rain 2 «1.0 Wide»): the logo hang HOPOO GAMES tren nen tron 1,7 s lot (phang chi 34%) -> mat do canh 1,3-2,2;
             # va SANG (luma 191-217). Canh game toi that (RE5, Lara dem) cung canh 1,1-2,5 nhung luma 12-64 -> chi bo khi canh < 2,5 VA luma > 120 (logo/the chu nen sang)
             if png.exists() and MH.phang(png)[1]<2.5:

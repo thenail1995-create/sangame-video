@@ -3,7 +3,7 @@
   1. KHO: cung (loi, voice, model, on dinh, toc do) => dung lai file cu, KHONG goi lai. Khoa kho giong het el.py (sha256 20 ky tu dau) nen kho Mac va kho
      runner cung khoa. Tren runner KHONG con actions/cache (repo cong khai): kho rieng nam o cong (tim_credit_khoa tra link ky 1 h).
   2. SO CAI qua cong sg-cong (bang sg_credit, RLS): tim_credit_khoa (kho rieng) -> giu_credit (n x 1.0, tran thang gio VN) -> tts -> ghi_tep_credit -> xong_credit / huy_credit / khong_ro_credit.
-  3. Tran thang cua du an (mac dinh san-game 20000) + chua DU PHONG chung cua tai khoan (10000): vuot => tu choi.
+  3. Tran thang cua du an (mac dinh san-game 200000 tu 30/10, Hao bo gioi han 22/10) + chua DU PHONG chung cua tai khoan (10000): vuot => tu choi.
   4. Loi dai > 400 ky tu ma chua tung thu bo cai dat nay bang cau ngan => tu choi (DA_THU_NGAN: Minh Dang / eleven_v3 / on dinh 0.0 da thu 08-10/10/2026).
   5. GIOI HAN: kiem du phong tai khoan (con - giu >= du phong) KHONG nguyen tu voi luot dung ElevenLabs ngoai cong (The Nail) va giua cac dang; chi giam
      rui ro nho lich 3 dang khong chong gio (Tin nhanh 21:00, Top 5 ~10:30-12:00, Keo thom truoc 20:00). Tran thang cua du an thi nguyen tu trong DB.
@@ -24,7 +24,7 @@ URL='https://qkpbokksubmqvinetdtv.supabase.co/functions/v1/doc-giong'
 GIA_TOI_DA={('e71pPu7iHH7VarkDhDNk','eleven_v3'):1.0}
 VOICE_MAC_DINH='e71pPu7iHH7VarkDhDNk'       # Minh Dang
 DA_THU_NGAN={('e71pPu7iHH7VarkDhDNk','eleven_v3',0.0)}   # (voice, model, on dinh) da thu bang cau ngan, Hao nghe va chot 08-10/10/2026
-TRAN_MAC_DINH={'san-game':20000}; DU_PHONG_MAC_DINH=10000
+TRAN_MAC_DINH={'san-game':200000}; DU_PHONG_MAC_DINH=10000   # 30/10: Hao 22/10 'cu dung thoai mai, khong can gioi han' -> tran du an cao hon ca goi (121.075/thang); chan that la DU PHONG 10000 cua tai khoan. Tran 20000 cu lam 28-29/10 roi ve giong may du tai khoan con 61.420
 class Loi(SystemExit): pass
 def _doc_khoa(env,tep):
     v=os.environ.get(env,'').strip()
