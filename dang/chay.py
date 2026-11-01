@@ -25,31 +25,69 @@ DICH_MAC_DINH = pathlib.Path(__file__).resolve().parent.parent / "dich.json"
 TRE_KIEM_GIO = dt.timedelta(minutes=15)
 
 
-def kenh_flagship(ngay, ngay_1=None):
-    """28/10/2026 (cong 10): khuon flagship 3 ngay dau chi 1 nen tang (tiktok); tu ngay thu 4 them youtube.
-    ngay_1 = bien repo SG_FLAGSHIP_NGAY_1 (YYYY-MM-DD). Rong/sai dinh dang -> luon 'chi tiktok' (an toan)."""
-    if ngay_1 is None:
-        ngay_1 = os.environ.get("SG_FLAGSHIP_NGAY_1")
-    ngay_1 = (ngay_1 or "").strip()
-    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", ngay_1):
-        return ("tiktok",)
-    try:
-        n1 = dt.date.fromisoformat(ngay_1)
-        n = dt.date.fromisoformat(ngay)
-    except (ValueError, TypeError):
-        return ("tiktok",)
-    return ("tiktok",) if n < n1 + dt.timedelta(days=3) else ("tiktok", "youtube")
+def kenh_flagship(ngay=None, ngay_1=None):
+    """28/10/2026 (cong 10): khuon flagship chi TikTok. 01/11/2026 (SG-1KENH, Hao: 1 noi dung 1 nen tang): BO nhanh "tu ngay thu 4 them
+    youtube" - flagship (loai thang o TikTok: bai Cyberpunk 21/10 1.635 luot) luon chi tiktok. Giu tham so cu (SG_FLAGSHIP_NGAY_1 khong
+    con tac dung) de khong vo noi goi."""
+    return ("tiktok",)
+
+
+def doc_kenh_bat(dang=None):
+    """Bien repo SG_KENH_BAT -> set kenh (rong = moi kenh). 01/11/2026 (SG-1KENH): nhan them dang theo KHUON "top5:youtube,flagship:tiktok"
+    de moi khuon len DUNG kenh thang cua no. Muc co ':' = rieng khuon; muc khong ':' = chung (cach cu, vd "youtube").
+    Khuon co muc rieng -> chi muc rieng; khong co -> muc chung; bien CO muc rieng ma khuon nay khong co va khong co muc chung -> KHONG kenh nao
+    (khong bao gio roi ve 'moi kenh' khi nguoi dat bien da chia theo khuon)."""
+    rieng, chung_ = {}, set()
+    for muc in (os.environ.get("SG_KENH_BAT") or "").split(","):
+        muc = muc.strip()
+        if not muc:
+            continue
+        if ":" in muc:
+            d, k = (x.strip() for x in muc.split(":", 1))
+            if d and k:
+                rieng.setdefault(d, set()).add(k)
+        else:
+            chung_.add(muc)
+    if dang in rieng:
+        return rieng[dang], False
+    if chung_:
+        return chung_, False
+    return set(), bool(rieng)
 
 
 def kenh_bat(ds=KENH, dang=None, ngay=None):
     """24/10/2026 (Hao: "dung lai i chang video thang"): bien repo SG_KENH_BAT (vd "youtube") gioi han kenh may dang.
-    Rong = moi kenh nhu cu.
+    Rong = moi kenh nhu cu. 01/11/2026: nhan dang theo khuon "top5:youtube,flagship:tiktok" (xem doc_kenh_bat).
     27/10/2026 (SG-X-A): X thoi dang "video may + link" -> luon bo "x" khoi luong video, ke ca khi bien rong; X chi con bai goc
     (dang/x_goc.py).
-    28/10/2026: dang='flagship' -> giao them voi kenh_flagship(ngay) (3 ngay dau chi tiktok). Khuon khac khong doi."""
-    bat = {k.strip() for k in (os.environ.get("SG_KENH_BAT") or "").split(",") if k.strip()}
+    28/10/2026: dang='flagship' -> giao them voi kenh_flagship (chi tiktok). Khuon khac khong doi."""
+    bat, khong_kenh = doc_kenh_bat(dang)
+    if khong_kenh:
+        return []
     gioi_han = set(kenh_flagship(ngay)) if dang == "flagship" else None
     return [k for k in ds if k != "x" and (not bat or k in bat) and (gioi_han is None or k in gioi_han)]
+
+
+MOT_KENH = True   # SG-1KENH: chi test co che nhieu kenh cu moi tat (sua code, khong co bien repo de tat)
+GIU_KENH = ("chuan_bi_xong", "dang_dang", "da_dang", "khong_ro")   # trang thai sg_dang = kenh do da/dang nhan video cua khung
+
+
+def kiem_mot_kenh(a, cong, kenh_chon=None):
+    """SG-1KENH (Hao 01/11/2026: "khong lam chung 1 noi dung cho nhieu nen tang"): o che do that, mot video (mot khung ngay x dang)
+    chi duoc len DUNG MOT kenh. -> chuoi ly do neu phai dung, None neu dat.
+    (1) SG_KENH_BAT (+ luat flagship) cho ra > 1 kenh -> dung truoc khi dang bat ky kenh nao.
+    (2) sg_dang da co kenh KHAC giu/dang video cua khung nay (vd bien doi giua pha chuan-bi va cong-khai) -> dung.
+    Chan ngay trong may GitHub (khong dua vao hook tren Mac)."""
+    if not MOT_KENH:
+        return None
+    ds = kenh_bat(kenh_chon or KENH, a.dang, a.ngay)
+    if len(ds) > 1:
+        return f"{a.dang} {a.ngay} se len {len(ds)} kenh ({', '.join(ds)}) - luat 1 noi dung 1 nen tang: dat SG_KENH_BAT dung 1 kenh"
+    khac = sorted({r.get("kenh") for r in cong.doc_dang(a.ngay, a.ngay, a.che_do)
+                   if r.get("dang") == a.dang and r.get("kenh") not in ds and r.get("trang_thai") in GIU_KENH})
+    if khac:
+        return f"{a.dang} {a.ngay}: video da o kenh {', '.join(khac)} (sg_dang) - khong dang them {', '.join(ds) or 'kenh nao'}"
+    return None
 
 
 def gio_dang_mac_dinh(ngay, dang):
@@ -591,6 +629,12 @@ def main(argv=None, cong=None):
         return 1
     thu_muc = os.environ.get("DANG_THU_MUC") or tempfile.mkdtemp(prefix="sg-dang-")
     try:
+        if a.pha in ("chuan-bi", "cong-khai") and a.che_do == "that":
+            ly = kiem_mot_kenh(a, cong, kenh_chon if a.pha == "chuan-bi" else None)
+            if ly:
+                chung.log_loi(f"DUNG (1 noi dung 1 kenh): {ly}")
+                ntfy.loi(f"Dung dang {a.dang} {a.ngay}: 1 noi dung 1 kenh", ly)
+                return 1
         if a.pha == "kiem":
             return pha_kiem(a, cong, thu_muc)
         if a.pha == "chuan-bi":
