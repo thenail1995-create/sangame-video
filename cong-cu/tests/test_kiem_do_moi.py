@@ -98,6 +98,45 @@ class TestFeed(unittest.TestCase):
             self.assertFalse(k.kiem(td, '2026-10-11')[0])
 
 
+class TestGiaTheCu(unittest.TestCase):   # SG-DATA-1: gia the PSN cu <= 3 ngay van dung duoc, gia game van phai moi
+    def the(self, td, ngay):
+        (pathlib.Path(td) / 'du-lieu' / 'gia-the.json').write_text(json.dumps({'ngay': ngay}))
+
+    def test_the_cu_1_den_3_ngay_van_moi_va_canh_bao(self):
+        for ngay_the in ('2026-10-10', '2026-10-08'):
+            with tempfile.TemporaryDirectory() as td:
+                dung_repo(td); self.the(td, ngay_the)
+                self.assertEqual(k.kiem(td, '2026-10-11'), (True, []), ngay_the)
+                self.assertIn(ngay_the, k.canh_bao_the(td, '2026-10-11'))
+
+    def test_the_cu_4_ngay_hoac_thieu_la_cu(self):
+        for noi_dung in ({'ngay': '2026-10-07'}, {}, None):
+            with tempfile.TemporaryDirectory() as td:
+                dung_repo(td); f = pathlib.Path(td) / 'du-lieu' / 'gia-the.json'
+                if noi_dung is None: f.unlink()
+                else: f.write_text(json.dumps(noi_dung))
+                moi, ly = k.kiem(td, '2026-10-11')
+                self.assertFalse(moi); self.assertTrue(any('gia-the.json' in x for x in ly), ly)
+
+    def test_the_hom_nay_khong_canh_bao(self):
+        with tempfile.TemporaryDirectory() as td:
+            self.assertIsNone(k.canh_bao_the(dung_repo(td), '2026-10-11'))
+
+    def test_the_cu_khong_cuu_gia_game_cu(self):
+        with tempfile.TemporaryDirectory() as td:
+            dung_repo(td, tong='2026-10-10'); self.the(td, '2026-10-10')
+            moi, ly = k.kiem(td, '2026-10-11')
+            self.assertFalse(moi); self.assertFalse(any('gia-the' in x for x in ly)); self.assertEqual(len(ly), 2)
+
+    def test_main_in_warning(self):
+        with tempfile.TemporaryDirectory() as td:
+            dung_repo(td); self.the(td, '2026-10-09')
+            with mock.patch.object(k, 'sha_moi_nhat', return_value='abc'), mock.patch('builtins.print') as pr:
+                self.assertEqual(k.main([td, '--ngay', '2026-10-11']), 0)
+            out = ' '.join(str(c.args[0]) for c in pr.call_args_list)
+            self.assertIn('::warning::', out); self.assertIn('du lieu MOI', out)
+
+
 class TestNtfy(unittest.TestCase):
     def chay(self, dang, lan_cuoi, ntfy_ok=True):
         with tempfile.TemporaryDirectory() as td:

@@ -41,6 +41,9 @@ NGAY_KHONG_LAP = 7
 GIA_THE_TOI_DA_NGAY = 7
 ANH_RONG_MIN, ANH_CAO_MIN = 400, 300
 ALT_TOI_DA = 1000
+TOI_DA_CHUP = 3                       # SG-DATA-1: kiem trang hong o game nay thi thu game ke, toi da 3 lan chup (moi lan <= 150 s)
+CHO_KEO_GIAY = (60,) * 8              # SG-DATA-1 (01/11: san-deal ghi sg_keo 09:43, X chay 09:40): chua co dong PS hom nay -> doi, hoi lai
+CHO_KEO_DUNG_TRUOC_PHUT = 10          # con < 10 phut toi gio dang thi thoi doi sg_keo
 SCRIPT_CHUP = pathlib.Path(__file__).resolve().parent.parent / "cong-cu" / "chup-ps.mjs"
 
 VUNG_VN = {"US": "Mỹ", "HK": "Hồng Kông", "SG": "Singapore", "TH": "Thái Lan", "ID": "Indonesia", "IN": "Ấn Độ", "UA": "Ukraina"}
@@ -50,16 +53,19 @@ KY_HIEU_TIEN = {"USD": ("$",), "HKD": ("HK$",), "SGD": ("SGD", "S$"), "THB": ("T
                 "UAH": ("₴", "UAH", "грн")}
 LOAI_MEO_DUNG = ("vua_khit", "the_nap")
 
-# 3 khuon than x 3 cau ket; chon theo (so ngay tu NGAY_1) % 9 -> 9 to hop khac nhau, khong lap trong 7 ngay (T7)
+# 4 khuon than x 4 cau ket; chon theo (so ngay tu NGAY_1) % 16 -> 16 to hop khac nhau, khong lap trong 7 ngay (T7).
+# SG-DATA-1 (31/10): 9 to hop cu deu dai, meo the dai (3 the HKD) chi vua 2 to hop va ca 2 da dung trong 7 ngay -> them 1 than + 1 ket NGAN.
 KHUON_THAN = (
     "Tài khoản {vung}: {meo}.\nGiá gốc {goc}, giảm tới {han} (giờ VN).",
     "Giá cho tài khoản vùng {vung}: {meo}.\nGiá gốc {goc}. Hết giảm {han} (giờ VN).",
     "Hết giảm {han} (giờ VN), giá gốc {goc}.\nTài khoản {vung}: {meo}.",
+    "Tài khoản {vung}: {meo}.\nGốc {goc}, hết giảm {han} (giờ VN).",
 )
 KET = (
     "Ai đang chờ {ten} giảm sâu?",
     "Thẻ nạp phải đúng vùng tài khoản PSN, nhầm vùng là mất tiền.",
     "Tài khoản PSN chỉ dùng thẻ cùng vùng, kiểm kỹ trước khi mua.",
+    "Thẻ nạp phải cùng vùng tài khoản.",
 )
 
 
@@ -171,14 +177,16 @@ def meo_hop_le(hang):
 
 
 def ung_vien(hang_ds, ngay_dang, gio_dang, da_dung_ma, vung_the):
-    """Cac hang PS hop le, theo `hang` tang dan: ngay == ngay dang, vung co du lieu the, da kiem trang, khong lech gia, co meo the,
-    han >= gio dang + 24 h, khong trung ma 7 ngay."""
+    """Cac hang PS hop le: ngay == ngay dang, vung co du lieu the, khong lech gia, co meo the, han >= gio dang + 24 h, khong trung ma 7 ngay.
+    Thu tu: hang san-deal DA kiem trang truoc (theo `hang`), roi hang du bi CHUA kiem (theo `hang`) - SG-DATA-1: san-deal chi kiem trang
+    5 dong PS/ngay, 31/10 ca 5 deu khong dung duoc. Hang chua kiem van qua kiem_trang (T2, fail-closed) cua chinh module nay truoc khi dang."""
     ra = []
-    for h in sorted((h for h in hang_ds if isinstance(h, dict) and isinstance(h.get("hang"), int)), key=lambda r: r["hang"]):
+    hop = (h for h in hang_ds if isinstance(h, dict) and isinstance(h.get("hang"), int) and not isinstance(h.get("hang"), bool))
+    for h in sorted(hop, key=lambda r: (r.get("da_kiem_trang") is not True, r["hang"])):
         vung = h.get("vung_re_nhat")
         gv = (h.get("gia_vung") or {}).get(vung) if isinstance(h.get("gia_vung"), dict) else None
         han = _tg(h.get("han"))
-        if (h.get("ngay") != ngay_dang or vung not in vung_the or h.get("da_kiem_trang") is not True or h.get("lech_gia")
+        if (h.get("ngay") != ngay_dang or vung not in vung_the or h.get("da_kiem_trang") not in (True, False, None) or h.get("lech_gia") is not False
                 or vung not in LOC_VUNG or not isinstance(gv, dict) or not gv.get("mua_duoc") or gv.get("chi_plus")
                 or not str(h.get("link") or "").startswith("https://store.playstation.com/") or not h.get("ten") or not h.get("ma")
                 or h["ma"] in da_dung_ma or han is None or han < gio_dang + dt.timedelta(hours=HAN_TOI_THIEU_GIO)
@@ -206,9 +214,10 @@ def da_dung_gan_day(cac_dong):
 
 # ---------------------------------------------------------------- dung chu
 def chon_to_hop(ngay, ngay_1):
-    """(khuon than, cau ket) uu tien theo so ngay tu ngay 1: 9 to hop quay vong."""
-    i = (ngay - ngay_1).days % 9
-    return i % 3, (i // 3) % 3
+    """(khuon than, cau ket) uu tien theo so ngay tu ngay 1: len(KHUON_THAN) x len(KET) to hop quay vong."""
+    nk, nc = len(KHUON_THAN), len(KET)
+    i = (ngay - ngay_1).days % (nk * nc)
+    return i % nk, (i // nk) % nc
 
 
 def dung_chu(hang, ngay, ngay_1, sha_da_dung, to_hop_da_dung=()):
@@ -223,7 +232,8 @@ def dung_chu(hang, ngay, ngay_1, sha_da_dung, to_hop_da_dung=()):
     han = _tg(hang["han"]).astimezone(chung.VN)
     meo = _hoa_dau_meo(meo_hop_le(hang))
     k0, c0 = chon_to_hop(ngay, ngay_1)
-    thu_tu = [((k0 + dk) % 3, (c0 + dc) % 3) for dc in range(3) for dk in range(3)]   # to hop cua ngay truoc, roi cac to hop con lai
+    nk, nc = len(KHUON_THAN), len(KET)
+    thu_tu = [((k0 + dk) % nk, (c0 + dc) % nc) for dc in range(nc) for dk in range(nk)]   # to hop cua ngay truoc, roi cac to hop con lai
     for k, c in thu_tu:
         ma = f"k{k}-t{c}"
         if ma in to_hop_da_dung:
@@ -362,26 +372,54 @@ def khung_hom_nay(ngay, ngay_1):
     return "sang" if (ngay - ngay_1).days % 2 == 0 else "toi"
 
 
-def chuan_bi(cong, ngay, ngay_1, gio, gia_the, chup=chup_trang, thu_muc=None):
-    """Phan cuc bo, khong tac dung phu: chon game -> chu -> chup -> kiem. -> dict(hang, text, dong1, to_hop, alt, anh, kq_chup, due)."""
+def doc_keo_cho(cong, ngay, due, ngu=None, cho=None):
+    """sg_keo hom nay; chua co dong PS nao (san-deal chua xong) thi doi theo CHO_KEO_GIAY, dung khi con < CHO_KEO_DUNG_TRUOC_PHUT toi due."""
+    cho = CHO_KEO_GIAY if cho is None else cho
+    ngu = ngu or chung.ngu
+    keo = cong.doc_keo(ngay.isoformat())
+    for giay in cho:
+        if keo or chung.bay_gio() + dt.timedelta(seconds=giay) > due - dt.timedelta(minutes=CHO_KEO_DUNG_TRUOC_PHUT):
+            break
+        chung.log(f"x_goc: sg_keo {ngay.isoformat()} chua co dong PS (san-deal chua xong?) - doi {giay} s")
+        ngu(giay)
+        keo = cong.doc_keo(ngay.isoformat())
+    return keo
+
+
+def chuan_bi(cong, ngay, ngay_1, gio, gia_the, chup=chup_trang, thu_muc=None, ngu=None):
+    """Phan cuc bo, khong tac dung phu: chon game -> chu -> chup -> kiem. -> dict(hang, text, dong1, to_hop, alt, anh, kq_chup, due).
+    Kiem trang (T2) sai o 1 game thi bo game do, thu game ke (toi da TOI_DA_CHUP lan chup); het thi KhongDang voi ly do cuoi."""
     due = _gio_du_kien(ngay, gio)
     cac_dong = cong.doc_dang((ngay - dt.timedelta(days=NGAY_KHONG_LAP)).isoformat(), (ngay - dt.timedelta(days=1)).isoformat(), "that")
     ma_da, sha_da, to_hop_da = da_dung_gan_day(cac_dong)
-    ds = ung_vien(cong.doc_keo(ngay.isoformat()), ngay.isoformat(), due, ma_da, vung_co_gia_the(gia_the, ngay))
+    keo = doc_keo_cho(cong, ngay, due, ngu)
+    if not keo:
+        raise KhongDang(f"sg_keo {ngay.isoformat()} chua co dong PS nao (san-deal chua chay xong truoc gio dang)")
+    ds = ung_vien(keo, ngay.isoformat(), due, ma_da, vung_co_gia_the(gia_the, ngay))
     if not ds:
         raise KhongDang("khong con game hop le hom nay (hoac gia-the.json thieu/cu hon 7 ngay/khong co du lieu vung cua game)")
+    so_chup, ly_cuoi = 0, "khong game nao dung duoc chu hop le"
     for hang in ds:
         ct = dung_chu(hang, ngay, ngay_1, sha_da, to_hop_da)
         if ct is None:
             chung.log(f"x_goc: bo {hang['ma']}: khong dung duoc chu hop le (ten qua dai / lap dong 1 / het to hop khuon)")
             continue
+        if so_chup >= TOI_DA_CHUP:
+            break
         text, dong1, to_hop = ct
         anh = pathlib.Path(thu_muc) / "anh-ps.png"
-        kq = chup(str(hang["link"]), str(anh))
-        kiem_trang(hang, kq)
+        so_chup += 1
+        try:
+            kq = chup(str(hang["link"]), str(anh))
+            kiem_trang(hang, kq)
+        except KhongDang as e:
+            ly_cuoi = f"{hang['ma']}: {e}"
+            chung.log(f"x_goc: bo {hang['ma']}: {chung.cat(e, 200)}")
+            anh.unlink(missing_ok=True)
+            continue
         return {"hang": hang, "text": text, "dong1": dong1, "to_hop": to_hop, "alt": tao_alt(hang, kq["gia_hien"], ngay), "anh": anh,
                 "kq_chup": kq, "due": due}
-    raise KhongDang("khong game nao dung duoc chu hop le")
+    raise KhongDang(ly_cuoi if so_chup else "khong game nao dung duoc chu hop le")
 
 
 def kiem_url_anh(url):

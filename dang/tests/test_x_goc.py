@@ -113,7 +113,7 @@ class DungChu(unittest.TestCase):
         self.assertEqual(ma0, "k0-t0")
         _, _, ma1 = x_goc.dung_chu(hang(), NGAY, NGAY_1, set(), {"k0-t0"})
         self.assertNotEqual(ma1, "k0-t0")
-        tat_ca = {f"k{k}-t{c}" for k in range(3) for c in range(3)}
+        tat_ca = {f"k{k}-t{c}" for k in range(len(x_goc.KHUON_THAN)) for c in range(len(x_goc.KET))}
         self.assertIsNone(x_goc.dung_chu(hang(), NGAY, NGAY_1, set(), tat_ca))
         # con dung 1 to hop thi dung dung no
         con = tat_ca - {"k2-t1"}
@@ -153,7 +153,12 @@ class ChonGame(unittest.TestCase):
               hang(hang=9, ma="TRUNG"),
               hang(hang=10, ma="I", ngay="2026-10-27"), hang(hang=12, ma="J", ngay=None), hang(hang=13, ma="K", ngay=""),
               hang(hang=11, ma="OK")]
-        self.assertEqual(self.ds(hs, ma_da=["TRUNG"]), [11])
+        self.assertEqual(self.ds(hs, ma_da=["TRUNG"]), [11, 1])   # SG-DATA-1: hang chua kiem trang (A) van la ung vien, xep sau hang da kiem
+
+    def test_da_kiem_truoc_chua_kiem_sau_lech_gia_khong_ro_bi_loai(self):
+        hs = [hang(hang=1, ma="A", da_kiem_trang=False), hang(hang=12, ma="B"), hang(hang=3, ma="C", da_kiem_trang=None),
+              hang(hang=4, ma="D", lech_gia=None), hang(hang=2, ma="E")]
+        self.assertEqual(self.ds(hs), [2, 12, 1, 3])
 
     def test_han_dung_24h_van_nhan(self):
         self.assertEqual(self.ds([hang(han=(DUE + dt.timedelta(hours=24)).isoformat())]), [1])
@@ -346,7 +351,7 @@ class Luong(unittest.TestCase):
         self.assertEqual(self.chay("thu", cong=self.cong, m=Mang()), 0)       # chay thu lai duoc
 
     def test_khong_con_game_thi_thoat_3_va_ntfy(self):
-        self.assertEqual(self.chay(cong=CongXG([hang(da_kiem_trang=False)], self.su_kien), m=Mang()), 3)
+        self.assertEqual(self.chay(cong=CongXG([hang(lech_gia=True)], self.su_kien), m=Mang()), 3)
         self.assertEqual(self.su_kien, [])
         self.assertEqual(len(self.ntfy), 1)
 
@@ -434,7 +439,51 @@ class Luong(unittest.TestCase):
         self.assertEqual(self.chay(cong=cong), 0, self.log)
         dung = self.dong(cong)["id_container"]
         self.assertNotIn(dung, da)
-        self.assertEqual(dung, "k2-t1")
+        self.assertEqual(dung, "k3-t0")   # 4 than x 4 ket: to hop chua dung dau tien theo thu tu dung_chu
+
+    def test_kiem_trang_sai_thi_thu_game_ke(self):   # SG-DATA-1
+        h1, h2 = hang(hang=1, ma="M1"), hang(hang=2, ma="M2", ten="Tomb Raider II")
+        chup_lan = []
+
+        def chup(url, duong):
+            chup_lan.append(url)
+            pathlib.Path(duong).write_bytes(b"\x89PNG-GIA")
+            return kq_chup(tieu_de="Game khac") if len(chup_lan) == 1 else kq_chup(tieu_de="Tomb Raider II")
+        self.assertEqual(self.chay(cong=CongXG([h1, h2], self.su_kien), chup=chup), 0, self.log)
+        self.assertEqual(len(chup_lan), 2)
+        self.assertEqual(self.dong()["id_tai"], "M2")
+        self.assertIn("bo M1", self.log)
+
+    def test_kiem_trang_sai_toi_da_3_lan_chup_roi_thoat_3(self):
+        hs = [hang(hang=i, ma=f"M{i}") for i in range(1, 6)]
+        chup_lan = []
+
+        def chup(url, duong):
+            chup_lan.append(url)
+            return kq_chup(gia_hien="$9.99")
+        self.assertEqual(self.chay(cong=CongXG(hs, self.su_kien), chup=chup, m=Mang()), 3)
+        self.assertEqual(len(chup_lan), x_goc.TOI_DA_CHUP)
+        self.assertEqual(self.su_kien, [])
+        self.assertIn("M3", self.ntfy[-1][1])   # ly do cuoi = game chup cuoi
+
+    def test_sg_keo_chua_co_thi_doi_roi_dang(self):   # SG-DATA-1: 01/11 san-deal ghi sg_keo 09:43, X chay 09:40
+        class CongTre(CongXG):
+            lan = 0
+
+            def doc_keo(s, ngay):
+                s.lan += 1
+                return [] if s.lan <= 2 else [hang()]
+        cong = CongTre(su_kien=self.su_kien)
+        self.assertEqual(self.chay(cong=cong), 0, self.log)
+        self.assertEqual(cong.lan, 3)
+        self.assertEqual(self.ngu[:2], [60, 60])
+        self.assertIn("chua co dong PS", self.log)
+
+    def test_sg_keo_rong_gan_gio_dang_khong_doi_thoat_3(self):
+        self.bay_gio = dt.datetime(2026, 10, 28, 9, 50, tzinfo=chung.VN)   # con 10 phut: khong doi
+        self.assertEqual(self.chay(cong=CongXG([], self.su_kien), m=Mang()), 3)
+        self.assertEqual(self.ngu, [])
+        self.assertIn("san-deal", self.ntfy[-1][1])
 
     def test_thieu_khoa_that(self):
         with mock.patch.dict(os.environ, {"BUFFER_KHOA": ""}):

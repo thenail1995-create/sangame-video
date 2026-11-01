@@ -46,7 +46,7 @@ class KiemDoMoi(unittest.TestCase):
             self.dung(d,'2026-10-12'); self.assertEqual(km.kiem(d,'2026-10-12'),(True,[]))
     def test_chua_moi_hom_qua(self):
         with tempfile.TemporaryDirectory() as d:
-            self.dung(d,'2026-10-11'); moi,ly=km.kiem(d,'2026-10-12'); self.assertFalse(moi); self.assertEqual(len(ly),9)   # 3 file tong + 6 feed vung
+            self.dung(d,'2026-10-11'); moi,ly=km.kiem(d,'2026-10-12'); self.assertFalse(moi); self.assertEqual(len(ly),8)   # 2 file tong + 6 feed vung (gia-the hom qua van dung duoc: <= 3 ngay, SG-DATA-1)
     def test_thieu_an_do(self):
         with tempfile.TemporaryDirectory() as d:
             self.dung(d,'2026-10-12',vung=('SG','HK','ID','US','TH')); moi,ly=km.kiem(d,'2026-10-12'); self.assertFalse(moi); self.assertTrue(any('IN' in x for x in ly))
