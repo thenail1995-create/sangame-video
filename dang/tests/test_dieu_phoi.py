@@ -14,6 +14,16 @@ from dang.tests import gia_lap as g
 from dang.tests.gia_lap import CongGia, Mang, P, NGAY, DANG, cong_day_du
 
 
+def setUpModule():   # SG-1KENH (01/11): test o day kiem co che dang NHIEU kenh co tu truoc luat 1 noi dung 1 kenh; luat co test rieng
+    global _tat_mot_kenh
+    _tat_mot_kenh = mock.patch.object(chay, "MOT_KENH", False)
+    _tat_mot_kenh.start()
+
+
+def tearDownModule():
+    _tat_mot_kenh.stop()
+
+
 def vo_ngu():
     return mock.patch.object(chung, "ngu", lambda s: None)
 

@@ -52,6 +52,28 @@ def kenh_bat(ds=KENH, dang=None, ngay=None):
     return [k for k in ds if k != "x" and (not bat or k in bat) and (gioi_han is None or k in gioi_han)]
 
 
+MOT_KENH = True   # SG-1KENH: chi test co che nhieu kenh cu moi tat (sua code, khong co bien repo de tat)
+GIU_KENH = ("chuan_bi_xong", "dang_dang", "da_dang", "khong_ro")   # trang thai sg_dang = kenh do da/dang nhan video cua khung
+
+
+def kiem_mot_kenh(a, cong, kenh_chon=None):
+    """SG-1KENH (Hao 01/11/2026: "khong lam chung 1 noi dung cho nhieu nen tang"): o che do that, mot video (mot khung ngay x dang)
+    chi duoc len DUNG MOT kenh. -> chuoi ly do neu phai dung, None neu dat.
+    (1) SG_KENH_BAT (+ luat flagship) cho ra > 1 kenh -> dung truoc khi dang bat ky kenh nao.
+    (2) sg_dang da co kenh KHAC giu/dang video cua khung nay (vd bien doi giua pha chuan-bi va cong-khai) -> dung.
+    Chan ngay trong may GitHub (khong dua vao hook tren Mac)."""
+    if not MOT_KENH:
+        return None
+    ds = kenh_bat(kenh_chon or KENH, a.dang, a.ngay)
+    if len(ds) > 1:
+        return f"{a.dang} {a.ngay} se len {len(ds)} kenh ({', '.join(ds)}) - luat 1 noi dung 1 nen tang: dat SG_KENH_BAT dung 1 kenh"
+    khac = sorted({r.get("kenh") for r in cong.doc_dang(a.ngay, a.ngay, a.che_do)
+                   if r.get("dang") == a.dang and r.get("kenh") not in ds and r.get("trang_thai") in GIU_KENH})
+    if khac:
+        return f"{a.dang} {a.ngay}: video da o kenh {', '.join(khac)} (sg_dang) - khong dang them {', '.join(ds) or 'kenh nao'}"
+    return None
+
+
 def gio_dang_mac_dinh(ngay, dang):
     h, m = map(int, GIO[dang].split(":"))
     d = dt.date.fromisoformat(ngay)
@@ -591,6 +613,12 @@ def main(argv=None, cong=None):
         return 1
     thu_muc = os.environ.get("DANG_THU_MUC") or tempfile.mkdtemp(prefix="sg-dang-")
     try:
+        if a.pha in ("chuan-bi", "cong-khai") and a.che_do == "that":
+            ly = kiem_mot_kenh(a, cong, kenh_chon if a.pha == "chuan-bi" else None)
+            if ly:
+                chung.log_loi(f"DUNG (1 noi dung 1 kenh): {ly}")
+                ntfy.loi(f"Dung dang {a.dang} {a.ngay}: 1 noi dung 1 kenh", ly)
+                return 1
         if a.pha == "kiem":
             return pha_kiem(a, cong, thu_muc)
         if a.pha == "chuan-bi":
