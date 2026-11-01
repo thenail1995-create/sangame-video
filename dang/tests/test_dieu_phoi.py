@@ -5,6 +5,7 @@ import json
 import os
 import pathlib
 import tempfile
+import types
 import unittest
 from unittest import mock
 
@@ -729,8 +730,10 @@ class TestTinGia(TestKenhFlagship):
     def test_tien_vnd(self):
         self.assertEqual(chay.tien_vnd("còn 560 nghìn, gốc 1.200 nghìn"), [560000, 1200000])
         self.assertEqual(chay.tien_vnd("Chỉ 560.000đ / 560.000 đồng / 560 nghìn đồng"), [560000, 560000, 560000])
-        self.assertEqual(chay.tien_vnd("Hai thẻ 10 đô, $19,99, giảm 75%, 1.560 nghìn, 0,560 nghìn, -560 nghìn"), [1560000])   # Sol #8
+        self.assertEqual(chay.tien_vnd("Hai thẻ 10 đô, $19,99, giảm 75%, 1.560 nghìn, 0,560 nghìn, -560 nghìn"), [1560000, 560])   # Sol #8: khong cat "560" ra tu so khac
         self.assertEqual(chay.tien_vnd(""), [])
+        self.assertEqual(chay.tien_vnd("còn 560 nghìn, gốc 1.400.000₫ / 1,2 triệu / 900 ngàn / 300.000 VNĐ"), [560000, 1400000, 1200000, 900000, 300000])
+        self.assertEqual(chay.tien_vnd("còn 560 nghìn đô / 2 triệu USD / 5 nghìn HK$"), [])   # Sol soi diff: ngoai te khong phai VND
 
     def test_tin_gia_bo(self):
         self.assertIn("can dung gia", self.ly_do("Cyberpunk 2077 ra mắt bản cập nhật 2.5"))   # tin khong gia
@@ -738,6 +741,8 @@ class TestTinGia(TestKenhFlagship):
         self.assertIn("can dung gia", self.ly_do("Cyberpunk 2077 giảm 60% ở PS Store Mỹ"))   # chi co %, khong co tien VND
         self.assertIn("can dung gia", self.ly_do("Cyberpunk 2077 còn 560 nghìn, gốc 1.400 nghìn"))   # Sol #7: kem so tien sai
         self.assertIn("can dung gia", self.ly_do("Hai thẻ 10 đô cho Cyberpunk 2077"))   # "10 đô" khong phai tien Viet
+        self.assertIn("can dung gia", self.ly_do("Cyberpunk 2077 còn 560 nghìn, gốc 1.400.000₫"))   # Sol soi diff: so tien dang ₫
+        self.assertIn("can dung gia", self.ly_do("Cyberpunk 2077 còn 560 nghìn đô"))   # ngoai te
         self.assertIn("can dung gia", self.ly_do("Cyberpunk 2077 còn 561 nghìn", [dict(KIEM_LAI_FS, gia_vnd=561234)]))   # Sol #12: khong lam tron
         self.assertIn("can dung gia", self.ly_do("Cyberpunk 2077 xem giá https://sangame.com.vn/560-nghin"))   # tien chi nam trong URL (hook_sach bo URL)
         self.assertIn("gia_vnd", self.ly_do(kiem_lai=[]))
@@ -758,7 +763,16 @@ class TestTinGia(TestKenhFlagship):
     def test_kiem_lai_nhan_co_gia_dung_y(self):
         self.assertEqual(self.chay_fs("cong-khai"), 0)
         self.assertIs(self.kiem_lai_goi[0][0].get("gia_dung_y"), True)
-        self.assertNotIn("gia_dung_y", KIEM_LAI_FS)   # khong sua manifest (sha giu nguyen)
+
+    def test_kiem_gia_khong_sua_manifest(self):   # Sol soi diff P3: so manifest that duoc truyen vao truoc/sau
+        import copy
+        man = {"loi_dang": dict(LOI_DANG_FS), "kiem_lai": [dict(KIEM_LAI_FS)]}
+        truoc = copy.deepcopy(man)
+        nc = chung.NguCanh(self.NGAY_FS, "flagship", "that", dt.datetime(2026, 10, 30, 15, 30, tzinfo=chung.VN), man, self.thu_muc, self.cong)
+        a = types.SimpleNamespace(dang="flagship", ngay=self.NGAY_FS, che_do="that")
+        self.assertTrue(chay.kiem_gia(a, self.cong, nc))
+        self.assertEqual(man, truoc)
+        self.assertIs(self.kiem_lai_goi[-1][0]["gia_dung_y"], True)
 
     def test_that_bai_gianh_lai_van_doc_lai_gia(self):   # Sol #2: sg_giu_dang cho gianh lai dong 'that_bai'
         k = (self.NGAY_FS, "flagship", "tiktok", "that")
@@ -788,10 +802,18 @@ class TestTinGia(TestKenhFlagship):
         self.van_de = ["trang tam hong"]
         with mock.patch.object(chung, "bay_gio", lambda: dt.datetime(2026, 10, 30, 11, 0, tzinfo=chung.VN)):   # som 1 gio
             self.assertEqual(self.chay_fs("cong-khai"), 1)   # cong gio chan, khong kiem gia, khong ghi bo
-        self.assertEqual((self.kiem_lai_goi, self.dong_tiktok()), ([], {}))
+        self.assertEqual((self.kiem_lai_goi, self.dong_tiktok(), self.kenh["tiktok"].hop), ([], {}, 0))
+        self.assertTrue([x for x in self.ntfy if x[0] == "loi" and "ngoai cua so gio" in x[2]])
         self.van_de = []
         self.assertEqual(self.chay_fs("cong-khai"), 0)
         self.assertEqual(self.dong_tiktok().get("trang_thai"), "da_dang")
+
+    def test_dong_ho_vuot_moc_giua_hai_lan_doc_van_khong_gui_khi_chua_kiem(self):   # Sol soi diff P1
+        moc = iter([dt.datetime(2026, 10, 30, 11, 58, 59, tzinfo=chung.VN)] + [dt.datetime(2026, 10, 30, 11, 59, 1, tzinfo=chung.VN)] * 50)
+        with mock.patch.object(chung, "bay_gio", lambda: next(moc)):   # lan doc 1 truoc T-1 phut, cac lan sau trong cua so
+            self.chay_fs("cong-khai")
+        self.assertEqual(self.kenh["tiktok"].hop, 0)
+        self.assertEqual(self.dong_tiktok(), {})
 
     def test_dang_bu_doc_lai_theo_gio_bu(self):   # Sol #13: DANG_BU_GIO -> han kiem theo gio moi
         gio_lai = []

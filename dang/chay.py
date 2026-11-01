@@ -172,13 +172,19 @@ def nap_va_kiem(a, cong, thu_muc):
 
 
 DANG_TIN_GIA = ("flagship",)   # SG-TIN-GIA (Hao 01/11/2026: "luon lam tin ve gia"): dong 1 caption phai co so tien VND da kiem
-# so nguyen tron ven (khong cat "560" ra tu "1.560"/"0,560"/"-560") + don vi; "đ" khong duoc dinh chu sau ("10 đô" khong phai tien Viet)
-_RE_VND = re.compile(r"(?<![\d.,\-])(\d{1,3}(?:\.\d{3})+|\d+)\s*(nghìn|đồng|đ)(?!\w)", re.I)
+# So nguyen tron ven (khong cat "560" ra tu "1.560"/"0,560"/"-560") + don vi tien Viet. "đ" khong duoc dinh chu sau ("10 đô" khong phai
+# tien Viet); "nghìn/triệu" theo sau la ngoai te ("560 nghìn đô") thi khong phai VND (Sol soi diff 01/11).
+_RE_VND = re.compile(r"(?<![\d.,\-])(\d{1,3}(?:\.\d{3})+|\d+(?:,\d+)?)\s*"
+                     r"(?:(nghìn|ngàn|triệu)(?!\s*(?:đô|usd|hkd|sgd|\$|us\$|hk\$|s\$))|(đồng|vnđ|vnd|đ|₫))(?!\w)", re.I)
+_NHAN = {"nghìn": 1000, "ngàn": 1000, "triệu": 1000000}
 
 
 def tien_vnd(s):
-    """-> danh sach so tien VND trong chuoi: "560 nghìn" = 560000, "560.000đ" / "560.000 đồng" = 560000."""
-    return [int(so.replace(".", "")) * (1000 if dv.lower() == "nghìn" else 1) for so, dv in _RE_VND.findall(s or "")]
+    """-> danh sach so tien VND trong chuoi: "560 nghìn" = 560000, "560.000đ" / "560.000 đồng" / "560.000₫" = 560000, "1,2 triệu" = 1200000."""
+    ra = []
+    for so, boi, _dv in _RE_VND.findall(s or ""):
+        ra.append(int(round(float(so.replace(".", "").replace(",", ".")) * _NHAN.get(boi.lower(), 1))))
+    return ra
 
 
 def thieu_gia_cau_mo(nc, dang):
@@ -468,8 +474,14 @@ def pha_cong_khai(a, cong, thu_muc):
     # dang trong cua so gio dang: goi som/tre van bi cong gio chan, khong doi thanh bo khung vinh vien (Sol #5).
     con_gui = [k for k in kenh_bat(dang=a.dang, ngay=a.ngay)
                if k in KENH_KHONG_CHUAN_BI and (dong_theo_kenh.get(k) or {}).get("trang_thai", "that_bai") == "that_bai"]
-    trong_gio = a.che_do != "that" or nc.gio_dang - SOM_TOI_DA <= chung.bay_gio() <= nc.gio_dang + TRE_TOI_DA
-    if con_gui and trong_gio and not kiem_gia(a, cong, nc):
+    if con_gui and a.che_do == "that" and not (nc.gio_dang - SOM_TOI_DA <= chung.bay_gio() <= nc.gio_dang + TRE_TOI_DA):
+        # Ngoai cua so gio: DUNG HAN luot nay (Sol soi diff P1: neu chi bo kiem gia roi de cong gio tung kenh doc lai dong ho, dong ho
+        # vuot moc T-1 phut giua hai lan doc thi TikTok gui ma khong kiem gia). Moi kenh deu chiu cung cong gio nen khong mat gi.
+        ly = f"ngoai cua so gio dang {chung.iso(nc.gio_dang)} (-{int(SOM_TOI_DA.total_seconds() // 60)}/+{int(TRE_TOI_DA.total_seconds() // 60)} phut) - khong cong khai, khong kiem gia"
+        chung.log_loi(ly)
+        ntfy.loi(f"Khong dang {a.dang} {a.ngay}", ly)
+        return 1
+    if con_gui and not kiem_gia(a, cong, nc):
         return 3
     tin, loi = [], []
     for kenh in kenh_bat(dang=a.dang, ngay=a.ngay):
