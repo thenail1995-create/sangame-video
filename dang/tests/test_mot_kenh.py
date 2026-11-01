@@ -47,9 +47,16 @@ class KiemMotKenh(unittest.TestCase):
         self.cong.dong[(NGAY, DANG, "youtube", "that")] = dict(ngay=NGAY, dang=DANG, kenh="youtube", che_do="that", trang_thai="chuan_bi_xong")
         self.assertIsNone(chay.kiem_mot_kenh(a(), self.cong))
 
-    def test_flagship_tu_ngay_4_tiktok_youtube_bi_chan_neu_bien_rong(self):
+    def test_flagship_luon_mot_kenh_tiktok(self):
         with mock.patch.dict(os.environ, {"SG_KENH_BAT": "", "SG_FLAGSHIP_NGAY_1": "2026-01-01"}):
-            self.assertIn("youtube, tiktok", chay.kiem_mot_kenh(a("flagship"), self.cong))
+            self.assertIsNone(chay.kiem_mot_kenh(a("flagship"), self.cong))
+
+    def test_bien_theo_khuon_dat(self):
+        with mock.patch.dict(os.environ, {"SG_KENH_BAT": "top5:youtube,flagship:tiktok"}):
+            self.assertIsNone(chay.kiem_mot_kenh(a("top5"), self.cong))
+            self.assertIsNone(chay.kiem_mot_kenh(a("flagship"), self.cong))
+        with mock.patch.dict(os.environ, {"SG_KENH_BAT": "top5:youtube,top5:tiktok"}):
+            self.assertIn("2 kenh", chay.kiem_mot_kenh(a("top5"), self.cong))
 
 
 class MainChan(unittest.TestCase):
