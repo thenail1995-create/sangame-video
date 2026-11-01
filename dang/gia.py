@@ -88,6 +88,10 @@ def kiem_lai(muc, gio_dang):
         moi = khoi["gia_cuc_bo"]
         if not isinstance(goc, (int, float)) or goc <= 0:
             van_de.append(f"{ten}: manifest thieu gia_cuc_bo hop le - khong so gia duoc")
+        elif m.get("gia_dung_y"):
+            # SG-TIN-GIA (Sol soi ke hoach 01/11 #6): video doc dung gia + "N the la vua khit" -> gia doi 1 xu cung co the het khit, bo
+            if round(moi, 2) != round(goc, 2):
+                van_de.append(f"{ten}: gia doi {goc} -> {moi} (khuon tin gia can dung y gia da doc)")
         elif abs(moi - goc) / goc > DUNG_SAI_GIA:
             van_de.append(f"{ten}: gia doi {goc} -> {moi} (> 2%)")
     return van_de, canh_bao

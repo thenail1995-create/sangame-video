@@ -5,6 +5,7 @@ import json
 import os
 import pathlib
 import tempfile
+import types
 import unittest
 from unittest import mock
 
@@ -368,6 +369,16 @@ class TestGiaVaSite(unittest.TestCase):
                 van_de, _ = gia.kiem_lai([{**muc[0], "endTime": end}], gio)   # han video = han trang (chi thu het han/gia)
             self.assertEqual(len(van_de), mong, (end, gia_, van_de))
 
+    def test_gia_dung_y_khuon_tin_gia(self):   # SG-TIN-GIA (Sol #6): flagship doc dung gia + "N the vua khit" -> doi 1 xu cung bo
+        muc = {"ten": "A", "pid": "UP1001-X_00", "loc": "en-hk", "gia_cuc_bo": 100.0, "gia_dung_y": True}
+        gio = g.GIO_DANG
+        con = str(int((gio.timestamp() + 5 * 3600) * 1000))
+        for gia_, mong in [("100.00", 0), ("100.01", 1), ("99.99", 1), ("101.00", 1)]:
+            m = Mang().them("GET", "store.playstation.com/en-hk/product/UP1001-X_00", P(raw=g.trang_ps("UP1001-X_00", f"HK$ {gia_}", con)))
+            with mock.patch("dang.http.gui", m):
+                van_de, _ = gia.kiem_lai([{**muc, "endTime": con}], gio)
+            self.assertEqual(len(van_de), mong, (gia_, van_de))
+
     def test_loc_pid_la_bi_chan_khong_cao(self):
         m = Mang()
         with mock.patch("dang.http.gui", m):
@@ -515,6 +526,13 @@ class TestChiMotKenh(Khung):
             self.assertEqual(chay.kenh_bat(), ["fb", "ig"])
 
 
+LOI_DANG_FS = {"tieu_de": "Cyberpunk 2077 còn 560 nghìn, mua sao cho khít tiền?",
+               "mo_ta": "Cyberpunk 2077 đang giảm 60% trên PS Store Mỹ: $19,99 (giá gốc $49,99), giảm tới 5/11.",
+               "hashtag": ["#SănGame", "#PlayStation", "#PS5", "#GiảmGiá"], "link": "https://sangame.com.vn/", "ten_game": "Cyberpunk 2077"}
+KIEM_LAI_FS = {"ten": "Cyberpunk 2077", "pid": "UP4497-PPSA03974_00-0000000000000CP1", "loc": "en-us", "gia_vnd": 560000,
+               "gia_cuc_bo": 19.99, "tien_te": "USD", "endTime": "1762329540000"}
+
+
 class TestKenhFlagship(Khung):
     """28/10/2026 (cong 10): flagship 3 ngay dau chi TikTok (SG_FLAGSHIP_NGAY_1 + 0..2), tu ngay thu 4 them YouTube; luon giao voi SG_KENH_BAT;
     khuon khac (top5...) KHONG doi hanh vi."""
@@ -525,6 +543,11 @@ class TestKenhFlagship(Khung):
         p = mock.patch.object(chung, "bay_gio", lambda: dt.datetime(2026, 10, 30, 12, 0, tzinfo=chung.VN))   # = gio_dang trong manifest gia (T12:00)
         p.start()
         self.addCleanup(p.stop)
+
+    def tai_release(self, ngay, dang, thu_muc, ban_can, repo=None, che_do=None):
+        if dang == "flagship":   # SG-TIN-GIA: Release flagship that co tieu de "<game> con N nghin" + kiem_lai.gia_vnd (khuon/flagship/sau-manifest.py)
+            return g.tao_manifest(thu_muc, self.che_do, ngay, dang, kiem_lai=[dict(KIEM_LAI_FS)], loi_dang=dict(LOI_DANG_FS), **self.man_kw)
+        return super().tai_release(ngay, dang, thu_muc, ban_can, repo, che_do)
 
     def chay_fs(self, pha, dang="flagship"):
         return chay.main(["--pha", pha, "--dang", dang, "--ngay", self.NGAY_FS, "--che-do", "that"], cong=self.cong)
@@ -626,3 +649,182 @@ class TestKenhFlagship(Khung):
             self.assertEqual(self.chay("cong-khai"), 0)
         for k in ("fb", "ig", "youtube"):
             self.assertEqual((self.kenh[k].cb, self.kenh[k].ck), (1, 1), k)
+
+
+class TestTinGia(TestKenhFlagship):
+    """SG-TIN-GIA (Hao 01/11/2026 "luon lam tin ve gia"): (1) TikTok khong co pha chuan bi -> pha cong khai doc lai gia/han ngay truoc khi gui,
+    khong dua vao lich chuan bi T-25; (2) khuon tin gia: dong 1 caption phai co so tien VND bang gia_vnd da kiem."""
+
+    def setUp(self):
+        super().setUp()
+        self.kiem_lai_goi = []
+        self.van_de = []
+        p = mock.patch.object(chay.gia, "kiem_lai", self.kiem_lai)
+        p.start()
+        self.addCleanup(p.stop)
+        p2 = mock.patch.dict(os.environ, {"SG_KENH_BAT": "top5:youtube,flagship:tiktok"})
+        p2.start()
+        self.addCleanup(p2.stop)
+
+    def kiem_lai(self, muc, gio):
+        self.kiem_lai_goi.append(list(muc))
+        return list(self.van_de), []
+
+    def dong_tiktok(self):
+        return self.cong.dong.get((self.NGAY_FS, "flagship", "tiktok", "that")) or {}
+
+    # ---- (1) doc lai gia o pha cong khai ----
+    def test_cong_khai_khong_chuan_bi_van_doc_lai_gia(self):   # lich chuan bi 15:05 khong chay: 15:30 van phai doc lai gia
+        self.assertEqual(self.chay_fs("cong-khai"), 0)
+        self.assertEqual(len(self.kiem_lai_goi), 1)
+        self.assertEqual(self.kiem_lai_goi[0][0]["pid"], KIEM_LAI_FS["pid"])
+        self.assertEqual(self.kenh["tiktok"].hop, 1)
+        self.assertEqual(self.dong_tiktok().get("trang_thai"), "da_dang")
+
+    def test_cong_khai_gia_doi_khong_gui_tiktok(self):
+        self.van_de = ["Cyberpunk 2077: gia doi 19.99 -> 29.99 (> 2%)"]
+        self.assertEqual(self.chay_fs("cong-khai"), 3)
+        self.assertEqual(self.kenh["tiktok"].hop, 0)
+        self.assertEqual(self.dong_tiktok().get("trang_thai"), "bo")
+        self.assertIn("kiem lai gia/han", self.dong_tiktok().get("loi"))
+        self.assertTrue([x for x in self.ntfy if x[0] == "loi" and "BO KHUNG" in x[1]])
+
+    def test_chuan_bi_roi_cong_khai_doc_lai_ca_hai_lan(self):   # gia co the doi giua 15:05 va 15:30
+        self.assertEqual(self.chay_fs("chuan-bi"), 0)
+        self.assertEqual(self.chay_fs("cong-khai"), 0)
+        self.assertEqual(len(self.kiem_lai_goi), 2)
+
+    def test_chay_lai_sau_khi_da_dang_khong_kiem_khong_bo_khung_gia(self):
+        self.assertEqual(self.chay_fs("cong-khai"), 0)
+        self.van_de = ["deal het"]   # da dang roi: luot chay lai khong duoc doi da_dang -> bo, khong ban ntfy BO KHUNG
+        self.ntfy.clear()
+        self.assertEqual(self.chay_fs("cong-khai"), 0)
+        self.assertEqual(len(self.kiem_lai_goi), 1)
+        self.assertEqual(self.kenh["tiktok"].hop, 1)
+        self.assertEqual(self.dong_tiktok().get("trang_thai"), "da_dang")
+        self.assertEqual([x for x in self.ntfy if x[0] == "loi"], [])
+
+    def test_top5_chi_youtube_cong_khai_khong_doc_lai(self):   # Top 5 hien chi YouTube (co pha chuan bi): hanh vi giu nguyen
+        with mock.patch.object(chung, "bay_gio", lambda: g.GIO_DANG):
+            self.assertEqual(self.chay("chuan-bi"), 0)
+            n = len(self.kiem_lai_goi)
+            self.assertEqual(self.chay("cong-khai"), 0)
+        self.assertEqual(len(self.kiem_lai_goi), n)
+        self.assertEqual(self.kenh["youtube"].ck, 1)
+        self.assertEqual(self.kenh["tiktok"].hop, 0)
+
+    # ---- (2) cong tin gia ----
+    def ly_do(self, tieu_de=None, kiem_lai=None, dang="flagship"):
+        ld = dict(LOI_DANG_FS, **({"tieu_de": tieu_de} if tieu_de is not None else {}))
+        man = {"loi_dang": ld, "kiem_lai": [dict(KIEM_LAI_FS)] if kiem_lai is None else kiem_lai}
+        nc = chung.NguCanh(self.NGAY_FS, dang, "that", dt.datetime(2026, 10, 30, 15, 30, tzinfo=chung.VN), man, self.thu_muc, self.cong)
+        return chay.thieu_gia_cau_mo(nc, dang)
+
+    def test_tin_gia_dat(self):
+        self.assertIsNone(self.ly_do())                                                   # "560 nghìn" = 560.000
+        self.assertIsNone(self.ly_do("Chỉ 560.000đ là có Cyberpunk 2077 trên PS5"))
+        self.assertIsNone(self.ly_do("Cyberpunk 2077 giảm 60%: về tay chỉ 560 nghìn"))
+        self.assertIsNone(self.ly_do("Cyberpunk 2077 PS5 còn 1200 nghìn, thẻ PSN nào cho khít?",
+                                     [dict(KIEM_LAI_FS, gia_vnd=1200000)]))               # >= 1 trieu van viet "N nghin"
+
+    def test_tien_vnd(self):
+        self.assertEqual(chay.tien_vnd("còn 560 nghìn, gốc 1.200 nghìn"), [560000, 1200000])
+        self.assertEqual(chay.tien_vnd("Chỉ 560.000đ / 560.000 đồng / 560 nghìn đồng"), [560000, 560000, 560000])
+        self.assertEqual(chay.tien_vnd("Hai thẻ 10 đô, $19,99, giảm 75%, 1.560 nghìn, 0,560 nghìn, -560 nghìn"), [1560000, 560])   # Sol #8: khong cat "560" ra tu so khac
+        self.assertEqual(chay.tien_vnd(""), [])
+        self.assertEqual(chay.tien_vnd("còn 560 nghìn, gốc 1.400.000₫ / 1,2 triệu / 900 ngàn / 300.000 VNĐ"), [560000, 1400000, 1200000, 900000, 300000])
+        self.assertEqual(chay.tien_vnd("còn 560 nghìn đô / 2 triệu USD / 5 nghìn HK$"), [])   # Sol soi diff: ngoai te khong phai VND
+
+    def test_tin_gia_bo(self):
+        self.assertIn("can dung gia", self.ly_do("Cyberpunk 2077 ra mắt bản cập nhật 2.5"))   # tin khong gia
+        self.assertIn("can dung gia", self.ly_do("Cyberpunk 2077 còn 460 nghìn, mua sao cho khít tiền?"))   # so khac gia da kiem
+        self.assertIn("can dung gia", self.ly_do("Cyberpunk 2077 giảm 60% ở PS Store Mỹ"))   # chi co %, khong co tien VND
+        self.assertIn("can dung gia", self.ly_do("Cyberpunk 2077 còn 560 nghìn, gốc 1.400 nghìn"))   # Sol #7: kem so tien sai
+        self.assertIn("can dung gia", self.ly_do("Hai thẻ 10 đô cho Cyberpunk 2077"))   # "10 đô" khong phai tien Viet
+        self.assertIn("can dung gia", self.ly_do("Cyberpunk 2077 còn 560 nghìn, gốc 1.400.000₫"))   # Sol soi diff: so tien dang ₫
+        self.assertIn("can dung gia", self.ly_do("Cyberpunk 2077 còn 560 nghìn đô"))   # ngoai te
+        self.assertIn("can dung gia", self.ly_do("Cyberpunk 2077 còn 561 nghìn", [dict(KIEM_LAI_FS, gia_vnd=561234)]))   # Sol #12: khong lam tron
+        self.assertIn("can dung gia", self.ly_do("Cyberpunk 2077 xem giá https://sangame.com.vn/560-nghin"))   # tien chi nam trong URL (hook_sach bo URL)
+        self.assertIn("gia_vnd", self.ly_do(kiem_lai=[]))
+        self.assertIn("gia_vnd", self.ly_do(kiem_lai=[dict(KIEM_LAI_FS, gia_vnd=None)]))
+        self.assertIn("gia_vnd", self.ly_do(kiem_lai=[dict(KIEM_LAI_FS, gia_vnd="560000")]))
+
+    def test_tin_gia_chi_ap_khuon_tin_gia(self):
+        self.assertIsNone(self.ly_do("Top 5 game PS5 hom nay", kiem_lai=[], dang="top5"))
+
+    def test_cong_khai_tin_khong_gia_khong_gui(self):
+        with mock.patch.dict(LOI_DANG_FS, {"tieu_de": "Cyberpunk 2077 vừa có bản cập nhật 2.5"}):
+            self.assertEqual(self.chay_fs("cong-khai"), 3)
+        self.assertEqual(self.kenh["tiktok"].hop, 0)
+        self.assertEqual(self.kiem_lai_goi, [])   # cong tin gia chan TRUOC khi tai trang
+        self.assertEqual(self.dong_tiktok().get("trang_thai"), "bo")
+        self.assertIn("tin gia", self.dong_tiktok().get("loi"))
+
+    def test_kiem_lai_nhan_co_gia_dung_y(self):
+        self.assertEqual(self.chay_fs("cong-khai"), 0)
+        self.assertIs(self.kiem_lai_goi[0][0].get("gia_dung_y"), True)
+
+    def test_kiem_gia_khong_sua_manifest(self):   # Sol soi diff P3: so manifest that duoc truyen vao truoc/sau
+        import copy
+        man = {"loi_dang": dict(LOI_DANG_FS), "kiem_lai": [dict(KIEM_LAI_FS)]}
+        truoc = copy.deepcopy(man)
+        nc = chung.NguCanh(self.NGAY_FS, "flagship", "that", dt.datetime(2026, 10, 30, 15, 30, tzinfo=chung.VN), man, self.thu_muc, self.cong)
+        a = types.SimpleNamespace(dang="flagship", ngay=self.NGAY_FS, che_do="that")
+        self.assertTrue(chay.kiem_gia(a, self.cong, nc))
+        self.assertEqual(man, truoc)
+        self.assertIs(self.kiem_lai_goi[-1][0]["gia_dung_y"], True)
+
+    def test_that_bai_gianh_lai_van_doc_lai_gia(self):   # Sol #2: sg_giu_dang cho gianh lai dong 'that_bai'
+        k = (self.NGAY_FS, "flagship", "tiktok", "that")
+        self.cong.dong[k] = dict(ngay=k[0], dang=k[1], kenh=k[2], che_do=k[3], trang_thai="that_bai", loi="Zernio 500")
+        self.van_de = ["deal het"]
+        self.assertEqual(self.chay_fs("cong-khai"), 3)
+        self.assertEqual(len(self.kiem_lai_goi), 1)
+        self.assertEqual(self.kenh["tiktok"].hop, 0)
+        self.assertEqual(self.dong_tiktok()["trang_thai"], "bo")
+
+    def test_dong_khong_gui_lai_thi_khong_kiem(self):   # dang_dang / khong_ro / bo: khong gui lai, khong kiem, khong doi dong
+        for tt in ("dang_dang", "khong_ro", "bo"):
+            self.setUp()
+            k = (self.NGAY_FS, "flagship", "tiktok", "that")
+            self.cong.dong[k] = dict(ngay=k[0], dang=k[1], kenh=k[2], che_do=k[3], trang_thai=tt)
+            self.van_de = ["deal het"]
+            self.chay_fs("cong-khai")
+            self.assertEqual((len(self.kiem_lai_goi), self.kenh["tiktok"].hop, self.dong_tiktok()["trang_thai"]), (0, 0, tt), tt)
+
+    def test_che_do_thu_cung_doc_lai_gia(self):
+        self.che_do = "thu"
+        self.van_de = ["deal het"]
+        self.assertEqual(chay.main(["--pha", "cong-khai", "--dang", "flagship", "--ngay", self.NGAY_FS, "--che-do", "thu"], cong=self.cong), 3)
+        self.assertEqual((len(self.kiem_lai_goi), self.kenh["tiktok"].hop), (1, 0))
+
+    def test_goi_som_khong_bo_khung_roi_dung_gio_van_dang(self):   # Sol #5
+        self.van_de = ["trang tam hong"]
+        with mock.patch.object(chung, "bay_gio", lambda: dt.datetime(2026, 10, 30, 11, 0, tzinfo=chung.VN)):   # som 1 gio
+            self.assertEqual(self.chay_fs("cong-khai"), 1)   # cong gio chan, khong kiem gia, khong ghi bo
+        self.assertEqual((self.kiem_lai_goi, self.dong_tiktok(), self.kenh["tiktok"].hop), ([], {}, 0))
+        self.assertTrue([x for x in self.ntfy if x[0] == "loi" and "ngoai cua so gio" in x[2]])
+        self.van_de = []
+        self.assertEqual(self.chay_fs("cong-khai"), 0)
+        self.assertEqual(self.dong_tiktok().get("trang_thai"), "da_dang")
+
+    def test_dong_ho_vuot_moc_giua_hai_lan_doc_van_khong_gui_khi_chua_kiem(self):   # Sol soi diff P1
+        moc = iter([dt.datetime(2026, 10, 30, 11, 58, 59, tzinfo=chung.VN)] + [dt.datetime(2026, 10, 30, 11, 59, 1, tzinfo=chung.VN)] * 50)
+        with mock.patch.object(chung, "bay_gio", lambda: next(moc)):   # lan doc 1 truoc T-1 phut, cac lan sau trong cua so
+            self.chay_fs("cong-khai")
+        self.assertEqual(self.kenh["tiktok"].hop, 0)
+        self.assertEqual(self.dong_tiktok(), {})
+
+    def test_dang_bu_doc_lai_theo_gio_bu(self):   # Sol #13: DANG_BU_GIO -> han kiem theo gio moi
+        gio_lai = []
+        bu = dt.datetime(2026, 10, 30, 13, 30, tzinfo=chung.VN)
+        with mock.patch.dict(os.environ, {"DANG_BU_GIO": "13:30"}), mock.patch.object(chung, "bay_gio", lambda: bu), \
+                mock.patch.object(chay.gia, "kiem_lai", lambda m, gio: (gio_lai.append(gio), ([], []))[1]):
+            self.assertEqual(self.chay_fs("cong-khai"), 0)
+        self.assertEqual(gio_lai, [bu])
+
+    def test_pha_kiem_tin_khong_gia_bo_khung(self):
+        with mock.patch.dict(LOI_DANG_FS, {"tieu_de": "Cyberpunk 2077 vừa có bản cập nhật 2.5"}):
+            self.assertEqual(self.chay_fs("kiem"), 3)
+        self.assertEqual(self.dong_tiktok().get("trang_thai"), "bo")
+

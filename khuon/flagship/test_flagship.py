@@ -86,11 +86,36 @@ class TenDayDu(unittest.TestCase):
         d,g,bo=0,0,0
     def test_loi_co_gia_goc_va_ngay_con(self):
         f=dict(vnd_doc='a',ten_doc='b',ma='US',giam=80,gia_doc='chín đô chín mươi chín',goc_doc='bốn mươi chín đô chín mươi chín',han_con_ngay=8,the_doc='Một thẻ mười đô',han_doc='ngày năm tháng mười một',moc=dict(loai='khong'))
-        l=dict(lf.doan(f,NGAY)); self.assertEqual(l['gia'],'Game đang giảm tám mươi phần trăm trên PS Store Mỹ, từ bốn mươi chín đô chín mươi chín còn chín đô chín mươi chín.')
+        l=dict(lf.doan(f,NGAY)); self.assertEqual(l['gia'],'Đang giảm tám mươi phần trăm trên PS Store Mỹ, từ bốn mươi chín đô chín mươi chín còn chín đô chín mươi chín.')
         self.assertEqual(l['han'],'Giảm giá tới ngày năm tháng mười một, còn tám ngày nữa.'); self.assertEqual(dict(lf.doan(dict(f,han_con_ngay=1),NGAY))['han'],'Giảm giá tới ngày năm tháng mười một.')
     def test_qua_ngan_bi_loai(self):
         f=dict(vnd_doc='a',ten_doc='b',ma='US',giam=80,gia_doc='c',goc_doc='g',han_con_ngay=0,the_doc='x',han_doc='y',moc=dict(loai='khong'))
         ds,g,bo=lf.lap_loi(f,NGAY); self.assertIsNone(ds); self.assertLess(g,16)
+
+class NeoDoan(unittest.TestCase):
+    """01/11/2026 (run 41319190369, Valhalla Deluxe): doan 'gia' mo bang "Game", chu nay LAP o "Săn Game" (moc thap nhat + ket). Whisper
+    nghe giong "Game đang giảm" thanh "viêm đăng giảm" -> can-chu neo_doan + cong-cu/kiem_moc.py neo doan 'gia' vao "Săn Game" o 14,5 s
+    (lech 11 s) -> bo dung. Luat: tu neo (tu khong-so dau tien, chuan hoa nhu can-chu._ch) cua moi doan k>=1 KHONG duoc xuat hien o doan SAU."""
+    SO_CHU={'mot','hai','ba','bon','nam','sau','bay','tam','chin','muoi','tram','nghin','ngan','le','linh','trieu','lam','tu','nhat'}
+    @staticmethod
+    def ch(t):
+        import re,unicodedata
+        t=''.join(c for c in unicodedata.normalize('NFD',t.lower()) if unicodedata.category(c)!='Mn').replace('đ','d'); return re.sub(r'[^a-z0-9]','',t)
+    def neo(s,loi): return next(t for t in (s.ch(w) for w in loi.split()[:6]) if t and not t.isdigit() and t not in s.SO_CHU)
+    def test_tu_neo_khong_lap_o_doan_sau(self):
+        f=dict(vnd_doc='năm trăm sáu mươi nghìn',ten_doc="Assassin's Creed Valhalla bản Deluxe",ma='US',giam=75,gia_doc='mười chín đô chín mươi chín',
+               goc_doc='bảy mươi chín đô chín mươi chín',han_con_ngay=3,the_doc='Hai thẻ mười đô',han_doc='ngày năm tháng mười một')
+        mocs=[dict(loai='khong'),dict(loai='thap_nhat',cau=moc_tin.chon_moc('X',[],{'la_thap_nhat':True,'so_ngay':10})['cau']),
+              dict(loai='tin',cau='Mà game vừa có bản cập nhật miễn phí.'),dict(loai='tin',cau='Mà game vừa ra trailer bản mở rộng.')]
+        for moc in mocs:
+            for k in range(7):
+                ngay=(datetime.date(2026,10,27)+datetime.timedelta(days=k)).isoformat()
+                ds=lf.doan(dict(f,moc=moc,vnd_doc=f['vnd_doc']),ngay)
+                for i,(dk,loi) in enumerate(ds[1:],1):
+                    n=s=None
+                    n=self.neo(loi); sau={self.ch(w) for _,l in ds[i+1:] for w in l.split()}
+                    self.assertNotIn(n,sau,(moc['loai'],k,dk,n))
+        self.assertEqual(self.neo(dict(lf.doan(dict(f,moc=mocs[0]),NGAY))['gia']),'dang')
 
 class KieuMo(unittest.TestCase):
     def test_xoay_7_ngay_khong_trung(self):

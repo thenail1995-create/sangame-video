@@ -68,6 +68,7 @@ def kenh_bat(ds=KENH, dang=None, ngay=None):
     return [k for k in ds if k != "x" and (not bat or k in bat) and (gioi_han is None or k in gioi_han)]
 
 
+KENH_KHONG_CHUAN_BI = ("tiktok", "x")   # chi lam o pha cong khai (khong co pha chuan bi -> gia/han phai doc lai ngay o pha cong khai)
 MOT_KENH = True   # SG-1KENH: chi test co che nhieu kenh cu moi tat (sua code, khong co bien repo de tat)
 GIU_KENH = ("chuan_bi_xong", "dang_dang", "da_dang", "khong_ro")   # trang thai sg_dang = kenh do da/dang nhan video cua khung
 
@@ -170,8 +171,46 @@ def nap_va_kiem(a, cong, thu_muc):
     return man, nc
 
 
+DANG_TIN_GIA = ("flagship",)   # SG-TIN-GIA (Hao 01/11/2026: "luon lam tin ve gia"): dong 1 caption phai co so tien VND da kiem
+# So nguyen tron ven (khong cat "560" ra tu "1.560"/"0,560"/"-560") + don vi tien Viet. "đ" khong duoc dinh chu sau ("10 đô" khong phai
+# tien Viet); "nghìn/triệu" theo sau la ngoai te ("560 nghìn đô") thi khong phai VND (Sol soi diff 01/11).
+_RE_VND = re.compile(r"(?<![\d.,\-])(\d{1,3}(?:\.\d{3})+|\d+(?:,\d+)?)\s*"
+                     r"(?:(nghìn|ngàn|triệu)(?!\s*(?:đô|usd|hkd|sgd|\$|us\$|hk\$|s\$))|(đồng|vnđ|vnd|đ|₫))(?!\w)", re.I)
+_NHAN = {"nghìn": 1000, "ngàn": 1000, "triệu": 1000000}
+
+
+def tien_vnd(s):
+    """-> danh sach so tien VND trong chuoi: "560 nghìn" = 560000, "560.000đ" / "560.000 đồng" / "560.000₫" = 560000, "1,2 triệu" = 1200000."""
+    ra = []
+    for so, boi, _dv in _RE_VND.findall(s or ""):
+        ra.append(int(round(float(so.replace(".", "").replace(",", ".")) * _NHAN.get(boi.lower(), 1))))
+    return ra
+
+
+def thieu_gia_cau_mo(nc, dang):
+    """Khuon tin gia: dong 1 caption TikTok (dung chuoi se gui, = tieu de / cau mo bai) phai co so tien VND, va MOI so tien VND o do
+    phai BANG mot gia_vnd cua kiem_lai (Sol #7: "con 460 nghin, goc 560 nghin" khong duoc lot). -> ly do neu phai bo, None neu dat
+    hoac khuon khong ap. FAIL-CLOSED: kiem_lai thieu gia_vnd = bo."""
+    if dang not in DANG_TIN_GIA:
+        return None
+    gia_kiem = {m.get("gia_vnd") for m in nc.man.get("kiem_lai") or [] if type(m.get("gia_vnd")) is int and m["gia_vnd"] > 0}
+    if not gia_kiem:
+        return "kiem_lai khong co gia_vnd - khong chung minh duoc tin co gia"
+    dong1 = nc.caption_tiktok().split("\n")[0]
+    so = set(tien_vnd(dong1))
+    if not so or not so <= gia_kiem:
+        return f"dong 1 '{chung.cat(dong1, 80)}' co tien VND {sorted(so)} - can dung gia da kiem {sorted(gia_kiem)}"
+    return None
+
+
 def kiem_gia(a, cong, nc):
+    ly = thieu_gia_cau_mo(nc, a.dang)
+    if ly:
+        bo_khung(cong, a.ngay, a.dang, a.che_do, nc.gio_dang, "tin gia: " + ly, nc.manifest_sha)
+        return False
     muc = nc.man.get("kiem_lai")
+    if a.dang in DANG_TIN_GIA and muc:
+        muc = [dict(m, gia_dung_y=True) for m in muc]   # gia/han doc lai phai dung y gia trong video (gia.kiem_lai)
     if a.dang == "tin-nhanh" and muc == []:
         # Sol soi cuoi P2 (11/10): Tin nhanh gom 3 tin bai/PS Plus/sale KHONG co the gia -> kiem_lai rong hop le
         # (may dung da kiem moi the gia co dung 1 ban ghi). Chi Tin nhanh; Top 5/Keo thom rong van bo khung.
@@ -244,7 +283,7 @@ def pha_chuan_bi(a, cong, thu_muc, kenh_chon=None):
     man, nc = r
     if not kiem_gia(a, cong, nc):
         return 3
-    kenh_chon = [k for k in kenh_bat(kenh_chon or KENH, a.dang, a.ngay) if k not in ("tiktok", "x")]   # TikTok va X chi lam o pha cong khai
+    kenh_chon = [k for k in kenh_bat(kenh_chon or KENH, a.dang, a.ngay) if k not in KENH_KHONG_CHUAN_BI]
     if any(k in ("ig", "threads") for k in kenh_chon):
         goc = os.environ.get("PAGES_URL") or "https://{}.github.io/{}".format(*manifest.REPO.split("/"))
         u_video, u_bia = site.url_cong_khai(goc, a.ngay, a.dang, man)
@@ -430,6 +469,20 @@ def pha_cong_khai(a, cong, thu_muc):
     dich = nap_dich(os.environ.get("DICH_JSON"))
     cac_dong = [r for r in cong.doc_dang(a.ngay, a.ngay, a.che_do) if r.get("dang") == a.dang]
     dong_theo_kenh = {r["kenh"]: r for r in cac_dong}
+    # SG-TIN-GIA: TikTok/X khong co pha chuan bi -> doc lai gia/han (+ cong tin gia) NGAY truoc khi gui, khong dua vao lich chuan bi
+    # T-25 da chay. Chi khi kenh do con duoc gui (chua co dong so, hoac 'that_bai' ma sg_giu_dang cho gianh lai - Sol #2) va (che do that)
+    # dang trong cua so gio dang: goi som/tre van bi cong gio chan, khong doi thanh bo khung vinh vien (Sol #5).
+    con_gui = [k for k in kenh_bat(dang=a.dang, ngay=a.ngay)
+               if k in KENH_KHONG_CHUAN_BI and (dong_theo_kenh.get(k) or {}).get("trang_thai", "that_bai") == "that_bai"]
+    if con_gui and a.che_do == "that" and not (nc.gio_dang - SOM_TOI_DA <= chung.bay_gio() <= nc.gio_dang + TRE_TOI_DA):
+        # Ngoai cua so gio: DUNG HAN luot nay (Sol soi diff P1: neu chi bo kiem gia roi de cong gio tung kenh doc lai dong ho, dong ho
+        # vuot moc T-1 phut giua hai lan doc thi TikTok gui ma khong kiem gia). Moi kenh deu chiu cung cong gio nen khong mat gi.
+        ly = f"ngoai cua so gio dang {chung.iso(nc.gio_dang)} (-{int(SOM_TOI_DA.total_seconds() // 60)}/+{int(TRE_TOI_DA.total_seconds() // 60)} phut) - khong cong khai, khong kiem gia"
+        chung.log_loi(ly)
+        ntfy.loi(f"Khong dang {a.dang} {a.ngay}", ly)
+        return 1
+    if con_gui and not kiem_gia(a, cong, nc):
+        return 3
     tin, loi = [], []
     for kenh in kenh_bat(dang=a.dang, ngay=a.ngay):
         try:
