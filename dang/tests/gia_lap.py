@@ -136,7 +136,7 @@ def cong_day_du():
     return c
 
 
-def tao_manifest(thu_muc, che_do="that", ngay=NGAY, dang=DANG, dat=True, kiem_lai=None):
+def tao_manifest(thu_muc, che_do="that", ngay=NGAY, dang=DANG, dat=True, kiem_lai=None, loi_dang=None):
     thu_muc = pathlib.Path(thu_muc)
     ban = {}
     for b in ("tiktok", "reels", "shorts"):
@@ -148,8 +148,8 @@ def tao_manifest(thu_muc, che_do="that", ngay=NGAY, dang=DANG, dat=True, kiem_la
                   "kiem": {"dat": dat, "phep": [{"ten": "x", "dat": dat, "so_do": "1"}]}}
     man = {"phien_ban": 1, "ngay_dang": ngay, "dang": dang, "gio_dang": f"{ngay}T12:00:00+07:00", "che_do": che_do,
            "sha_code": "abc", "sha_du_lieu": "def", "tao_luc": f"{ngay}T10:00:00+07:00", "ban": ban,
-           "loi_dang": {"tieu_de": "Top 5 game PS5 duoi 200.000d hom nay", "mo_ta": "Mo ta.", "hashtag": ["#SanGame", "#PS5"],
-                        "link": "https://sangame.com.vn/"},
+           "loi_dang": loi_dang or {"tieu_de": "Top 5 game PS5 duoi 200.000d hom nay", "mo_ta": "Mo ta.", "hashtag": ["#SanGame", "#PS5"],
+                                    "link": "https://sangame.com.vn/"},
            "kiem_lai": kiem_lai or []}
     (thu_muc / "manifest.json").write_text(json.dumps(man))
     return man

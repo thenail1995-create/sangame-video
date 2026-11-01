@@ -12,7 +12,7 @@ def doan(f,ngay_iso,co_moc=True):
     """-> [(k, loi)] (loi CHUA co the cam xuc)."""
     k=kieu_mo(ngay_iso); v=dt.TEN_VUNG[f['ma']]
     ra=[('mo',cau_mo(f,k)),
-        ('gia',f"Game đang giảm {dt.so_chu(f['giam'])} phần trăm trên PS Store {v}, từ {f['goc_doc']} còn {f['gia_doc']}."),
+        ('gia',f"Đang giảm {dt.so_chu(f['giam'])} phần trăm trên PS Store {v}, từ {f['goc_doc']} còn {f['gia_doc']}."),
         ('the',f"{f['the_doc']} là vừa khít, đúng {f['vnd_doc']}.")]
     if co_moc and (f.get('moc') or {}).get('loai') in ('tin','thap_nhat'): ra.append(('moc',f['moc']['cau']))
     ra+= [('han',f"Giảm giá tới {f['han_doc']}"+(f", còn {dt.so_chu(f['han_con_ngay'])} ngày nữa." if (f.get('han_con_ngay') or 0)>=2 else '.')),('vung',f'Nhớ là cần tài khoản PSN {v}.'),('ket',SLOGAN)]

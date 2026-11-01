@@ -35,7 +35,7 @@ concurrency:
   queue: max
 env:
   SG_KENH_BAT: ${{ vars.SG_KENH_BAT }}   # 24/10/2026: rong = moi kenh; "youtube" = chi YouTube
-  SG_FLAGSHIP_NGAY_1: ${{ vars.SG_FLAGSHIP_NGAY_1 }}   # 28/10/2026: ngay dang dau tien cua flagship (YYYY-MM-DD); 3 ngay dau chi TikTok, tu ngay thu 4 them YouTube
+  SG_FLAGSHIP_NGAY_1: ${{ vars.SG_FLAGSHIP_NGAY_1 }}   # 28/10/2026: ngay dang dau tien cua flagship. KHONG con tac dung tu 01/11/2026 (SG-1KENH): flagship luon chi TikTok
 
 jobs:
   kiem-dau-vao:
