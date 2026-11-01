@@ -87,10 +87,10 @@ def co_chu(png):
             if cf>=60 and len(re.sub(r'[^A-Za-z]','',c[11]))>=3: return c[11]
     return None
 def mau_quet(f,s0,dl,box):
-    """Quet ca doan 4 khung/s (CUNG cach kiem/kiem-tat-ca.py kiem nen): -> (YAVG nho nhat thang limited 16-235, ty le do bao hoa lon nhat)."""
+    """Quet ca doan 15 khung/s (01/11 run 41321247937: 4 khung/s lot 1 khung mau me 6,6% o 10,25 s, kiem ban cuoi bat; CUNG nguong kiem/kiem-tat-ca.py kiem nen): -> (YAVG nho nhat thang limited 16-235, ty le do bao hoa lon nhat)."""
     import numpy as np
     H=cao('tiktok'); wv,hv=480,int(480*H/1080)//2*2
-    raw=chay_b(['ffmpeg','-v','error','-ss',f'{s0:.2f}','-t',f'{dl:.2f}','-i',f,'-vf',vf_cat(box)+f',fps=4,scale={wv}:{hv}','-f','rawvideo','-pix_fmt','rgb24','-'])
+    raw=chay_b(['ffmpeg','-v','error','-ss',f'{s0:.2f}','-t',f'{dl:.2f}','-i',f,'-vf',vf_cat(box)+f',fps=15,scale={wv}:{hv}','-f','rawvideo','-pix_fmt','rgb24','-'])
     fr=np.frombuffer(raw,dtype=np.uint8).reshape(-1,hv,wv,3).astype(np.int16)
     if not len(fr): return 0.0,1.0
     ya=(0.299*fr[...,0]+0.587*fr[...,1]+0.114*fr[...,2]).mean(axis=(1,2))*219/255+16
