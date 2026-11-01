@@ -466,6 +466,20 @@ class Luong(unittest.TestCase):
         self.assertEqual(self.su_kien, [])
         self.assertIn("M3", self.ntfy[-1][1])   # ly do cuoi = game chup cuoi
 
+    def test_hang_du_bi_chua_co_han_lay_han_tu_trang(self):   # SG-DATA-1: sg_keo chi co han cho hang da kiem trang
+        h = hang(hang=11, ma="DB", da_kiem_trang=False, han=None)
+        self.assertEqual(self.chay(cong=CongXG([h], self.su_kien)), 0, self.log)
+        self.assertEqual(self.dong()["id_tai"], "DB")
+
+    def test_hang_du_bi_han_trang_duoi_24h_bi_bo(self):
+        h = hang(hang=11, ma="DB", da_kiem_trang=False, han=None)
+        self.assertEqual(self.chay(cong=CongXG([h], self.su_kien), kq=kq_chup(han_chu="Offer ends 10/29/2026 09:59 AM GMT+7"), m=Mang()), 3)   # = 02:59 UTC < gio dang + 24 h
+        self.assertEqual(self.su_kien, [])
+        self.assertIn("24 h", self.ntfy[-1][1])
+
+    def test_hang_da_kiem_khong_co_han_van_bi_loai(self):
+        self.assertEqual(x_goc.ung_vien([hang(han=None)], "2026-10-28", DUE, set(), {"US"}), [])
+
     def test_sg_keo_chua_co_thi_doi_roi_dang(self):   # SG-DATA-1: 01/11 san-deal ghi sg_keo 09:43, X chay 09:40
         class CongTre(CongXG):
             lan = 0

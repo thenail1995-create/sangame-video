@@ -186,6 +186,9 @@ def ung_vien(hang_ds, ngay_dang, gio_dang, da_dung_ma, vung_the):
         vung = h.get("vung_re_nhat")
         gv = (h.get("gia_vung") or {}).get(vung) if isinstance(h.get("gia_vung"), dict) else None
         han = _tg(h.get("han"))
+        chua_kiem = h.get("da_kiem_trang") is not True
+        if chua_kiem and h.get("han") is None:
+            han = gio_dang + dt.timedelta(hours=HAN_TOI_THIEU_GIO)   # hang du bi chua co han: lay han tu trang khi chup (chuan_bi)
         if (h.get("ngay") != ngay_dang or vung not in vung_the or h.get("da_kiem_trang") not in (True, False, None) or h.get("lech_gia") is not False
                 or vung not in LOC_VUNG or not isinstance(gv, dict) or not gv.get("mua_duoc") or gv.get("chi_plus")
                 or not str(h.get("link") or "").startswith("https://store.playstation.com/") or not h.get("ten") or not h.get("ma")
@@ -400,17 +403,26 @@ def chuan_bi(cong, ngay, ngay_1, gio, gia_the, chup=chup_trang, thu_muc=None, ng
         raise KhongDang("khong con game hop le hom nay (hoac gia-the.json thieu/cu hon 7 ngay/khong co du lieu vung cua game)")
     so_chup, ly_cuoi = 0, "khong game nao dung duoc chu hop le"
     for hang in ds:
-        ct = dung_chu(hang, ngay, ngay_1, sha_da, to_hop_da)
+        tam = hang if hang.get("han") is not None else {**hang, "han": (due + dt.timedelta(hours=HAN_TOI_THIEU_GIO)).isoformat()}
+        ct = dung_chu(tam, ngay, ngay_1, sha_da, to_hop_da)   # loc som (truoc khi ton 1 lan chup); hang chua co han dung lai sau chup
         if ct is None:
             chung.log(f"x_goc: bo {hang['ma']}: khong dung duoc chu hop le (ten qua dai / lap dong 1 / het to hop khuon)")
             continue
         if so_chup >= TOI_DA_CHUP:
             break
-        text, dong1, to_hop = ct
         anh = pathlib.Path(thu_muc) / "anh-ps.png"
         so_chup += 1
         try:
             kq = chup(str(hang["link"]), str(anh))
+            if hang.get("han") is None:   # hang du bi chua kiem: han lay tu 'Offer ends' tren trang, van can >= gio dang + 24 h
+                han_trang = _han_chu_ra_utc(kq.get("han_chu"))
+                if han_trang is None or han_trang < due + dt.timedelta(hours=HAN_TOI_THIEU_GIO):
+                    raise KhongDang("hang chua kiem: khong doc duoc han tren trang hoac con < 24 h")
+                hang = {**hang, "han": han_trang.isoformat()}
+                ct = dung_chu(hang, ngay, ngay_1, sha_da, to_hop_da)
+                if ct is None:
+                    raise KhongDang("khong dung duoc chu hop le voi han tren trang")
+            text, dong1, to_hop = ct
             kiem_trang(hang, kq)
         except KhongDang as e:
             ly_cuoi = f"{hang['ma']}: {e}"
