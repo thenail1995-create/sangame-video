@@ -20,13 +20,13 @@ def _status(tk, container):
     return meta.goi(G, "GET", f"/{container}", token=tk["page_token"], tham_so={"fields": "status_code"}).get("status_code")
 
 
-def tham_container(video_url, cover_url, caption):
-    """Tham so container REELS. cover_url co the None (script dang tay khong co bia). Nhan AI khi CO_GIONG_AI.
+def tham_container(video_url, cover_url, caption, co_ai=None):
+    """Tham so container REELS. cover_url co the None (script dang tay khong co bia). Nhan AI khi co_ai (None = chung.CO_GIONG_AI).
     Thuan, khong goi mang - dung chung voi bo dang tay (dang/ngan.py)."""
     tham = {"media_type": "REELS", "video_url": video_url, "caption": caption, "share_to_feed": "true"}
     if cover_url:
         tham["cover_url"] = cover_url
-    if chung.CO_GIONG_AI:
+    if chung.CO_GIONG_AI if co_ai is None else co_ai:
         tham["is_ai_generated"] = "true"   # Meta changelog 22/06/2026: dat khi tao container
     return tham
 

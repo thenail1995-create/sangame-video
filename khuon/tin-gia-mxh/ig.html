@@ -1,0 +1,102 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8">
+<link rel="stylesheet" href="chung.css">
+<style>
+.bg{filter:blur(10px)}
+#dau{top:520px;transform-origin:540px 0}
+#dau div{margin:0 auto;line-height:1.05;white-space:nowrap}
+#d1{font-weight:800;font-size:130px;color:var(--kem);-webkit-text-stroke:10px var(--nau);paint-order:stroke fill}
+#d2{margin-top:8px!important;font-weight:800;font-size:104px;color:var(--teal);-webkit-text-stroke:9px var(--nau);paint-order:stroke fill}
+#d3{margin-top:18px!important;font-weight:800;font-size:150px;color:var(--kem);-webkit-text-stroke:11px var(--nau);paint-order:stroke fill;text-shadow:10px 12px 0 var(--do)}
+#pn{left:50px;top:540px;width:980px}
+#ttl{left:50px;top:540px;width:980px;font-size:38px}
+.g{left:90px;width:900px;height:108px}
+.g .gc{position:absolute;left:0;top:0;width:84px;height:84px;border-radius:14px;overflow:hidden;border:4px solid var(--nau);box-shadow:3px 4px 0 var(--nau)}
+.g .gc img{width:100%;height:100%;object-fit:cover;display:block}
+.g .gten{position:absolute;left:100px;top:-2px;font-weight:800;font-size:40px;line-height:1.1;color:var(--nau);width:480px}
+.g .gcf{position:absolute;left:100px;top:6px;width:40px;height:30px;border-radius:5px;overflow:hidden;border:3px solid var(--nau)}
+.g .gcf img{width:100%;height:100%;object-fit:cover;display:block}
+.g .gso{position:absolute;right:0;top:4px;font-weight:800;font-size:56px;line-height:1.1;color:var(--do);white-space:nowrap}
+.g .ray{left:100px;top:90px;width:560px}
+.g .nhan{position:absolute;right:0;top:64px;font-size:26px;padding:3px 12px;border-width:3px;transform:rotate(-4deg);opacity:0}
+#khung{left:66px;width:948px}
+#big{left:300px;top:520px;width:480px;height:480px;border-radius:30px;border:8px solid var(--nau);box-shadow:14px 16px 0 var(--nau);object-fit:cover}
+#tem{left:610px;top:880px;width:340px;height:150px;border-radius:26px;background:var(--do);border:7px solid var(--nau);box-shadow:8px 10px 0 var(--nau);transform-origin:50% 50%}
+#tem-gia{left:0;top:0;width:340px;height:136px;text-align:center;font-weight:800;font-size:104px;line-height:136px;color:var(--kem);-webkit-text-stroke:7px var(--nau);paint-order:stroke fill;white-space:nowrap}
+#bten{top:1056px;font-weight:800;font-size:56px;line-height:1.1;color:var(--kem);-webkit-text-stroke:6px var(--nau);paint-order:stroke fill;margin:0 auto}
+#chips{top:1160px;white-space:nowrap}
+#ket{top:280px}
+</style></head><body><div id="san">
+<div id="bgs"></div><div class="a toi"></div>
+<div id="dau" class="a ctr"><div id="d1"></div><div id="d2"></div><div id="d3"></div></div>
+<div id="pn" class="a pn"></div><div id="ttl" class="a ttl"></div>
+<div id="khung" class="a khung"></div>
+<div id="rows"></div>
+<div id="cuoi"></div>
+<div id="chips" class="a ctr"></div>
+<div id="ket" class="a ctr ket"></div>
+</div>
+<script src="du-lieu.js"></script><script src="dong.js"></script>
+<script>
+const D=window.DL, G=D.game, N=G.length, Y0=652, H=112, PT=540, MAX=Math.max(...G.map(g=>g.gia_vnd));
+const TH=1.5+.5*N+.3, last=G[N-1];
+G.forEach((g,i)=>anh('a bg',g.nen,$('bgs'),'bg'+i));
+D.tieu_de.forEach((s,i)=>$('d'+(i+1)).textContent=s);
+$('ttl').textContent='GIÁ THẺ RẺ NHẤT · '+N+' GAME';
+$('pn').style.height=(Y0-PT+N*H+16)+'px';
+function tenDong(t){const ip=String((D.tieu_de||[])[1]||'').trim();if(ip&&t.toUpperCase().startsWith(ip.toUpperCase()+' ')){const r=t.slice(ip.length).trim();if(r.length>=2)return r}return t}   // 'FINAL FANTASY VII REBIRTH' duoi tieu de 'FINAL FANTASY' -> 'VII REBIRTH'
+G.forEach((g,i)=>{const h=mk('div','a g'+(i==N-1?' re':''),'g'+i,null,$('rows'));h.style.top=(Y0+i*H)+'px';
+  const c=mk('div','gc',null,null,h);anh('',g.bia,c);const cf=!D.vung_chung&&g.ma_vung;if(cf){const f=mk('div','gcf',null,null,h);co(g.ma_vung,f)}
+  const gt=mk('div','gten','gt'+i,tenDong(g.ten),h);if(cf)gt.style.left='150px';mk('div','gso','gs'+i,'0đ',h);
+  const ray=mk('div','ray',null,null,h);mk('div','thanh','gb'+i,null,ray);if(i==N-1)mk('div','nhan','gn','RẺ NHẤT',h)});
+$('khung').style.cssText+=`;top:${Y0+(N-1)*H-14}px;height:${H+2}px`;
+anh('a',last.bia,$('cuoi'),'big');
+{const t=mk('div','a','tem',null,$('cuoi'));mk('div','a','tem-gia',vk(last.gia_vnd),t);}
+mk('div','a ctr','bten',last.ten,$('cuoi'));
+{const c=$('chips');
+ if(D.giam_chung!=null||D.vung_chung){const a=mk('span','chip',null,null,c);
+   if(D.giam_chung!=null){a.appendChild(document.createTextNode('Giảm '));mk('b',null,null,D.giam_chung+'%',a)}
+   if(D.giam_chung!=null&&D.vung_chung)a.appendChild(document.createTextNode(' · '));
+   if(D.vung_chung)a.appendChild(document.createTextNode('Store '+D.vung_chung))}
+ const b=mk('span','chip',null,D.han_khac?'Hết giảm sớm nhất ':'Hết giảm ',c);mk('b',null,null,D.han_chu,b)}
+{const k=$('ket');anh('bia',last.bia,k).style.cssText='width:340px;height:340px';mk('img','lgo',null,null,k).src='../flagship/logo.svg';
+ const kh=mk('div','kh',null,'Săn đúng kèo,',k);kh.appendChild(document.createElement('br'));mk('span',null,null,'chơi đỡ nghèo!',kh)}
+function fit(){
+  ['d1','d2','d3'].forEach(i=>vua($(i),940,{min:44}));
+  // be rong ten = cho con lai ben trai o gia (gia dai nhu 1.480.000d chiem nhieu cho hon)
+  const pw=Math.max(...G.map((g,i)=>{const e=$('gs'+i);e.textContent=vnd(g.gia_vnd);const w=rong(e);e.textContent='0đ';return w}));
+  const nw0=Math.min(480,Math.floor(900-100-pw-28));
+  G.forEach((g,i)=>vua($('gt'+i),(!D.vung_chung&&g.ma_vung)?nw0-50:nw0,{dong:2,mot:34,min:22}));
+  vua($('bten'),940,{dong:2,mot:40,min:28});
+  const f=$('big');
+}
+function ve(t){
+  const T=t/11, kb=`scale(${mix(1.04,1.16,T)}) translate(${mix(0,-30,T)}px,0)`;
+  G.forEach((g,i)=>{const ti=1.5+.5*i;S('bg'+i,{transform:kb,opacity:String(i==0?1:P(t,ti-.05,.3))})});
+  const pop=P(t,0,.35,'ob'), up=P(t,1,.5,'oq'), ktOut=P(t,9.4,.35);
+  S('dau',{transform:`translateY(${mix(0,-220,up)}px) scale(${mix(1,0.5,up)*mix(.94,1,pop)})`,opacity:String(1-ktOut)});
+  const inP=P(t,1.15,.4), outP=P(t,6,.45,'io');
+  S('ttl',{opacity:String(inP*(1-outP)),transform:`translateY(${mix(30,0,inP)}px)`});
+  S('pn',{opacity:String(inP*(1-outP)),transform:`translateY(${mix(60,0,inP)}px) scale(${mix(.96,1,inP)})`});
+  G.forEach((g,i)=>{const ts=1.5+.5*i,k=P(t,ts,.45,'oq'),kin=P(t,ts-.25,.35);
+    const dim=i<N-1?mix(1,.45,P(t,TH,.3)):1;
+    S('g'+i,{opacity:String(kin*dim*(1-outP)),transform:`translateX(${mix(-60,0,kin)-outP*900}px)`});
+    $('gb'+i).style.width=(100*g.gia_vnd/MAX*k).toFixed(2)+'%';
+    $('gs'+i).textContent=vnd(Math.round(g.gia_vnd*k/1000)*1000);$('gs'+i).style.opacity=k>0.03?'1':'0'});   // chua dem thi an so (khong hien 0đ)
+  const hk=P(t,TH,.35,'ob');
+  S('khung',{opacity:String((t>=TH?1:0)*(1-outP)),transform:`scale(${mix(1.08,1,hk)})`});
+  S('gn',{opacity:String(t>=TH+.1?1:0),transform:`rotate(-4deg) scale(${mix(2.2,1,P(t,TH+.1,.25,'oq'))})`});
+  // canh "re nhat": bia to + tem gia
+  const b1=P(t,6.2,.45,'ob'), b2=P(t,6.6,.35,'ob'), b3=P(t,6.9,.35), ch=P(t,8,.4,'oq');
+  S('big',{opacity:String(cl(b1)*(1-ktOut)),transform:`scale(${mix(.6,1,b1)})`});
+  S('tem',{opacity:String((t>=6.6?1:0)*(1-ktOut)),transform:`rotate(-7deg) scale(${mix(2.2,1,b2)})`});
+  S('bten',{opacity:String(b3*(1-ktOut))});
+  S('chips',{opacity:String(ch*(1-ktOut)),transform:`translateY(${mix(40,0,ch)}px)`});
+  // khung cuoi
+  const k1=P(t,9.6,.45,'ob'),k2=P(t,9.9,.4),k3=P(t,10.15,.4),kt=$('ket');
+  kt.style.opacity=t>=9.6?1:0;
+  const b=kt.querySelector('.bia');b.style.transform=`scale(${mix(.6,1,k1)})`;b.style.opacity=String(cl(k1));
+  const lg=kt.querySelector('.lgo');lg.style.opacity=String(k2);lg.style.transform=`scale(${mix(.7,1,P(t,9.9,.4,'ob'))})`;
+  const kh=kt.querySelector('.kh');kh.style.opacity=String(k3);kh.style.transform=`translateY(${mix(30,0,k3)}px)`;
+}
+san(fit,ve);
+</script></body></html>

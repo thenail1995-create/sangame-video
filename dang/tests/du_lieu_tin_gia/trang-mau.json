@@ -1,0 +1,59 @@
+{
+ "UP0102-PPSA08033_00-FULLGAME00000001": {
+  "price": {
+   "sku": "U002",
+   "discountedPrice": "$4.79",
+   "basePrice": "$39.99",
+   "discountedValue": 479,
+   "basePriceValue": 3999,
+   "currencyCode": "USD",
+   "endTime": "1793865540000"
+  },
+  "star": {
+   "averageRating": 4.25,
+   "totalRatingsCount": 19405
+  },
+  "genres": [
+   "Role Playing Games",
+   "Action"
+  ]
+ },
+ "UP0082-PPSA08666_00-0783148264580163": {
+  "price": {
+   "sku": "U003",
+   "discountedPrice": "$14.99",
+   "basePrice": "$49.99",
+   "discountedValue": 1499,
+   "basePriceValue": 4999,
+   "currencyCode": "USD",
+   "endTime": "1793865540000"
+  },
+  "star": {
+   "averageRating": 4.66,
+   "totalRatingsCount": 64683
+  },
+  "genres": [
+   "Role Playing Games"
+  ]
+ },
+ "UP0082-CUSA05532_00-FFXIIGAMEPS400NA": {
+  "price": {
+   "sku": "U001",
+   "discountedPrice": "$14.99",
+   "basePrice": "$49.99",
+   "discountedValue": 1499,
+   "basePriceValue": 4999,
+   "currencyCode": "USD",
+   "endTime": "1793865540000"
+  },
+  "star": {
+   "averageRating": 4.75,
+   "totalRatingsCount": 11893
+  },
+  "genres": [
+   "Role Playing Games",
+   "Role Playing Games",
+   "Role Playing Games"
+  ]
+ }
+}
