@@ -51,7 +51,7 @@ TEN_MIEN = re.compile(r"\b[\w-]+\.(?:com|vn|net)\b", re.I)
 TAG = re.compile(r"#\w+")
 KIEU_K = re.compile(r"\d+\s*[kK]\b")
 RE_NGOAI_TE = re.compile(r"(?:HK\$|US\$|S\$|\$|SGD\s?|THB\s?|IDR\s?|Rp\s?|฿)\d[\d.,]*")
-RE_PHAN_TRAM = re.compile(r"(\d+)(?:[.,]\d+)?\s*%")
+RE_PHAN_TRAM = re.compile(r"(\d+(?:[.,]\d+)?)\s*%")      # bat ca so thap phan: 88,99% != 88%
 
 
 # ---------------------------------------------------------------- ten doc duoc (BO SUNG 4)
@@ -214,6 +214,22 @@ def tap_phan_tram(sv):
     return ra | {str(g["giam"]) for g in sv.get("game") or [] if g.get("giam")}
 
 
+def _cum_vai_tro(kenh, text, sv):
+    """Cong theo VAI TRO: caption BAT BUOC chua dung cac cum sinh tu su_that (doi gia ban <-> gia goc, doi menh gia the, doi so tam, doi %...
+    deu lam mat cum -> truot)."""
+    can = []
+    if kenh == "fb":
+        t = sv["ten_goc"] and ten_chu(sv["ten_goc"])
+        can = [f"{t} còn {_nghin(sv['gia_vnd'])} ở Store {sv['vung']}", f"{sv['the_chu']} vừa khít với giá niêm yết {sv['gia_game']}.",
+               f"gốc {sv['goc']})", f"Giảm {sv['giam']}% ", f"tới {han_cau(sv['han'])}"]
+    elif kenh == "ig":
+        gt = "giảm sớm nhất tới" if sv.get("han_khac") else "giảm tới"
+        can = [f"{gt} {han_cau(sv['han'])}"]
+    else:
+        can = [f"Cả hai đang {sv['gia_hien']}", f"{sv['the_chu']} vừa khít với giá niêm yết"]
+    return [f'thieu cum bat buoc "{c}"' for c in can if c not in text]
+
+
 def cong(kenh, text, sv):
     """Moi dieu kien khong chung minh duoc = truot. -> list ly do (rong = dat)."""
     loi = []
@@ -245,6 +261,7 @@ def cong(kenh, text, sv):
     la_pt = sorted(set(RE_PHAN_TRAM.findall(text)) - tap_phan_tram(sv))
     if la_pt:
         loi.append(f"co phan tram {la_pt}% ngoai % giam da kiem {sorted(tap_phan_tram(sv))}")
+    loi += _cum_vai_tro(kenh, text, sv)
     if KIEU_K.search(text):
         loi.append('co so dang "N K" (chi duoc nghìn/triệu)')
     if NIEM_YET not in text:

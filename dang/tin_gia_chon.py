@@ -329,7 +329,7 @@ def _kiem_lai(ten, rec):
     """Muc cho gia.kiem_lai (S2): gia_cuc_bo float cua trang, endTime ms, gia_dung_y. P2-d: them gia_goc + giam (gia.kiem_lai bo qua truong la;
     tin_gia_mxh.kiem_goc_giam so voi trang truoc cong khai)."""
     return {"ten": f"{ten} ({rec['ma_vung']})", "pid": rec["pid"], "loc": rec["loc"], "gia_cuc_bo": float(rec["gia_cuc_bo"]),
-            "endTime": str(rec["end_ms"]), "gia_dung_y": True, "gia_goc": float(rec["gia_goc"]), "giam": int(rec["giam"])}
+            "endTime": str(rec["end_ms"]), "gia_dung_y": True, "gia_goc": float(rec["gia_goc"]), "giam": int(rec["giam"]), "tien": rec["tien"]}
 
 
 def _anh_game(boi, html, pid, stem, so_nen):

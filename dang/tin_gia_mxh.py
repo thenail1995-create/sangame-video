@@ -14,7 +14,7 @@ Cong bat (pha THAT): bien repo SG_KENH_BAT phai co DUNG muc rieng khuon `<dang>:
 Muc chung khong co ':' (vd "youtube") KHONG bat khuon nay. Pha thu khong can cong (chi giu sach nen tang, khong cong khai).
 Trang thai sg_dang sau giu_dang (S15): loi chac chan truoc moi tac dung phu, hoac sau khi tao tai nguyen nhung CHUA goi cong khai -> that_bai
 (cho chay lai, tai nguyen mo coi khong cong khai); loi khi/sau goi cong khai ma khong chung minh duoc chua dang -> khong_ro.
-Runner bi huy giua chung -> dong ket o dang_dang: Opus doi soat tay (xem README), may KHONG tu doi.
+Runner bi huy giua chung -> dong ket o dang_dang: Opus doi soat tay (xem khuon/tin-gia-mxh/KE-HOACH.md muc "Đối soát dòng kẹt"), may KHONG tu doi.
 """
 import argparse
 import datetime as dt
@@ -51,6 +51,10 @@ ANH_RONG_TAI = 1280
 
 class KhongDang(Exception):
     """Dung het, KHONG dang gi (ma thoat 3). ly_do da che bi mat."""
+
+
+class MatDong(KhongDang):
+    """Dong sg_dang KHONG CON la cua minh (trang thai khac chuan_bi_xong hoac id_bai khac): dung + ntfy, TUYET DOI khong doi trang thai dong do."""
 
 
 # ---------------------------------------------------------------- cong bat rieng khuon (BO SUNG 10)
@@ -190,7 +194,7 @@ def kiem_han(han, buoc):
 
 
 def kiem_goc_giam(muc, lay_trang):
-    """P2-d: kiem_lai mang them gia_goc + giam; doc lai trang, doi -> van de (fail-closed: khong tai duoc / khong co khoi gia = van de).
+    """P2-d: kiem_lai mang them gia_goc + giam + tien; cung lan GET so luon gia ban (dung y) + tien te; doc lai trang, doi -> van de (fail-closed: khong tai duoc / khong co khoi gia = van de).
     Khong sua dang/gia.kiem_lai (cac khuon cu)."""
     van_de = []
     for m in muc or []:
@@ -203,6 +207,10 @@ def kiem_goc_giam(muc, lay_trang):
         if k is None or not k.get("gia_goc") or k["gia_goc"] <= k["gia_cuc_bo"]:
             van_de.append(f"{ten}: khong doc lai duoc gia goc tren trang")
             continue
+        if k.get("tien_te") != m.get("tien"):
+            van_de.append(f"{ten}: tien te doi {m.get('tien')} -> {k.get('tien_te')}")
+        if not isinstance(m.get("gia_cuc_bo"), (int, float)) or round(k["gia_cuc_bo"], 2) != round(m["gia_cuc_bo"], 2):
+            van_de.append(f"{ten}: gia ban doi {m.get('gia_cuc_bo')} -> {k['gia_cuc_bo']}")
         giam = int(round(100 * (1 - k["gia_cuc_bo"] / k["gia_goc"])))
         if round(k["gia_goc"], 2) != round(m["gia_goc"], 2):
             van_de.append(f"{ten}: gia goc doi {m['gia_goc']} -> {k['gia_goc']}")
@@ -641,11 +649,19 @@ def lam(a, cong, phu, thu_muc):
             raise KhongDang("kiem lai gia goc/% giam truoc gio dang: " + "; ".join(doi_goc))
         if chung.bay_gio() > han:                   # S16: kiem han NGAY truoc request cong khai
             raise KhongDang("da qua han cong khai (gio dang + 15 phut) - khong cong khai")
+        ly = nhuong_neu_trung(cong, ngay, dang, kenh, che_do, tin["ma"])         # kiem trung game LAN 2 (sau khi ngu + kiem lai)
+        if ly:                                   # dong van la cua minh (chuan_bi_xong) nhung game da co ben khac giu -> that_bai co dieu kien, chua cong khai
+            doi_trang_thai(cong, khoa, ("chuan_bi_xong",), trang_thai="that_bai", loi=chung.cat("kiem trung lan 2: " + ly, 300))
+            _bao("Tin giá " + kenh + ": nhường game trùng trước công khai", chung.cat(ly, 300))
+            return 3
         sai = dong_truoc_cong_khai(cong, ngay, dang, kenh, che_do, id_bai)       # P1-a
         if sai:
-            raise KhongDang(sai)
+            raise MatDong(sai)
         da_gui = True
         kq = nen.cong_khai(goi, id_bai, han)
+    except MatDong as e:                         # dong khong con la cua minh: KHONG dong vao so
+        _bao("Tin giá " + kenh + ": dòng sổ không còn của máy này, dừng", chung.cat(e, 300))
+        return 3
     except KhongDang as e:
         doi_that_bai(cong, khoa, e)
         _bao("Tin giá " + kenh + ": không đăng hôm nay", chung.cat(e, 300))

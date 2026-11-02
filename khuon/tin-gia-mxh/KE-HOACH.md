@@ -161,3 +161,5 @@ Máy KHÔNG tự đổi dòng `sg_dang` đang ở `dang_dang` / `chuan_bi_xong` 
    - Không chắc (API lỗi, bài lạ) → để `khong_ro`, báo Hào; không đăng lại.
    - CHƯA công khai (chắc chắn: nền tảng trả `FINISHED`/chưa `published`, và trang tài khoản không có bài) → mới được đổi sang `that_bai` bằng tay (cho phép chạy lại; tài nguyên mồ côi để hết hạn, không công khai).
 4. Sau khi đổi tay ghi lý do vào cột `loi`. Dòng `x-goc` cùng game không tự nhường cho tin giá (S7 chỉ áp từ phía tin giá).
+
+Rủi ro còn lại (chấp nhận): giữa lần đọc sổ cuối và POST công khai còn khe ~1–2 s không có khoá nguyên tử dùng chung với x-goc; giảm bằng concurrency chung 3 khuôn + kiểm trùng 2 lần + lịch x-goc 10:00/20:00 lệch giờ với 11:30/19:00/20:30.
