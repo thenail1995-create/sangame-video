@@ -7,6 +7,7 @@ Khoa Zernio va uploadUrl ky san duoc dang ky bi mat (chung.dang_ky_bi_mat) -> kh
 """
 import hashlib
 import os
+import pathlib
 
 from . import chung, http
 
@@ -123,6 +124,29 @@ def tai_anh(khoa, duong, ten):
         raise _chua(f"PUT anh: {e}") from None
     if u.status != 200:
         raise _chua(f"PUT anh HTTP {u.status}")
+    return j["publicUrl"]
+
+
+def tai_tep(khoa, duong, ten, content_type, timeout_put=300):
+    """Dua mot tep (mp4/jpg/png...) len kho tam Zernio (/media/presign) -> URL cong khai. Dung chung cho tin gia FB/IG/Threads
+    (dang/tin_gia_mxh.py). uploadUrl + URL cong khai duoc che khoi log. Loi truoc khi co bai -> 'chua tao bai'.
+    tai_video / tai_anh o tren giu nguyen hanh vi."""
+    du_lieu = pathlib.Path(duong).read_bytes()
+    try:
+        r = http.gui("POST", f"{GOC}/media/presign", headers=_hdr(khoa), timeout=60,
+                     json_body={"filename": ten, "contentType": content_type, "size": len(du_lieu)})
+    except http.LoiMang as e:
+        raise _chua(f"presign tep: {e}") from None
+    j = r.json()
+    if r.status not in (200, 201) or not j.get("uploadUrl") or not j.get("publicUrl"):
+        raise _chua(f"presign tep HTTP {r.status}")
+    chung.dang_ky_bi_mat(j["uploadUrl"], j["publicUrl"])
+    try:
+        u = http.gui("PUT", j["uploadUrl"], data=du_lieu, headers={"Content-Type": content_type}, timeout=timeout_put)
+    except http.LoiMang as e:
+        raise _chua(f"PUT tep: {e}") from None
+    if u.status != 200:
+        raise _chua(f"PUT tep HTTP {u.status}")
     return j["publicUrl"]
 
 

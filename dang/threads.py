@@ -86,7 +86,7 @@ def cong_khai(tk, nc, dong):
     return {"id_bai": mid, "link": link}
 
 
-def tao_container_chu(tk, text, anh=None, topic_tag=None, luu=None, poll=None):
+def tao_container_chu(tk, text, anh=None, topic_tag=None, luu=None, poll=None, alt_text=None):
     """Bai CHU RIENG (dang/threads_chu.py): container TEXT, hoac IMAGE neu co anh (URL cong khai). -> container id, da cho FINISHED.
     Tham so theo tai lieu chinh chu (doc 12/10/2026) https://developers.facebook.com/docs/threads/posts :
       media_type = TEXT | IMAGE | VIDEO ; text (<= 500 ky tu, dem theo byte UTF-8 cho emoji) ; image_url (bat buoc voi IMAGE, URL cong khai) ;
@@ -100,6 +100,8 @@ def tao_container_chu(tk, text, anh=None, topic_tag=None, luu=None, poll=None):
         tham["poll_attachment"] = json.dumps(kiem_poll(poll), ensure_ascii=False)
     if anh:
         tham["image_url"] = anh
+        if alt_text:
+            tham["alt_text"] = alt_text   # mo ta anh cho nguoi khiem thi (Threads API: alt_text, <= 1.000 ky tu)
     if topic_tag:
         tham["topic_tag"] = topic_tag
     c = meta.goi(TH, "POST", f"/{tk['threads_user_id']}/threads", token=tk["token"], tham_so=tham)

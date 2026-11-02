@@ -86,13 +86,14 @@ def _dat_bia(tk, video_id, du_lieu, mime="image/jpeg"):
     return False, chung.cat(cuoi)
 
 
-def tham_finish(video_id, mo_ta, video_state, hen_unix=None):
-    """Tham so buoc finish cua Reels. Nhan AI (is_ai_generated) co o MOI video_state (DRAFT/PUBLISHED/SCHEDULED) khi CO_GIONG_AI.
-    SCHEDULED them scheduled_publish_time (Unix). Thuan, khong goi mang - dung chung voi bo dang tay (dang/ngan.py)."""
+def tham_finish(video_id, mo_ta, video_state, hen_unix=None, co_ai=None):
+    """Tham so buoc finish cua Reels. Nhan AI (is_ai_generated) co o MOI video_state (DRAFT/PUBLISHED/SCHEDULED) khi co_ai
+    (None = chung.CO_GIONG_AI; False = video khong giong AI, vd tin gia tin_gia_mxh). SCHEDULED them scheduled_publish_time (Unix).
+    Thuan, khong goi mang - dung chung voi bo dang tay (dang/ngan.py)."""
     tham = {"upload_phase": "finish", "video_id": video_id, "video_state": video_state, "description": mo_ta}
     if hen_unix is not None:
         tham["scheduled_publish_time"] = str(int(hen_unix))
-    if chung.CO_GIONG_AI:
+    if chung.CO_GIONG_AI if co_ai is None else co_ai:
         tham["is_ai_generated"] = "true"
     return tham
 

@@ -1,0 +1,117 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8">
+<link rel="stylesheet" href="chung.css">
+<style>
+#dau{top:300px;transform-origin:540px 0}
+#dau-ten{margin:0 auto;font-weight:800;font-size:64px;line-height:1.12;letter-spacing:1px;color:var(--teal);-webkit-text-stroke:3px var(--nau);paint-order:stroke fill}
+#dau-gia{font-weight:800;font-size:192px;line-height:1.05;color:var(--kem);-webkit-text-stroke:10px var(--nau);paint-order:stroke fill;text-shadow:10px 12px 0 var(--do)}
+#dau-phu{font-weight:700;font-size:50px;line-height:1.1;color:var(--kem);margin-top:14px;-webkit-text-stroke:5px var(--nau);paint-order:stroke fill}
+#pn{left:50px;top:460px;width:980px}
+#ttl{left:50px;top:460px;width:980px}
+.hang{left:90px;width:900px;height:104px}
+.hang .cof{position:absolute;left:0;top:6px;width:76px;height:57px;border-radius:8px;overflow:hidden;border:3px solid var(--nau);box-shadow:3px 4px 0 var(--nau)}
+.hang .cof img{width:100%;height:100%;object-fit:cover;display:block}
+.hang .ten{position:absolute;left:100px;top:2px;font-weight:800;font-size:46px;line-height:1.1;color:var(--nau);white-space:nowrap}
+.hang .so{position:absolute;right:0;top:-6px;font-weight:800;font-size:60px;line-height:1.1;color:var(--do);white-space:nowrap}
+.hang .ray{left:100px;right:0;top:78px}
+#khung{left:66px;width:948px}
+#nhan{transform-origin:0 0}
+#so{font-weight:700;font-size:48px;line-height:1.1;color:var(--kem);-webkit-text-stroke:6px var(--nau);paint-order:stroke fill;white-space:nowrap}
+#so span{color:var(--teal)}
+#vungthe{top:520px;font-weight:700;font-size:44px;line-height:1.1;color:var(--kem);-webkit-text-stroke:6px var(--nau);paint-order:stroke fill;white-space:nowrap}
+#vungthe img{width:64px;height:48px;border-radius:6px;vertical-align:-8px;margin-right:14px;border:3px solid var(--nau)}
+.the{top:590px;height:290px}
+#bang{top:905px;font-weight:800;font-size:130px;line-height:1.1;color:var(--kem);-webkit-text-stroke:8px var(--nau);paint-order:stroke fill;text-shadow:8px 10px 0 var(--do);white-space:nowrap}
+#du{top:1050px;font-weight:600;font-size:42px;line-height:1.1;color:var(--kem);-webkit-text-stroke:5px var(--nau);paint-order:stroke fill;white-space:nowrap}
+#chips{top:1135px;white-space:nowrap}
+#ket{top:280px}
+</style></head><body><div id="san">
+<div id="bgs"></div><div class="a toi"></div>
+<div id="dau" class="a ctr"><div id="dau-ten"></div><div id="dau-gia"></div><div id="dau-phu">Store nào rẻ nhất?</div></div>
+<div id="pn" class="a pn"></div><div id="ttl" class="a ttl"></div>
+<div id="khung" class="a khung"></div>
+<div id="rows"></div>
+<div id="nhan" class="a nhan">RẺ NHẤT</div>
+<div id="so" class="a ctr"></div>
+<div id="vungthe" class="a ctr"></div>
+<div id="the"></div>
+<div id="bang" class="a ctr"></div>
+<div id="du" class="a ctr"></div>
+<div id="chips" class="a ctr"></div>
+<div id="ket" class="a ctr ket"></div>
+</div>
+<script src="du-lieu.js"></script><script src="dong.js"></script>
+<script>
+const D=window.DL, N=D.vung.length, Y0=572, H=110, MAX=Math.max(...D.vung.map(r=>r.vnd));
+// ---- dung DOM tu DL (chu chi hien thi, khong tu tinh) ----
+anh('a bg',D.nen[0],$('bgs'),'bg0');
+if(D.nen[1])anh('a bg',D.nen[1],$('bgs'),'bg1');
+$('dau-ten').textContent=D.ten;$('dau-gia').textContent=vnd(D.gia_vnd);
+$('ttl').textContent='TIỀN THẺ PSN PHẢI MUA · '+N+' STORE';
+$('pn').style.height=(Y0-460+N*H+28)+'px';
+D.vung.forEach((r,i)=>{const h=mk('div','a hang'+(i==N-1?' re':''),'h'+i,null,$('rows'));h.style.top=(Y0+i*H)+'px';
+  const c=mk('div','cof',null,null,h);co(r.ma,c);mk('div','ten',null,r.ten,h);mk('div','so','s'+i,'0đ',h);
+  const ray=mk('div','ray',null,null,h);mk('div','thanh','t'+i,null,ray)});
+$('khung').style.cssText+=`;top:${Y0+(N-1)*H-16}px;height:${H+6}px`;
+if(D.re_hon){const s=$('so');s.appendChild(document.createTextNode('Rẻ hơn Store '+D.re_hon.ten+' '));mk('span',null,null,vnd(D.re_hon.vnd),s)}
+{const v=$('vungthe');co(D.the.ma,v);const sl=D.the.the.reduce((a,x)=>a+x.so_luong,0);v.appendChild(document.createTextNode('Store '+D.the.ten_vung+' · mua '+sl+' thẻ'))}
+{const L=D.the.the,n=L.length,w=Math.min(460,Math.floor((940-(n-1)*30)/n)),x0=Math.round((1080-(n*w+(n-1)*30))/2);
+ L.forEach((k,i)=>{const c=mk('div','a psn the','the'+i,null,$('the'));c.style.left=(x0+i*(w+30))+'px';c.style.width=w+'px';
+  mk('div','bong2',null,null,c);mk('div','nho',null,'PlayStation Store',c);if(k.so_luong>1)mk('div','sl',null,'×'+k.so_luong,c);
+  const s=mk('div','so',null,k.menh_gia,c);s.style.fontSize=(n>1?150:170)+'px'})}
+$('bang').textContent='= '+vnd(D.gia_vnd);
+$('du').textContent='giá niêm yết '+D.the.gia_game+' · dư '+D.the.du+' trong ví';
+{const c=$('chips');const a=mk('span','chip',null,'Gốc '+D.goc+' ',c);mk('span','tagdo',null,'−'+D.giam+'%',a);
+ const b=mk('span','chip',null,'Hết giảm ',c);mk('b',null,null,D.han_chu,b)}
+{const k=$('ket');anh('bia',D.bia,k).style.cssText='width:340px;height:340px';mk('img','lgo',null,null,k).src='../flagship/logo.svg';
+ const kh=mk('div','kh',null,'Săn đúng kèo,',k);kh.appendChild(document.createElement('br'));mk('span',null,null,'chơi đỡ nghèo!',kh)}
+function fit(){
+  vua($('dau-ten'),960,{dong:2,mot:44,min:30});
+  vua($('dau-gia'),860,{min:96});
+  document.querySelectorAll('.hang .ten').forEach(e=>vua(e,300,{min:28}));
+  // nhan "RE NHAT" dat ngay sau ten dong re nhat (khong de len ten)
+  const t=document.querySelector('#h'+(N-1)+' .ten');const x=90+100+rong(t)+28;
+  window.__nhanX=Math.min(x,560);
+}
+function ve(t){
+  const T=t/11;
+  const k0=(P(t,6,.4)); // doi nen
+  S('bg0',{transform:`scale(${mix(1.04,1.16,T)}) translate(${mix(0,-30,T)}px,0)`,opacity:'1'});
+  if(D.nen[1])S('bg1',{transform:`scale(${mix(1.04,1.16,T)}) translate(${mix(0,-30,T)}px,0)`,opacity:String(k0)});
+  // tieu de dau: hien san tu khung 0, thu len khi t=1
+  const pop=P(t,0,.35,'ob'), up=P(t,1,.5,'oq');
+  S('dau',{transform:`translateY(${mix(220,0,up)}px) scale(${mix(1,0.5,up)*mix(.94,1,pop)})`,opacity:String(1-P(t,9.4,.3))});
+  $('dau-phu').style.opacity=String(1-up);
+  // bang store
+  const inP=P(t,1.15,.4), outP=P(t,6,.45,'io');
+  S('ttl',{opacity:String(inP*(1-outP)),transform:`translateY(${mix(30,0,inP)}px)`});
+  S('pn',{opacity:String(inP*(1-outP)),transform:`translateY(${mix(60,0,inP)}px) scale(${mix(.96,1,inP)})`});
+  const d=N==3?1.0:.5, s0=3.5-d*(N-1);   // dong cuoi (re nhat) luon vao luc 3,5 s
+  D.vung.forEach((r,i)=>{const ts=s0+i*d,k=P(t,ts,.45,'oq'),kin=P(t,ts-.25,.35);
+    const dim=i<N-1?mix(1,.45,P(t,4,.3)):1;
+    S('h'+i,{opacity:String(kin*dim*(1-outP)),transform:`translateX(${mix(-60,0,kin)-outP*900}px)`});
+    $('t'+i).style.width=(100*r.vnd/MAX*k).toFixed(2)+'%';
+    $('s'+i).textContent=vnd(Math.round(r.vnd*k/1000)*1000);$('s'+i).style.opacity=k>0.03?'1':'0'});   // chua dem thi an so (khong hien 0đ)
+  const hk=P(t,4,.35,'ob'), pb=Y0-460+N*H+28+460;
+  S('khung',{opacity:String((t>=4?1:0)*(1-outP)),transform:`scale(${mix(1.08,1,hk)})`});
+  S('nhan',{left:(window.__nhanX||300)+'px',top:(Y0+(N-1)*H+4)+'px',opacity:String((t>=4.1?1:0)*(1-outP)),transform:`rotate(-6deg) scale(${mix(2.2,1,P(t,4.1,.25,'oq'))})`});
+  const sP=P(t,5,.4,'oq');
+  S('so',{top:(pb+24)+'px',opacity:String(sP*(1-outP)),transform:`translateX(${mix(120,0,sP)}px)`});
+  // the PSN
+  const vt=P(t,6.3,.35), th=P(t,6.5,.55,'ob'), bg2=P(t,7.1,.35,'ob'), du=P(t,7.5,.4);
+  const ktOut=P(t,9.4,.35);
+  S('vungthe',{opacity:String(vt*(1-ktOut))});
+  document.querySelectorAll('.the').forEach(c=>{S(c,{opacity:String((t>=6.5?1:0)*(1-ktOut)),transform:`perspective(1400px) rotateY(${mix(88,0,th)}deg) scale(${mix(.8,1,th)})`});
+    c.querySelector('.bong2').style.transform=`translateX(${mix(-500,500,P(t,7.0,.9,'io'))}px)`});
+  S('bang',{opacity:String(bg2*(1-ktOut)),transform:`scale(${mix(1.6,1,bg2)})`});
+  S('du',{opacity:String(du*(1-ktOut))});
+  const ch=P(t,8,.4,'oq');
+  S('chips',{opacity:String(ch*(1-ktOut)),transform:`translateY(${mix(40,0,ch)}px)`});
+  // khung cuoi
+  const k1=P(t,9.6,.45,'ob'),k2=P(t,9.9,.4),k3=P(t,10.15,.4),kt=$('ket');
+  kt.style.opacity=t>=9.6?1:0;
+  const b=kt.querySelector('.bia');b.style.transform=`scale(${mix(.6,1,k1)})`;b.style.opacity=String(cl(k1));
+  const lg=kt.querySelector('.lgo');lg.style.opacity=String(k2);lg.style.transform=`scale(${mix(.7,1,P(t,9.9,.4,'ob'))})`;
+  const kh=kt.querySelector('.kh');kh.style.opacity=String(k3);kh.style.transform=`translateY(${mix(30,0,k3)}px)`;
+}
+san(fit,ve);
+</script></body></html>

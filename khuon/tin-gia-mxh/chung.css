@@ -1,0 +1,43 @@
+@font-face{font-family:BVP;src:url(../flagship/BeVietnamPro-Medium.ttf);font-weight:500}
+@font-face{font-family:BVP;src:url(../flagship/BeVietnamPro-SemiBold.ttf);font-weight:600}
+@font-face{font-family:BVP;src:url(../flagship/BeVietnamPro-Bold.ttf);font-weight:700}
+@font-face{font-family:BVP;src:url(../flagship/BeVietnamPro-ExtraBold.ttf);font-weight:800}
+/* Bang mau LOGO Săn Game (Hao chot 02/11/2026: "lay mau lo go ay") */
+:root{--teal:#20C3C0;--do:#C92324;--nau:#5F0B0F;--nau2:#3A0609;--kem:#FDEBBD;--kem2:#F2D9A0;--kem3:#FFF3D6}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--nau2)}
+#san{position:relative;width:1080px;height:1920px;overflow:hidden;background:var(--nau2);font-family:BVP,sans-serif;color:var(--kem)}
+.a{position:absolute}
+.ctr{left:0;width:1080px;text-align:center}
+.mot{white-space:nowrap}
+.bg{left:-80px;top:-80px;width:1240px;height:2080px;object-fit:cover;max-width:none}
+.toi{inset:0;background:linear-gradient(180deg,rgba(58,6,9,.93) 0%,rgba(58,6,9,.70) 24%,rgba(58,6,9,.45) 58%,rgba(40,4,6,.85) 100%)}
+/* chu sticker: vien do nau + bong cung */
+.vien{-webkit-text-stroke:6px var(--nau);paint-order:stroke fill}
+.vien3{-webkit-text-stroke:3px var(--nau);paint-order:stroke fill}
+.vien8{-webkit-text-stroke:8px var(--nau);paint-order:stroke fill}
+.tl{color:var(--teal)}
+.km{color:var(--kem)}
+.dd{color:var(--do)}
+/* the PlayStation theo mau logo */
+.psn{border-radius:34px;background:var(--teal);border:8px solid var(--nau);box-shadow:14px 16px 0 var(--nau);overflow:hidden}
+.psn .nho{position:absolute;left:30px;top:22px;font-weight:700;font-size:28px;line-height:1.1;letter-spacing:2px;color:var(--nau)}
+.psn .sl{position:absolute;right:30px;top:20px;font-weight:800;font-size:34px;line-height:1.1;color:var(--do)}
+.psn .so{position:absolute;right:36px;bottom:14px;font-weight:800;line-height:1;color:var(--kem);-webkit-text-stroke:8px var(--nau);paint-order:stroke fill}
+.psn .bong2{position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.22) 45%,transparent 60%)}
+.chip{display:inline-block;font-weight:700;font-size:40px;line-height:1.15;padding:12px 26px;border-radius:18px;background:var(--kem);color:var(--nau);border:4px solid var(--nau);box-shadow:5px 6px 0 var(--nau);margin:0 8px}
+.chip b{font-weight:800;color:var(--do)}
+.tagdo{display:inline-block;background:var(--do);color:var(--kem);border-radius:10px;padding:0 12px;margin-left:6px}
+/* bang gia (fb + ig) */
+.pn{background:var(--kem);border:7px solid var(--nau);box-shadow:12px 14px 0 var(--nau);border-radius:34px}
+.ttl{background:var(--teal);color:var(--kem);font-weight:800;font-size:42px;line-height:84px;height:84px;border-radius:28px 28px 0 0;border-bottom:7px solid var(--nau);text-shadow:3px 3px 0 var(--nau);text-align:center;white-space:nowrap}
+.ray{position:absolute;height:18px;border-radius:9px;background:var(--kem2);border:3px solid var(--nau);overflow:hidden}
+.ray .thanh{height:100%;background:var(--teal)}
+.re .ray .thanh{background:var(--do)}
+.nhan{font-weight:800;font-size:34px;line-height:1.1;color:var(--kem);background:var(--do);padding:8px 18px;border-radius:10px;letter-spacing:1px;border:4px solid var(--nau);box-shadow:4px 5px 0 var(--nau);white-space:nowrap}
+.khung{background:var(--kem3);border:5px solid var(--do);border-radius:22px}
+/* khung cuoi */
+.ket .bia{display:block;margin:0 auto;border:7px solid var(--nau);box-shadow:12px 14px 0 var(--nau);object-fit:cover}
+.ket .lgo{display:block;width:420px;margin:30px auto 0}
+.ket .kh{margin-top:14px;font-weight:800;font-size:50px;line-height:1.2;color:var(--kem);-webkit-text-stroke:4px var(--nau);paint-order:stroke fill}
+.ket .kh span{color:var(--teal)}

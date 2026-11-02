@@ -1,0 +1,150 @@
+name: Tin gia MXH
+# 02/11/2026 (SG-DU-KENH, khuon/tin-gia-mxh/KE-HOACH.md): tin GIA rieng cho Facebook Reel / Instagram Reel / Threads (anh + chu).
+# MOI LUOT TU CHUA: chon (kiem trang PS Store moi gia hien ra) -> tai anh -> dung (khuon/tin-gia-mxh) -> kiem.py -> giu so -> chuan bi tren
+# nen tang -> cho toi gio -> kiem lai gia -> cong khai. Mau: x-goc.yml. KHONG co `schedule` cua GitHub; lich that = cron-job.org goi
+# workflow_dispatch truoc gio dang ~35 phut (threads 11:30, fb 19:00, ig 20:30 gio VN) - Opus/Hao tao lich, KHONG tao o day.
+# Pha THAT chi chay khi bien repo SG_KENH_BAT co DUNG muc rieng khuon `<dang>:<kenh>` (fb-gia:fb, ig-gia:ig, threads-gia:threads;
+# tach phay, bo khoang trang). Muc chung khong ':' (vd "youtube") KHONG bat khuon nay. Tat thi workflow thoat sach, khong ghi so,
+# khong goi nen tang. Script (dang.tin_gia_mxh) la chot chan chinh, buoc `vao` o day chi de khong ton thoi gian runner.
+# Pha THU: khong can cong, di toi het buoc chuan bi tren nen tang (FB finish DRAFT + bia; IG/Threads container FINISHED) roi dung,
+# KHONG cong khai; video/anh + caption + chon.json + kiem.json len artifact `tin-gia-<kenh>-<ngay>` (7 ngay).
+# Sparse-checkout repo rieng tu chi liet ke THU MUC (cone mode luon lay them tep goc deal_diem.py + nguon.py).
+on:
+  workflow_dispatch:
+    inputs:
+      kenh:
+        description: "fb (Reel 19:00), ig (Reel 20:30) hoac threads (anh+chu 11:30)"
+        required: true
+        type: choice
+        options: [fb, ig, threads]
+      che_do:
+        description: "thu = di toi het buoc chuan bi, KHONG cong khai; that = dang that (can SG_KENH_BAT co muc <dang>:<kenh>)"
+        required: true
+        type: choice
+        default: thu
+        options: [thu, that]
+      ngay:
+        description: "Ngay DANG (gio VN) YYYY-MM-DD. De trong = hom nay gio VN"
+        required: false
+        type: string
+      bo_noi_bat:
+        description: "CHI pha thu: bo loc game da noi bat o khuon khac (xem mau bai khi hom nay het ung vien). Pha that bo qua o nay"
+        required: false
+        type: boolean
+        default: false
+permissions: {}
+concurrency:
+  # pha THAT dung chung 1 nhom cho ca 3 kenh (S7: khong chon trung game khi 2 luot chay cung luc); pha thu rieng tung kenh, khong chan that
+  group: ${{ inputs.che_do == 'that' && 'tin-gia-that' || format('tin-gia-thu-{0}', inputs.kenh) }}
+  cancel-in-progress: false
+jobs:
+  tin-gia:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    permissions:
+      contents: read
+    env:
+      CHE_DO: ${{ inputs.che_do }}
+      KENH: ${{ inputs.kenh }}
+      BO_NOI_BAT: ${{ inputs.bo_noi_bat }}
+      NGAY_VAO: ${{ inputs.ngay }}
+      BAT: ${{ vars.SG_KENH_BAT }}
+    steps:
+      - name: Quyet dinh chay (pha that can SG_KENH_BAT co muc <dang>:<kenh>) + kiem ngay
+        id: vao
+        run: |
+          set -euo pipefail
+          DANG="${KENH}-gia"
+          B="${BAT// /}"
+          if [ "$CHE_DO" = "that" ]; then
+            case ",$B," in
+              *",${DANG}:${KENH},"*) ;;
+              *) echo "::notice::SG_KENH_BAT khong co muc rieng ${DANG}:${KENH} - pha that dang tat, khong lam gi"
+                 echo "chay=0" >> "$GITHUB_OUTPUT"; exit 0 ;;
+            esac
+          fi
+          NGAY="${NGAY_VAO:-$(TZ=Asia/Ho_Chi_Minh date +%F)}"
+          [[ "$NGAY" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "ngay khong hop le"; exit 1; }
+          { echo "chay=1"; echo "ngay=$NGAY"; } >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.vao.outputs.chay == '1'
+        with:
+          persist-credentials: false
+      - name: Du lieu rieng tu (gia-the.json, deal_diem.py, nhac + tieng dong)
+        if: steps.vao.outputs.chay == '1'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: thenail1995-create/kenh-game-du-lieu
+          ref: main
+          ssh-key: ${{ secrets.DATA_DEPLOY_KEY }}
+          path: du-lieu
+          sparse-checkout: |
+            du-lieu
+            video/tai-san/am-thanh
+            video/tai-san/nhac
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        if: steps.vao.outputs.chay == '1'
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.vao.outputs.chay == '1'
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: cong-cu/package-lock.json
+      - name: Cache trinh duyet Playwright (khoa theo package-lock = ban Playwright ghim)
+        if: steps.vao.outputs.chay == '1'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('cong-cu/package-lock.json') }}
+      - name: Playwright (ban ghim trong package-lock) + Chromium
+        if: steps.vao.outputs.chay == '1'
+        run: |
+          set -euo pipefail
+          cd cong-cu && npm ci --ignore-scripts
+          npx playwright install --with-deps chromium
+      - name: ffmpeg (dung am thanh + ghep video + kiem.py doc do to)
+        if: steps.vao.outputs.chay == '1'
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+      - name: Tin gia (chon - dung - kiem - dang)
+        if: steps.vao.outputs.chay == '1'
+        timeout-minutes: 70   # job 75; script tu dung o gio dang + 15 phut: du de buoc bao loi cuoi van chay
+        env:
+          SG_CONG_KHOA: ${{ secrets.SG_CONG_KHOA }}
+          ZERNIO_KHOA: ${{ secrets.ZERNIO_KHOA }}
+          NTFY_TIN: ${{ secrets.NTFY_TIN }}
+          NTFY_BAO_LOI: ${{ secrets.NTFY_BAO_LOI }}
+          GH_TOKEN: ${{ github.token }}   # cong-cu/da_noi_bat.py doc manifest cac Release 3 ngay qua `gh`; khong doc duoc -> script KHONG dang (S8)
+          NGAY: ${{ steps.vao.outputs.ngay }}
+          SG_KENH_BAT: ${{ vars.SG_KENH_BAT }}   # script kiem lai muc rieng khuon (chot chan chinh)
+          DU_LIEU_REPO: ${{ github.workspace }}/du-lieu
+          RA_THU: ${{ runner.temp }}/ra-thu
+          DA_BAO_FILE: ${{ runner.temp }}/tin-gia-da-bao   # script tao file nay khi ntfy da gui THANH CONG
+        run: |
+          set -euo pipefail
+          THEM=()
+          if [ "$CHE_DO" = "thu" ] && [ "$BO_NOI_BAT" = "true" ]; then THEM+=(--bo-noi-bat); fi
+          python -m dang.tin_gia_mxh --kenh "$KENH" --ngay "$NGAY" --che-do "$CHE_DO" --du-lieu "$DU_LIEU_REPO" "${THEM[@]}"
+      - name: Artifact pha thu (video/anh + caption + chon.json + kiem.json; KHONG co anh Sony)
+        if: always() && inputs.che_do == 'thu' && steps.vao.outputs.chay == '1'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tin-gia-${{ inputs.kenh }}-${{ steps.vao.outputs.ngay }}
+          path: ${{ runner.temp }}/ra-thu
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Bao loi workflow (setup / het gio / loi ngoai script)
+        if: failure()
+        env:
+          NTFY_BAO_LOI: ${{ secrets.NTFY_BAO_LOI }}
+          DA_BAO_FILE: ${{ runner.temp }}/tin-gia-da-bao
+          LIEN_KET: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -e "$DA_BAO_FILE" ]; then echo "da bao ntfy trong script"; exit 0; fi
+          python3 -c "import os; from dang import ntfy; l = os.environ['LIEN_KET']; ntfy.loi('Tin giá MXH: workflow lỗi', l, click=l)"

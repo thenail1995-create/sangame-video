@@ -1,0 +1,47 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8">
+<link rel="stylesheet" href="chung.css">
+<style>
+#san{height:1350px}
+.nua{top:0;width:540px;height:1350px;object-fit:cover}
+.toi{background:linear-gradient(180deg,rgba(58,6,9,.90) 0%,rgba(58,6,9,.50) 30%,rgba(58,6,9,.55) 60%,rgba(40,4,6,.92) 100%)}
+#dai{left:0;top:40px;width:1080px;height:250px;background:var(--teal);border-top:7px solid var(--nau);border-bottom:7px solid var(--nau);box-shadow:0 10px 0 var(--nau)}
+#hoi{top:56px;font-weight:800;font-size:84px;line-height:1.12;color:var(--kem);-webkit-text-stroke:9px var(--nau);paint-order:stroke fill;text-shadow:6px 7px 0 var(--do)}
+#hoi div{margin:0 auto;white-space:nowrap}
+.bia{top:370px;width:400px;height:400px;border-radius:28px;overflow:hidden;border:7px solid var(--nau);box-shadow:12px 14px 0 var(--nau)}
+.bia img{width:100%;height:100%;object-fit:cover;display:block}
+#vs{left:470px;top:500px;width:140px;height:140px;border-radius:70px;background:var(--do);border:7px solid var(--nau);box-shadow:6px 8px 0 var(--nau)}
+#vs-c{left:0;top:0;width:126px;height:126px;text-align:center;font-weight:800;font-size:58px;line-height:126px;color:var(--kem);-webkit-text-stroke:6px var(--nau);paint-order:stroke fill}
+.cot{top:810px;width:540px;text-align:center}
+.cot .n{margin:0 auto;font-weight:800;font-size:44px;line-height:1.12;color:var(--kem);-webkit-text-stroke:6px var(--nau);paint-order:stroke fill}
+.cot .g{font-weight:800;font-size:120px;line-height:1.1;color:var(--kem);margin-top:22px;-webkit-text-stroke:9px var(--nau);paint-order:stroke fill;text-shadow:8px 10px 0 var(--do)}
+.cot .s{font-weight:700;font-size:36px;line-height:1.1;color:var(--teal);margin-top:12px;-webkit-text-stroke:5px var(--nau);paint-order:stroke fill;white-space:nowrap}
+#vach{left:539px;top:300px;width:2px;height:900px;background:rgba(253,235,189,.18)}
+#chan{left:40px;top:1230px;width:1000px;text-align:center}
+#chan-t{display:inline-block;font-weight:700;font-size:32px;line-height:1.15;padding:12px 24px;border-radius:18px;background:var(--kem);color:var(--nau);border:4px solid var(--nau);box-shadow:5px 6px 0 var(--nau);white-space:nowrap}
+</style></head><body><div id="san">
+<div id="nuas"></div><div class="a toi" style="inset:0"></div>
+<div id="vach" class="a"></div><div id="dai" class="a"></div>
+<div id="hoi" class="a ctr"></div>
+<div id="bias"></div>
+<div id="vs" class="a"><div id="vs-c" class="a">VS</div></div>
+<div id="cots"></div>
+<div id="chan" class="a"><span id="chan-t"></span></div>
+</div>
+<script src="du-lieu.js"></script><script src="dong.js"></script>
+<script>
+const D=window.DL;
+['a','b'].forEach((k,i)=>{const x=i*540,g=D[k];
+  const n=anh('a nua',g.nen,$('nuas'));n.style.left=x+'px';
+  const b=mk('div','a bia',null,null,$('bias'));b.style.left=(x+70)+'px';anh('',g.bia,b);
+  const c=mk('div','a cot',null,null,$('cots'));c.style.left=x+'px';
+  mk('div','n','n'+k,g.ten,c);mk('div','g',null,vk(g.gia_vnd),c);mk('div','s','s'+k,'★ '+g.sao+' · '+g.luot+' lượt chấm',c)});
+D.cau_hoi.forEach((s,i)=>mk('div',null,'h'+i,s,$('hoi')));
+$('chan-t').textContent=D.chan;
+function fit(){
+  vua($('na'),480,{dong:2,mot:36,min:28});vua($('nb'),480,{dong:2,mot:36,min:28});
+  D.cau_hoi.forEach((s,i)=>vua($('h'+i),960,{min:44}));
+  vua($('sa'),470,{min:24});vua($('sb'),470,{min:24});
+  vua($('chan-t'),960,{min:20});
+}
+san(fit,()=>{});
+</script></body></html>
