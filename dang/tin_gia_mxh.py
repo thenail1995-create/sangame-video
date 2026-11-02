@@ -637,6 +637,9 @@ def lam(a, cong, phu, thu_muc):
             raise KhongDang("da qua han cong khai (gio dang + 15 phut) truoc khi cho")
         if bay_gio < due:
             phu.ngu((due - bay_gio).total_seconds())
+        sai = dong_truoc_cong_khai(cong, ngay, dang, kenh, che_do, id_bai)   # Sol luot 3: kiem quyen TRUOC moi nhanh co the ghi so (bo/that_bai)
+        if sai:
+            raise MatDong(sai)
         van_de, canh_bao = phu.kiem_lai(tin["kiem_lai"], due)
         for c in canh_bao:
             chung.log(f"kiem_lai canh bao: {c}")
@@ -649,6 +652,9 @@ def lam(a, cong, phu, thu_muc):
             raise KhongDang("kiem lai gia goc/% giam truoc gio dang: " + "; ".join(doi_goc))
         if chung.bay_gio() > han:                   # S16: kiem han NGAY truoc request cong khai
             raise KhongDang("da qua han cong khai (gio dang + 15 phut) - khong cong khai")
+        sai = dong_truoc_cong_khai(cong, ngay, dang, kenh, che_do, id_bai)   # Sol luot 3: dong da sang luot khac thi KHONG duoc doi that_bai o nhanh nhuong
+        if sai:
+            raise MatDong(sai)
         ly = nhuong_neu_trung(cong, ngay, dang, kenh, che_do, tin["ma"])         # kiem trung game LAN 2 (sau khi ngu + kiem lai)
         if ly:                                   # dong van la cua minh (chuan_bi_xong) nhung game da co ben khac giu -> that_bai co dieu kien, chua cong khai
             doi_trang_thai(cong, khoa, ("chuan_bi_xong",), trang_thai="that_bai", loi=chung.cat("kiem trung lan 2: " + ly, 300))

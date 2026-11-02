@@ -1672,3 +1672,13 @@ def test_cung_dong_khong_ghep_hai_ban_cung_game():
     assert cung_dong("Monster Hunter Rise PS4 & PS5", "Monster Hunter Rise + Sunbreak")
     assert not cung_dong("FINAL FANTASY VII REBIRTH", "FINAL FANTASY XII THE ZODIAC AGE")
     assert not cung_dong("Dying Light - Essentials Edition", "Little Strays 2")
+
+
+def test_sol_luot3_mat_quyen_va_trung_game_khong_ghi_so():
+    """Sol luot 3: id_bai doi sang luot khac + x-goc trung game -> phai dung vi MAT QUYEN truoc, khong doi dong kia sang that_bai."""
+    import inspect
+    from dang import tin_gia_mxh as m
+    src = inspect.getsource(m)
+    i_quyen = src.index("Sol luot 3: dong da sang luot khac")
+    i_nhuong = src.index("kiem trung game LAN 2")
+    assert i_quyen < i_nhuong
