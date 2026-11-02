@@ -147,3 +147,17 @@ S15 (P2) Bảng trạng thái sau giữ sổ: lỗi chắc chắn TRƯỚC mọi
 S16 (P2) Hạn tuyệt đối: một `han_cong_khai = gio_dang + 15 phút`; mọi bước mạng sau giờ đăng (kiem_lai, publish) kiểm còn hạn ngay TRƯỚC request công khai; quá → `that_bai` (chưa công khai) + ntfy.
 S17 (P2) FB: sau finish PUBLISHED đọc lại trạng thái (`published` true hoặc publishing_phase complete, tối đa ~3 phút) mới `da_dang`; chưa xác nhận → `khong_ro`. IG/Threads: có media id trả về (hoặc đọc lại container `PUBLISHED`) → `da_dang` dù thiếu permalink.
 S18 (P3) Lệnh test giữ mã thoát: `uv run --frozen python -m pytest dang/tests khuon cong-cu -q; e=$?; echo exit=$e`.
+
+## Đối soát dòng kẹt (S15, bổ sung 02/11 sau soi Sol)
+Máy KHÔNG tự đổi dòng `sg_dang` đang ở `dang_dang` / `chuan_bi_xong` / `khong_ro` khi runner bị huỷ hoặc lỗi giữa chừng (tránh đăng lặp). Opus đối soát tay:
+1. Mở dòng sg_dang của tin giá (`dang` = `fb-gia` | `ig-gia` | `threads-gia`, đúng `ngay`/`kenh`/`che_do=that`): đọc `trang_thai`, `id_bai`, `id_tai`, `loi`.
+   - `id_bai` là ID Graph của TÀI NGUYÊN máy đã tạo: FB = `video_id` của Reel; IG = id container; Threads = id container. (`id_tai` = các mã game, `id_container` = mã biến thể — không phải ID nền tảng.)
+2. Tra id_bai trên nền tảng (chỉ đọc, token ở sg_token):
+   - FB: `GET /{id_bai}?fields=status,published` — `published=true` hoặc `status.publishing_phase.status` = `complete` là ĐÃ công khai; `video_status` = `ready`/`upload_complete` mà chưa published là CHƯA. Hoặc xem tab Reels của Trang.
+   - IG: `GET /{id_bai}?fields=status_code` — `PUBLISHED` là ĐÃ công khai (xem feed/Reels tài khoản); `FINISHED` hoặc `IN_PROGRESS` là CHƯA. Nếu id_bai là media id (đã có `permalink`) thì ĐÃ.
+   - Threads: `GET /{id_bai}?fields=status,permalink` — `PUBLISHED` là ĐÃ; `FINISHED` là CHƯA. Đối chiếu thêm bằng trang Threads của tài khoản (bài chữ+ảnh cùng giờ).
+3. Kết luận:
+   - ĐÃ công khai → đổi dòng sang `da_dang`, điền `link`/`gio_cong_khai` (tay). KHÔNG đăng lại.
+   - Không chắc (API lỗi, bài lạ) → để `khong_ro`, báo Hào; không đăng lại.
+   - CHƯA công khai (chắc chắn: nền tảng trả `FINISHED`/chưa `published`, và trang tài khoản không có bài) → mới được đổi sang `that_bai` bằng tay (cho phép chạy lại; tài nguyên mồ côi để hết hạn, không công khai).
+4. Sau khi đổi tay ghi lý do vào cột `loi`. Dòng `x-goc` cùng game không tự nhường cho tin giá (S7 chỉ áp từ phía tin giá).

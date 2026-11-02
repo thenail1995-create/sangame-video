@@ -13,7 +13,7 @@ import re
 
 from . import chung
 from .gia import gia_trang
-from .x_goc import LOC_VUNG, VUNG_VN, _nghin, ten_dep
+from .x_goc import LOC_VUNG, VUNG_VN, ten_dep
 
 GIO = {"threads": "11:30", "fb": "19:00", "ig": "20:30"}          # gio VN dang bai (cron-job.org goi truoc ~35 phut)
 DANG = {"fb": "fb-gia", "ig": "ig-gia", "threads": "threads-gia"}  # sg_dang.dang (Opus da them vao CHECK + edge sg-cong)
@@ -87,6 +87,12 @@ def han_cau(t):
 
 def so_vn(n):
     return f"{int(n):,}".replace(",", ".")
+
+
+def nghin_dung(vnd):
+    """Tien VND giu NGUYEN GIA TRI khi doc lai bang tien_vnd: boi cua 1.000 duoi 1 trieu -> '460 nghìn'; con lai -> '1.048.000đ' / '72.480đ'
+    (KHONG lam tron nhu '1,05 triệu' = 1.050.000d la sai gia)."""
+    return f"{vnd // 1000} nghìn" if vnd % 1000 == 0 and vnd < 1_000_000 else f"{so_vn(vnd)}đ"
 
 
 def the_dl(the, tien):
@@ -320,9 +326,10 @@ def _end_dt(rec):
 
 
 def _kiem_lai(ten, rec):
-    """Muc cho gia.kiem_lai (S2): gia_cuc_bo float cua trang, endTime ms, gia_dung_y."""
+    """Muc cho gia.kiem_lai (S2): gia_cuc_bo float cua trang, endTime ms, gia_dung_y. P2-d: them gia_goc + giam (gia.kiem_lai bo qua truong la;
+    tin_gia_mxh.kiem_goc_giam so voi trang truoc cong khai)."""
     return {"ten": f"{ten} ({rec['ma_vung']})", "pid": rec["pid"], "loc": rec["loc"], "gia_cuc_bo": float(rec["gia_cuc_bo"]),
-            "endTime": str(rec["end_ms"]), "gia_dung_y": True}
+            "endTime": str(rec["end_ms"]), "gia_dung_y": True, "gia_goc": float(rec["gia_goc"]), "giam": int(rec["giam"])}
 
 
 def _anh_game(boi, html, pid, stem, so_nen):
@@ -667,7 +674,7 @@ def _dl_threads(boi, ga, gb, ben, ly_chon):
         d = g["diem"]
         return {"ten": ten_video(g["ten_goc"]), "bia": g["bia"], "nen": g["nen"], "gia_vnd": g["rec"]["vnd"],
                 "sao": f"{d['tb']:.2f}".replace(".", ","), "luot": so_vn(d["so_luot"])}
-    dl = {"kenh": "threads", "ngay": boi.ngay.isoformat(), "cau_hoi": [f"Có {_nghin(ra['vnd'])},", "chọn bên nào?"], "a": mat(ga), "b": mat(gb),
+    dl = {"kenh": "threads", "ngay": boi.ngay.isoformat(), "cau_hoi": [f"Có {nghin_dung(ra['vnd'])},", "chọn bên nào?"], "a": mat(ga), "b": mat(gb),
           "chan": chan}
     chon_g, khac = (ga, gb) if ben == "a" else (gb, ga)
     su_that = {"kenh": "threads", "gia_vnd": ra["vnd"], "ma_vung": ra["ma_vung"], "vung": VUNG_VN[ra["ma_vung"]], "tien": ra["tien"],

@@ -11,8 +11,8 @@ import re
 
 from . import chung
 from .chay import tien_vnd
-from .tin_gia_chon import han_cau, so_vn
-from .x_goc import _RE_BAN, _nghin, ten_dep
+from .tin_gia_chon import han_cau, hien_tien, nghin_dung as _nghin, so_vn
+from .x_goc import _RE_BAN, ten_dep
 
 NIEM_YET = "Giá niêm yết, chưa gồm thuế nếu có."
 LOAI = {"fb": "sg-fb-gia", "ig": "sg-ig-gia", "threads": "sg-threads-gia"}     # --loai cua kiem-khuon.py
@@ -50,6 +50,8 @@ URL = re.compile(r"https?://|www\.", re.I)
 TEN_MIEN = re.compile(r"\b[\w-]+\.(?:com|vn|net)\b", re.I)
 TAG = re.compile(r"#\w+")
 KIEU_K = re.compile(r"\d+\s*[kK]\b")
+RE_NGOAI_TE = re.compile(r"(?:HK\$|US\$|S\$|\$|SGD\s?|THB\s?|IDR\s?|Rp\s?|฿)\d[\d.,]*")
+RE_PHAN_TRAM = re.compile(r"(\d+)(?:[.,]\d+)?\s*%")
 
 
 # ---------------------------------------------------------------- ten doc duoc (BO SUNG 4)
@@ -127,7 +129,7 @@ def _ghep_threads(sv, m, k, cap):
     than = f"Cả hai đang {sv['gia_hien']} ở PS Store {sv['vung']}"
     if sv.get("giam") and cap < 3:
         than += f" (giảm {sv['giam']}%)"
-    than += f" tới {han_cau(sv['han'])}, {sv['the_chu']} vừa khít"
+    than += f" tới {han_cau(sv['han'])}, {sv['the_chu']} vừa khít với giá niêm yết"
     if cap < 2:
         than += f", khoảng {n}"
     than += "."
@@ -196,6 +198,22 @@ def dung_chu(kenh, sv, ngay=None, mo_da_dung=()):
 
 
 # ---------------------------------------------------------------- cong tin gia (FAIL-CLOSED)
+def _chuan_tien(s):
+    return re.sub(r"\s+", "", s).rstrip(".,")
+
+
+def tap_ngoai_te(sv):
+    """Cac chuoi tien ngoai te CHI duoc xuat hien trong chu: gia game, gia goc, menh gia the (da kiem trang)."""
+    ra = {_chuan_tien(sv[k]) for k in ("gia_game", "goc", "du", "gia_hien") if sv.get(k)}
+    ra |= {_chuan_tien(hien_tien(t[0], sv["tien"])) for t in sv.get("the") or [] if sv.get("tien")}
+    return ra
+
+
+def tap_phan_tram(sv):
+    ra = {str(sv["giam"])} if sv.get("giam") else set()
+    return ra | {str(g["giam"]) for g in sv.get("game") or [] if g.get("giam")}
+
+
 def cong(kenh, text, sv):
     """Moi dieu kien khong chung minh duoc = truot. -> list ly do (rong = dat)."""
     loi = []
@@ -221,6 +239,12 @@ def cong(kenh, text, sv):
     la = sorted(set(tien_vnd(text)) - cho_phep)
     if la:
         loi.append(f"co tien VND {la} ngoai tap cho phep {sorted(cho_phep)}")
+    la_nt = sorted({_chuan_tien(m) for m in RE_NGOAI_TE.findall(text)} - tap_ngoai_te(sv))
+    if la_nt:
+        loi.append(f"co tien ngoai te {la_nt} ngoai gia da kiem (gia game/gia goc/menh gia the)")
+    la_pt = sorted(set(RE_PHAN_TRAM.findall(text)) - tap_phan_tram(sv))
+    if la_pt:
+        loi.append(f"co phan tram {la_pt}% ngoai % giam da kiem {sorted(tap_phan_tram(sv))}")
     if KIEU_K.search(text):
         loi.append('co so dang "N K" (chi duoc nghìn/triệu)')
     if NIEM_YET not in text:
@@ -249,7 +273,7 @@ def cong(kenh, text, sv):
         for g in sv.get("game") or []:
             t = ten_chu(g["ten_goc"])
             dung = _nghin(g["gia_vnd"])
-            gap = re.findall(re.escape(t) + r" – ([\d.,]+ (?:nghìn|triệu))", text)
+            gap = re.findall(re.escape(t) + r" – (\d[\d.]*(?: nghìn|đ))", text)
             if not gap:
                 loi.append(f'khong co cap "{t} – {dung}"')
             loi += [f'cap "{t} – {x}" sai gia (dung {dung})' for x in gap if x != dung]

@@ -30,7 +30,7 @@ import tempfile
 
 from . import chay as dieu_phoi, chung, fb, http, ig, meta, ntfy, so, threads, tin_gia_chon as chon, tin_gia_chu as chu, x_goc, zernio
 from .chung import LoiDang
-from .gia import kiem_lai as kiem_lai_gia
+from .gia import gia_trang, kiem_lai as kiem_lai_gia
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 KHUON = REPO / "khuon" / "tin-gia-mxh"
@@ -41,6 +41,7 @@ QUA_GIO_PHUT = 2                        # that ma con < 2 phut toi gio dang (hoa
 SOM_TOI_DA_PHUT = 45                    # chuan bi xong ma con > 45 phut toi gio dang -> "chay qua som" (khong giu runner lau)
 HAN_CONG_KHAI_PHUT = 15                 # han tuyet doi cong khai = gio dang + 15 phut (S16)
 GIA_THE_TOI_DA_NGAY = 7
+LAN_THU_CHON = 3                        # cong/chu truot thi loai game do, chon ung vien khac (toi da 3 lan)
 NGAY_DOC_LICH_SU = 3
 NGAY_DOC_BIEN_THE = 7
 CHO_XAC_NHAN_FB = 18                    # x 10 s = ~3 phut (S17)
@@ -171,9 +172,43 @@ def kiem_that(kenh, ra, dl_path):
     lenh = [sys.executable, str(KHUON / "kiem.py"), "--kenh", kenh, "--ra", str(ra), "--du-lieu", str(dl_path)]
     try:
         p = subprocess.run(lenh, capture_output=True, text=True, timeout=600, stdin=subprocess.DEVNULL)
-        return json.loads(p.stdout)
+        kq = json.loads(p.stdout)
     except (OSError, subprocess.TimeoutExpired, ValueError) as e:
         raise KhongDang(f"kiem.py loi ({type(e).__name__})") from None
+    # P2-b: dat khi va chi khi ma thoat 0 VA JSON la dict VA dat is True; mau thuan (vd thoat 1 ma dat true) = khong dat
+    if p.returncode != 0 or not isinstance(kq, dict) or kq.get("dat") is not True:
+        sai = [f"{x.get('ten')}: {x.get('chi_tiet')}" for x in (kq.get("phep") or []) if isinstance(x, dict) and not x.get("dat")] if isinstance(kq, dict) else []
+        raise KhongDang(f"kiem.py khong dat (ma thoat {p.returncode}, dat={kq.get('dat') if isinstance(kq, dict) else '?'}): " + "; ".join(sai)[:300])
+    return kq
+
+
+def kiem_han(han, buoc):
+    """P2-a / S16: NGAY truoc request co tac dung phu (finish / media_publish / threads_publish, sau moi GET) - qua han tuyet doi -> LoiDang
+    CHAC CHAN chua dang (khong_ro=False): khong POST."""
+    if han is not None and chung.bay_gio() > han:
+        raise LoiDang(f"qua han cong khai (gio dang + {HAN_CONG_KHAI_PHUT} phut) o buoc {buoc} - KHONG goi cong khai")
+
+
+def kiem_goc_giam(muc, lay_trang):
+    """P2-d: kiem_lai mang them gia_goc + giam; doc lai trang, doi -> van de (fail-closed: khong tai duoc / khong co khoi gia = van de).
+    Khong sua dang/gia.kiem_lai (cac khuon cu)."""
+    van_de = []
+    for m in muc or []:
+        ten = m.get("ten", "?")
+        if not isinstance(m.get("gia_goc"), (int, float)) or not isinstance(m.get("giam"), int):
+            van_de.append(f"{ten}: kiem_lai thieu gia_goc/giam")
+            continue
+        html = lay_trang(f"https://store.playstation.com/{m.get('loc')}/product/{m.get('pid')}")
+        k = gia_trang.khoi_gia(html, m.get("pid")) if html else None
+        if k is None or not k.get("gia_goc") or k["gia_goc"] <= k["gia_cuc_bo"]:
+            van_de.append(f"{ten}: khong doc lai duoc gia goc tren trang")
+            continue
+        giam = int(round(100 * (1 - k["gia_cuc_bo"] / k["gia_goc"])))
+        if round(k["gia_goc"], 2) != round(m["gia_goc"], 2):
+            van_de.append(f"{ten}: gia goc doi {m['gia_goc']} -> {k['gia_goc']}")
+        if giam != m["giam"]:
+            van_de.append(f"{ten}: % giam doi {m['giam']} -> {giam}")
+    return van_de
 
 
 def kiem_url_cong_khai(url, loai):
@@ -216,12 +251,13 @@ class NenFB:
             ghi_chu = "finish DRAFT + bia " + ("ok" if ok else f"loi: {ly}")
         return {"id_bai": video_id, "ghi_chu": ghi_chu}
 
-    def cong_khai(self, goi, id_bai):
+    def cong_khai(self, goi, id_bai, han=None):
         tk = self.tk
         page = fb.danh_tinh(tk)
         bia = fb._nap_bia(goi["bia"])
         if fb._doc_status(tk, id_bai).get("video_status") in fb.LOI_VIDEO:
             raise LoiDang("FB upload da het han/hong - chua dang gi")
+        kiem_han(han, "FB finish PUBLISHED")
         try:
             f = fb.finish(tk, page, fb.tham_finish(id_bai, goi["text"], "PUBLISHED", co_ai=False))
             ok = f.get("success") is True
@@ -277,10 +313,11 @@ class NenIG:
         meta.cho_trang_thai(lambda: ig._status(tk, cid), {"FINISHED"}, {"ERROR", "EXPIRED"}, toi_da=80, ten="IG container")
         return {"id_bai": cid, "ghi_chu": "container FINISHED (khong publish)"}
 
-    def cong_khai(self, goi, id_bai):
+    def cong_khai(self, goi, id_bai, han=None):
         tk = self.tk
         if ig._status(tk, id_bai) != "FINISHED":
             raise LoiDang("IG container khong con o trang thai FINISHED")
+        kiem_han(han, "IG media_publish")
         mid = None
         try:
             p = meta.goi(ig.G, "POST", f"/{tk['ig_user_id']}/media_publish", token=tk["page_token"], co_tac_dung=True, timeout=120,
@@ -325,10 +362,11 @@ class NenThreads:
             chung.ngu(30)   # tai lieu Threads: cho ~30 giay sau FINISHED truoc khi publish
         return {"id_bai": cid, "ghi_chu": "container FINISHED (khong publish)"}
 
-    def cong_khai(self, goi, id_bai):
+    def cong_khai(self, goi, id_bai, han=None):
         tk = self.tk
         if threads._status(tk, id_bai) != "FINISHED":
             raise LoiDang("Threads container khong con o trang thai FINISHED")
+        kiem_han(han, "Threads threads_publish")
         try:
             p = meta.goi(threads.TH, "POST", f"/{tk['threads_user_id']}/threads_publish", token=tk["token"], co_tac_dung=True, timeout=120,
                          tham_so={"creation_id": id_bai})
@@ -371,6 +409,7 @@ class Phu:
         self.nen = lambda kenh, tk, zk: NEN[kenh](tk, zk)
         self.ngu = chung.ngu
         self.kiem_lai = kiem_lai_gia
+        self.kiem_them = lambda muc: kiem_goc_giam(muc, self.lay_trang)      # P2-d: gia goc + % giam
         self.nhac = chon_nhac
         self.dich = dieu_phoi.nap_dich
         for k, v in thay.items():
@@ -406,9 +445,32 @@ def doi_that_bai(cong, khoa, loi, tu=("dang_dang", "chuan_bi_xong")):
     return False
 
 
+def doi_trang_thai(cong, khoa, tu, **truong):
+    """Doi trang thai CO DIEU KIEN (neu_trang_thai): thu lan luot cac trang thai trong `tu`; -> True neu doi duoc 1 dong."""
+    for tt in tu:
+        try:
+            if cong.cap_nhat_dang(**khoa, neu_trang_thai=tt, **truong) == 1:
+                return True
+        except Exception:   # noqa: BLE001
+            pass
+    return False
+
+
+def dong_truoc_cong_khai(cong, ngay, dang, kenh, che_do, id_bai):
+    """P1-a: NGAY truoc cong khai doc lai dong sg_dang cua minh: phai la chuan_bi_xong va id_bai dung tai nguyen minh tao. -> ly do sai hoac None."""
+    rows = cong.doc_dang(ngay.isoformat(), ngay.isoformat(), che_do)
+    toi = next((r for r in rows if r.get("ngay") == ngay.isoformat() and r.get("dang") == dang and r.get("kenh") == kenh), None)
+    if toi is None:
+        return "khong doc lai duoc dong sg_dang cua minh truoc khi cong khai"
+    if toi.get("trang_thai") != "chuan_bi_xong" or str(toi.get("id_bai")) != str(id_bai):
+        return f"dong sg_dang truoc cong khai la {toi.get('trang_thai')}/id_bai {toi.get('id_bai')} (can chuan_bi_xong/{id_bai}) - dung, khong ghi de"
+    return None
+
+
 def nhuong_neu_trung(cong, ngay, dang, kenh, che_do, ma_cua_toi):
-    """S7: sau giu_dang + ghi id_tai, doc lai sg_dang +-3 ngay. Dong KHAC (fb-gia/ig-gia/threads-gia/x-goc, khac that_bai/bo, cung che_do) trung ma
-    game voi minh va `luc` som hon -> minh nhuong. Khong doc lai duoc dong cua minh = nhuong (fail-closed). -> ly do hoac None."""
+    """S7 + P1-b: sau giu_dang + ghi id_tai, doc lai sg_dang +-3 ngay. Dong KHAC (fb-gia/ig-gia/threads-gia/x-goc, khac that_bai/bo, cung che_do) trung
+    ma game: o trang thai khong_ro/da_dang/chuan_bi_xong -> LUON chan; o dang_dang -> so `luc` (som hon thang, bang nhau thi `dang` lon hon nhuong).
+    Khong doc lai duoc dong cua minh = nhuong (fail-closed). -> ly do hoac None."""
     d = dt.timedelta(days=3)
     rows = cong.doc_dang((ngay - d).isoformat(), (ngay + d).isoformat(), che_do)
     toi = next((r for r in rows if r.get("ngay") == ngay.isoformat() and r.get("dang") == dang and r.get("kenh") == kenh), None)
@@ -431,9 +493,11 @@ def nhuong_neu_trung(cong, ngay, dang, kenh, che_do, ma_cua_toi):
                 ids |= chon.title_ids(m)
         if not ids & ids_toi:
             continue
-        luc_r = x_goc._tg(r.get("luc"))
+        if r.get("trang_thai") in ("khong_ro", "da_dang", "chuan_bi_xong"):      # P1-b: da/dang chuan bi/co the da dang -> LUON chan, bat ke `luc`
+            return f"trung game voi {r.get('dang')} ({r.get('kenh')}) dang o trang thai {r.get('trang_thai')}"
+        luc_r = x_goc._tg(r.get("luc"))          # chi dong dang_dang moi so `luc`: som hon thang; bang nhau -> `dang` lon hon (chu cai) nhuong
         if luc_r is None or (luc_r, str(r.get("dang"))) < (luc_toi, dang):
-            return f"trung game voi {r.get('dang')} ({r.get('kenh')}) som hon"
+            return f"trung game voi {r.get('dang')} ({r.get('kenh')}) dang_dang som hon"
     return None
 
 
@@ -477,27 +541,32 @@ def lam(a, cong, phu, thu_muc):
         raise KhongDang(f"sg_keo {ngay.isoformat()} chua co dong PS nao")
     boi = chon.Boi(kenh, ngay, due, keo, gia_the, phu.lay_quy_vnd(), phu.lay_trang, phu.tai_anh(ts), chon.da_dung_tu_dong(dong_gan), nb)
 
-    # ---- 2. chon (+ chu Threads trong luc chon) + kiem trang
-    if kenh == "threads":
-        mo_da = chu.mo_da_dung_tu_dong(dong_7)
-        tin = chon.chon_threads(boi, lambda sv, kq: chu.dung_chu("threads", sv, ngay, mo_da))
-    else:
-        tin = chon.CHON[kenh](boi)
-    ghi_chon = {"kenh": kenh, "ngay": ngay.isoformat(), "dang": dang, "gio_dang": chung.iso(due), "chon": (tin or {}).get("chon"),
-                "bo": boi.bo[-300:], "so_trang": boi.so_trang}
-    viet_json(ra / "chon.json", ghi_chon)
+    # ---- 2+3. chon (+ chu Threads trong luc chon) + kiem trang + chu + cong tin gia. P2-e: cong/chu truot (vd do dinh dang) -> LOAI game do,
+    # chon ung vien khac (toi da LAN_THU_CHON lan), khong dung ca luot.
+    mo_da = chu.mo_da_dung_tu_dong(dong_7) if kenh == "threads" else ()
+    tin = ck = None
+    ly_cuoi = ""
+    for lan in range(LAN_THU_CHON):
+        if kenh == "threads":
+            tin = chon.chon_threads(boi, lambda sv, kq: chu.dung_chu("threads", sv, ngay, mo_da))
+        else:
+            tin = chon.CHON[kenh](boi)
+        viet_json(ra / "chon.json", {"kenh": kenh, "ngay": ngay.isoformat(), "dang": dang, "gio_dang": chung.iso(due), "chon": (tin or {}).get("chon"),
+                                     "bo": boi.bo[-300:], "so_trang": boi.so_trang, "lan_chon": lan + 1})
+        if tin is None:
+            break
+        ck = tin.get("chu_san") or chu.dung_chu(kenh, tin["su_that"], ngay)
+        loi = ["khong dung duoc chu hop le"] if ck is None else chu.cong(kenh, ck["text"], tin["su_that"])
+        if not loi:
+            break
+        ly_cuoi = "cong tin gia truot: " + "; ".join(loi)[:300]
+        boi.ghi_bo("+".join(tin["ma"]), "/".join(tin["tieu_de_hang"]), ly_cuoi)
+        boi.da_dung.update(tin["ma"])            # loai cac game nay, chon ung vien khac
+        tin = ck = None
     if tin is None:
-        raise KhongDang("khong chon duoc tin gia " + kenh + ": " + "; ".join(f"{b['ten'][:24]}: {b['ly'][:70]}" for b in boi.bo[-4:]))
+        raise KhongDang(ly_cuoi or "khong chon duoc tin gia " + kenh + ": " + "; ".join(f"{b['ten'][:24]}: {b['ly'][:70]}" for b in boi.bo[-4:]))
     sv, dl = tin["su_that"], tin["dl"]
-
-    # ---- 3. chu + cong tin gia (truoc khi ton thoi gian dung video)
-    ck = tin.get("chu_san") or chu.dung_chu(kenh, sv, ngay)
-    if ck is None:
-        raise KhongDang("khong dung duoc chu hop le cho " + kenh)
     text = ck["text"]
-    loi = chu.cong(kenh, text, sv)
-    if loi:
-        raise KhongDang("cong tin gia truot: " + "; ".join(loi)[:400])
     dong1 = next(d.strip() for d in text.split("\n") if d.strip())
     (ra / "caption.txt").write_text(text + "\n", encoding="utf-8")
 
@@ -548,7 +617,8 @@ def lam(a, cong, phu, thu_muc):
         # ---- 6. chuan bi tren nen tang (KHONG cong khai)
         pb = nen.chuan_bi(goi, che_do, lambda **kw: cong.cap_nhat_dang(**khoa, **kw))
         id_bai = pb["id_bai"]
-        cong.cap_nhat_dang(**khoa, neu_trang_thai="dang_dang", trang_thai="chuan_bi_xong", id_bai=id_bai)
+        if cong.cap_nhat_dang(**khoa, neu_trang_thai="dang_dang", trang_thai="chuan_bi_xong", id_bai=id_bai) != 1:      # P1-a
+            raise KhongDang("khong doi duoc sg_dang sang chuan_bi_xong (dong da bi doi boi luot khac) - dung, KHONG cong khai")
         if che_do == "thu":
             chung.log(f"tin_gia_mxh [thu] da chuan bi {kenh} id {id_bai} ({pb.get('ghi_chu', '')}); khong dang")
             doi_that_bai(cong, khoa, f"che do thu: da chuan bi {id_bai}, khong dang")
@@ -563,13 +633,19 @@ def lam(a, cong, phu, thu_muc):
         for c in canh_bao:
             chung.log(f"kiem_lai canh bao: {c}")
         if van_de:
-            cong.cap_nhat_dang(**khoa, trang_thai="bo", loi=chung.cat("kiem lai gia/han truoc gio dang: " + "; ".join(van_de), 300))
+            doi_trang_thai(cong, khoa, ("chuan_bi_xong",), trang_thai="bo", loi=chung.cat("kiem lai gia/han truoc gio dang: " + "; ".join(van_de), 300))
             _bao("Tin giá " + kenh + ": bỏ khung, giá/hạn đổi", chung.cat("; ".join(van_de), 300))
             return 3
+        doi_goc = phu.kiem_them(tin["kiem_lai"])     # P2-d: gia goc + % giam doi -> bo (that_bai), khong cong khai
+        if doi_goc:
+            raise KhongDang("kiem lai gia goc/% giam truoc gio dang: " + "; ".join(doi_goc))
         if chung.bay_gio() > han:                   # S16: kiem han NGAY truoc request cong khai
             raise KhongDang("da qua han cong khai (gio dang + 15 phut) - khong cong khai")
+        sai = dong_truoc_cong_khai(cong, ngay, dang, kenh, che_do, id_bai)       # P1-a
+        if sai:
+            raise KhongDang(sai)
         da_gui = True
-        kq = nen.cong_khai(goi, id_bai)
+        kq = nen.cong_khai(goi, id_bai, han)
     except KhongDang as e:
         doi_that_bai(cong, khoa, e)
         _bao("Tin giá " + kenh + ": không đăng hôm nay", chung.cat(e, 300))
@@ -578,7 +654,7 @@ def lam(a, cong, phu, thu_muc):
         khong_ro = e.khong_ro if isinstance(e, LoiDang) else da_gui
         try:
             if khong_ro:
-                cong.cap_nhat_dang(**khoa, trang_thai="khong_ro", loi=chung.cat(e, 300))
+                doi_trang_thai(cong, khoa, ("chuan_bi_xong", "dang_dang"), trang_thai="khong_ro", loi=chung.cat(e, 300))
             else:
                 doi_that_bai(cong, khoa, f"{type(e).__name__}: {e}")
         except Exception:   # noqa: BLE001
@@ -587,7 +663,9 @@ def lam(a, cong, phu, thu_muc):
         return 1
     link, id_bai = kq.get("link"), kq.get("id_bai") or id_bai
     try:
-        cong.cap_nhat_dang(**khoa, trang_thai="da_dang", id_bai=id_bai, link=link, gio_cong_khai=chung.iso(chung.bay_gio()))
+        if cong.cap_nhat_dang(**khoa, neu_trang_thai="chuan_bi_xong", trang_thai="da_dang", id_bai=id_bai, link=link,
+                              gio_cong_khai=chung.iso(chung.bay_gio())) != 1:
+            raise so.LoiCong("dong sg_dang khong con o chuan_bi_xong khi ghi da_dang")
     except Exception as e:   # noqa: BLE001
         _bao("Tin giá " + kenh + ": ĐÃ đăng nhưng ghi sổ lỗi", f"id {id_bai} (link {link or 'chưa có'}): {chung.cat(f'{type(e).__name__}: {e}', 150)}")
         return 1

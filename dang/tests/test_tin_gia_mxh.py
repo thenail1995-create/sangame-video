@@ -195,7 +195,7 @@ class ChonFB(unittest.TestCase):
         self.assertEqual(len(kq["kiem_lai"]), 5)
         m = next(x for x in kq["kiem_lai"] if x["ten"].endswith("(US)"))
         self.assertEqual(m, {"ten": "Monster Hunter Rise PS4 & PS5 (US)", "pid": "UP0102-PPSA08033_00-FULLGAME00000001", "loc": "en-us",
-                             "gia_cuc_bo": 4.79, "endTime": str(END_MS), "gia_dung_y": True})
+                             "gia_cuc_bo": 4.79, "endTime": str(END_MS), "gia_dung_y": True, "gia_goc": 39.99, "giam": 88})      # P2-d: them gia goc + % giam
         self.assertIsInstance(m["gia_cuc_bo"], float)
 
     def test_ff_chi_co_store_my_thi_fb_bo(self):
@@ -610,7 +610,7 @@ class Chu(unittest.TestCase):
         self.assertIn("460 nghìn", d[0])
         self.assertNotIn("#", text)
         self.assertIn("Mình chọn Final Fantasy VII Rebirth: 64.683 người chấm, trung bình 4,66 sao.", text)
-        self.assertIn("1 thẻ $10 + 1 thẻ $5 vừa khít", text)
+        self.assertIn("1 thẻ $10 + 1 thẻ $5 vừa khít với giá niêm yết", text)       # S9
         self.assertEqual(chu.cong("threads", text, sv), [])
         self.assertLessEqual(len(kq["alt"]), 1000)
         self.assertIn(kq["ma_bien_the"][:2], ("m0", "m1", "m2", "m3", "m4", "m5", "m6", "m7"))
@@ -789,7 +789,8 @@ class NenGia:
             raise self.loi_chuan_bi
         return {"id_bai": "VID1", "ghi_chu": "gia"}
 
-    def cong_khai(self, goi, id_bai):
+    def cong_khai(self, goi, id_bai, han=None):
+        self.han = han
         self.su_kien.append("cong_khai")
         if self.loi_cong_khai:
             raise self.loi_cong_khai
@@ -903,7 +904,7 @@ class Luong(unittest.TestCase):
         self.assertEqual(self.ngu, [30 * 60.0])                  # ngu toi 19:00
         muc, gio_ = kls[0]
         self.assertEqual((len(muc), gio_), (5, gio("fb")))
-        self.assertTrue(all(m["gia_dung_y"] and set(m) == {"ten", "pid", "loc", "gia_cuc_bo", "endTime", "gia_dung_y"} for m in muc))
+        self.assertTrue(all(m["gia_dung_y"] and set(m) == {"ten", "pid", "loc", "gia_cuc_bo", "endTime", "gia_dung_y", "gia_goc", "giam"} for m in muc))
         self.assertEqual(len(self.ntfy_tin), 1)
 
     def test_that_threads_va_ig_chay_tron(self):
@@ -975,11 +976,11 @@ class Luong(unittest.TestCase):
 
     def test_s7_dua_chon_trung_game_voi_dong_som_hon_thi_nhuong_truoc_nen_tang(self):
         som = dict(dang="x-goc", kenh="x", trang_thai="da_dang", id_tai=dong_keo(4)["ma"])
-        cong = CongTG(su_kien=self.su_kien, sau_giu=[som])
+        cong = CongTG(su_kien=self.su_kien, sau_giu=[dict(som, trang_thai="dang_dang")])
         kq, cong, phu = self.chay("fb", "that", cong=cong)
-        self.assertEqual(kq, 0)        # dong kia xuat hien SAU giu_dang cua minh (luc lon hon) -> minh giu, khong nhuong
+        self.assertEqual(kq, 0)        # dong dang_dang xuat hien SAU giu_dang cua minh (luc lon hon) -> minh giu, khong nhuong
         self.su_kien.clear()           # dong kia co luc SOM hon luc cua minh -> minh nhuong
-        som2 = dict(som, luc="2026-11-02T09:00:00+00:00")
+        som2 = dict(som, trang_thai="dang_dang", luc="2026-11-02T09:00:00+00:00")
         cong2 = CongTG(su_kien=self.su_kien, sau_giu=[som2])
         kq, cong2, phu = self.chay("fb", "that", cong=cong2)
         self.assertEqual(kq, 3)
@@ -1057,6 +1058,282 @@ class Luong(unittest.TestCase):
         with mock.patch.object(mxh.x_goc, "doc_keo_cho", lambda *a, **k: []):
             kq, cong, phu = self.chay("fb", "that")
         self.assertEqual(kq, 3)
+
+
+# ================================================================ sua sau soi Sol (P1-P3)
+class CongDem(CongTG):
+    """CongTG + ghi lai moi cap_nhat_dang co neu_trang_thai; `tu_choi` = trang_thai dich bi tu choi (tra 0 nhu luot khac da doi dong)."""
+
+    def __init__(self, *a, tu_choi=(), **kw):
+        super().__init__(*a, **kw)
+        self.goi_cn, self.tu_choi = [], tu_choi
+
+    def cap_nhat_dang(self, ngay, dang, kenh, che_do, neu_trang_thai=None, **truong):
+        self.goi_cn.append((neu_trang_thai, dict(truong)))
+        if neu_trang_thai is not None and truong.get("trang_thai") in self.tu_choi:
+            return 0
+        return super().cap_nhat_dang(ngay, dang, kenh, che_do, neu_trang_thai, **truong)
+
+
+class LuongSol(unittest.TestCase):
+    setUp, ngu_gia, phu, args, chay = Luong.setUp, Luong.ngu_gia, Luong.phu, Luong.args, Luong.chay
+
+    # ---- P1-a
+    def test_p1a_khong_doi_duoc_sang_chuan_bi_xong_thi_dung_khong_cong_khai(self):
+        cong = CongDem(su_kien=self.su_kien, tu_choi=("chuan_bi_xong",))
+        kq, cong, phu = self.chay("fb", "that", cong=cong)
+        self.assertEqual(kq, 3)
+        self.assertNotIn("cong_khai", self.su_kien)
+        self.assertEqual(cong.cap_cuoi("fb")["trang_thai"], "that_bai")        # doi_that_bai co dieu kien, khong ghi de dong cua luot khac
+
+    def test_p1a_dong_bi_doi_truoc_cong_khai_thi_dung_va_khong_ghi_de(self):
+        for doi in (dict(trang_thai="khong_ro"), dict(id_bai="TAI-NGUYEN-KHAC"), dict(trang_thai="that_bai")):
+            self.su_kien.clear()
+            cong = CongTG(su_kien=self.su_kien)
+
+            def kiem_lai(muc, g, cong=cong, doi=doi):
+                cong.cap_cuoi("fb").update(doi)           # luot khac / nguoi doi dong NGAY truoc cong khai
+                return [], []
+            kq, cong, phu = self.chay("fb", "that", cong=cong, phu=self.phu("fb", kiem_lai=kiem_lai))
+            self.assertEqual(kq, 3, doi)
+            self.assertNotIn("cong_khai", self.su_kien)
+            d = cong.cap_cuoi("fb")
+            for k, v in doi.items():
+                self.assertEqual(d[k], v, doi)            # KHONG bi ghi de
+
+    def test_p1a_cap_nhat_sau_cong_khai_dung_neu_trang_thai_chuan_bi_xong(self):
+        cong = CongDem(su_kien=self.su_kien)
+        kq, cong, phu = self.chay("fb", "that", cong=cong)
+        self.assertEqual(kq, 0)
+        cuoi = [c for c in cong.goi_cn if c[1].get("trang_thai") == "da_dang"]
+        self.assertEqual(len(cuoi), 1)
+        self.assertEqual(cuoi[0][0], "chuan_bi_xong")
+        self.su_kien.clear()
+        cong = CongDem(su_kien=self.su_kien)
+        kq, cong, phu = self.chay("fb", "that", cong=cong, phu=self.phu("fb", nen=NenGia(self.su_kien, loi_cong_khai=chung.LoiDang("mang", khong_ro=True))))
+        self.assertEqual(kq, 1)
+        kr = [c for c in cong.goi_cn if c[1].get("trang_thai") == "khong_ro"]
+        self.assertEqual([c[0] for c in kr], ["chuan_bi_xong"])
+        self.assertEqual(cong.cap_cuoi("fb")["trang_thai"], "khong_ro")
+
+    def test_p1a_da_dang_ghi_khong_duoc_vi_dong_khong_con_chuan_bi_xong_thi_bao_loi(self):
+        cong = CongDem(su_kien=self.su_kien, tu_choi=("da_dang",))
+        kq, cong, phu = self.chay("fb", "that", cong=cong)
+        self.assertEqual(kq, 1)
+        self.assertEqual(self.su_kien.count("cong_khai"), 1)
+        self.assertTrue(any("ghi sổ lỗi" in str(a) for a in self.ntfy_loi))
+
+    # ---- P1-b
+    def nhuong(self, mine_dang, mine_luc, khac, **hang):
+        cong = CongTG()
+        cong.dong[("2026-11-02", mine_dang, "x", "that")] = dict(ngay="2026-11-02", dang=mine_dang, kenh="x", che_do="that", trang_thai="dang_dang", luc=mine_luc)
+        row = dict(ngay="2026-11-02", dang=khac, kenh="y", che_do="that", id_tai="PPSA1_00|a")
+        row.update(hang)
+        cong.dong[("2026-11-02", khac, "y", "that")] = row
+        return mxh.nhuong_neu_trung(cong, NGAY, mine_dang, "x", "that", ["PPSA1_00|a"])
+
+    def test_p1b_dong_khac_da_dang_khong_ro_chuan_bi_xong_luon_chan_ke_ca_luc_muon_hon(self):
+        for tt in ("khong_ro", "da_dang", "chuan_bi_xong"):
+            ly = self.nhuong("fb-gia", "2026-11-02T10:00:00+00:00", "x-goc", trang_thai=tt, luc="2026-11-02T11:00:00+00:00")
+            self.assertIsNotNone(ly, tt)
+            self.assertIn(tt, ly)
+            self.assertIsNotNone(self.nhuong("fb-gia", "2026-11-02T10:00:00+00:00", "x-goc", trang_thai=tt, luc=None), tt)
+
+    def test_p1b_dang_dang_chi_so_luc(self):
+        mine = "2026-11-02T10:00:00+00:00"
+        self.assertIsNone(self.nhuong("fb-gia", mine, "x-goc", trang_thai="dang_dang", luc="2026-11-02T11:00:00+00:00"))       # muon hon -> minh thang
+        self.assertIsNotNone(self.nhuong("fb-gia", mine, "x-goc", trang_thai="dang_dang", luc="2026-11-02T09:00:00+00:00"))     # som hon -> minh nhuong
+        # bang nhau: dang theo chu cai, ben LON HON nhuong
+        self.assertIsNotNone(self.nhuong("ig-gia", mine, "fb-gia", trang_thai="dang_dang", luc=mine))
+        self.assertIsNone(self.nhuong("fb-gia", mine, "ig-gia", trang_thai="dang_dang", luc=mine))
+
+    def test_p1b_that_bai_bo_hoac_khac_game_khong_chan(self):
+        mine = "2026-11-02T10:00:00+00:00"
+        for tt in ("that_bai", "bo"):
+            self.assertIsNone(self.nhuong("fb-gia", mine, "x-goc", trang_thai=tt, luc=mine))
+        self.assertIsNone(self.nhuong("fb-gia", mine, "x-goc", trang_thai="da_dang", luc=mine, id_tai="CUSA9_00|khac"))
+
+    # ---- P2-a
+    def test_p2a_han_tuyet_doi_duoc_truyen_cho_nen_tang(self):
+        kq, cong, phu = self.chay("fb", "that")
+        self.assertEqual(kq, 0)
+        self.assertEqual(phu.nen_gia.han, gio("fb") + dt.timedelta(minutes=15))
+
+    def test_p2a_kiem_han_ngay_truoc_post_khong_post_khi_qua_han(self):
+        self.t = gio("fb")
+        han = self.t - dt.timedelta(seconds=1)
+        bia = pathlib.Path(tempfile.mkdtemp()) / "bia.jpg"
+        bia.write_bytes(b"J")
+        tk_ig = {"ig_user_id": "IGU1", "page_token": "EAAIGTOKENGIA1234567890abcdef"}
+        tk_th = {"threads_user_id": "THU1", "token": "THTOKENGIA1234567890abcdef"}
+        casos = (("fb", lambda: mxh.NenFB(dict(TOKEN_FB)).cong_khai({"text": "c", "bia": bia}, "VID9", han),
+                  NenThat.mang_fb_cong_khai(NenThat(), published=True), "video_reels"),
+                 ("ig", lambda: mxh.NenIG(tk_ig, ZK).cong_khai({}, "CNT1", han),
+                  Mang().them("GET", "/CNT1", P(200, {"status_code": "FINISHED"})), "media_publish"),
+                 ("threads", lambda: mxh.NenThreads(tk_th, ZK).cong_khai({}, "CNT1", han),
+                  Mang().them("GET", "/CNT1", P(200, {"status": "FINISHED"})), "threads_publish"))
+        for ten, f, m, post in casos:
+            with mock.patch.object(http, "gui", m), self.assertRaises(chung.LoiDang) as cm:
+                f()
+            self.assertFalse(cm.exception.khong_ro, ten)
+            self.assertIn("qua han", str(cm.exception))
+            self.assertFalse(any(mt == "POST" and post in u for mt, u, kw in m.goi), ten)      # KHONG POST
+            self.assertTrue(any(mt == "GET" for mt, u, kw in m.goi), ten)                       # kiem han sau moi GET
+
+    def test_p2a_con_han_thi_van_post(self):
+        self.t = gio("fb")
+        bia = pathlib.Path(tempfile.mkdtemp()) / "bia.jpg"
+        bia.write_bytes(b"J")
+        m = NenThat.mang_fb_cong_khai(NenThat())
+        with mock.patch.object(http, "gui", m):
+            kq = mxh.NenFB(dict(TOKEN_FB)).cong_khai({"text": "c", "bia": bia}, "VID9", self.t + dt.timedelta(minutes=15))
+        self.assertEqual(kq["id_bai"], "VID9")
+
+    def test_p2a_qua_han_o_nen_tang_thi_that_bai_khong_khong_ro(self):
+        kq, cong, phu = self.chay("fb", "that", phu=self.phu("fb", nen=NenGia(self.su_kien, loi_cong_khai=chung.LoiDang("qua han cong khai ... KHONG goi cong khai"))))
+        self.assertEqual(kq, 1)
+        self.assertEqual(cong.cap_cuoi("fb")["trang_thai"], "that_bai")
+
+    # ---- P2-b
+    def kiem_that(self, rc, out):
+        r = types.SimpleNamespace(returncode=rc, stdout=out, stderr="")
+        with mock.patch.object(mxh.subprocess, "run", return_value=r):
+            return mxh.kiem_that("fb", "ra", "dl.json")
+
+    def test_p2b_kiem_that_chi_dat_khi_ma_0_va_dict_va_dat_true(self):
+        ok = json.dumps({"dat": True, "phep": []})
+        self.assertEqual(self.kiem_that(0, ok)["dat"], True)
+        for rc, out in ((1, ok), (0, json.dumps({"dat": False, "phep": [{"ten": "K2", "dat": False, "chi_tiet": "dinh"}]})), (1, json.dumps({"dat": False, "phep": []})),
+                        (0, json.dumps({"phep": []})), (0, json.dumps({"dat": "true"})), (0, json.dumps([1])), (0, "khong phai json"), (0, "")):
+            with self.assertRaises(mxh.KhongDang, msg=(rc, out)):
+                self.kiem_that(rc, out)
+
+    # ---- P2-d
+    def test_p2d_kiem_goc_giam_phat_hien_goc_hoac_giam_doi(self):
+        d = keo()
+        kq = chon.chon_fb(boi("fb", d))
+        t = Trang(d)
+        self.assertEqual(mxh.kiem_goc_giam(kq["kiem_lai"], t), [])
+        link = dong_keo(4)["link"]
+        t.ghi_de[link] = t.dung(link, goc="$44.99")
+        v = mxh.kiem_goc_giam(kq["kiem_lai"], t)
+        self.assertTrue(any("gia goc doi" in x for x in v) and any("% giam doi" in x for x in v), v)
+        t.ghi_de[link] = None
+        self.assertTrue(any("khong doc lai duoc" in x for x in mxh.kiem_goc_giam(kq["kiem_lai"], t)))
+        self.assertTrue(mxh.kiem_goc_giam([{"ten": "x", "pid": "p", "loc": "en-us"}], t))        # thieu truong = van de
+
+    def test_p2d_goc_doi_truoc_cong_khai_thi_that_bai_khong_cong_khai_co_ntfy(self):
+        d = keo()
+        link = dong_keo(4)["link"]
+        phu = self.phu("fb")
+
+        def kiem_lai(muc, g):
+            phu.lay_trang.ghi_de[link] = phu.lay_trang.dung(link, goc="$44.99")      # goc doi SAU khi chon
+            return [], []
+        phu.kiem_lai = kiem_lai
+        kq, cong, phu = self.chay("fb", "that", phu=phu)
+        self.assertEqual(kq, 3)
+        self.assertNotIn("cong_khai", self.su_kien)
+        self.assertEqual(cong.cap_cuoi("fb")["trang_thai"], "that_bai")
+        self.assertIn("gia goc", cong.cap_cuoi("fb")["loi"])
+        self.assertTrue(self.ntfy_loi)
+
+    # ---- P2-e
+    def test_p2e_cong_truot_thi_thu_ung_vien_khac_khong_dung_ca_luot(self):
+        thuc = chu.cong
+
+        def cong_gia(kenh, text, sv):
+            return ["dinh dang sai"] if "Monster Hunter" in text else thuc(kenh, text, sv)
+        with mock.patch.object(chu, "cong", cong_gia):
+            kq, cong, phu = self.chay("fb", "thu", khong_api=True)
+        self.assertEqual(kq, 0)
+        bai = json.loads((self.ra_thu_dir / "bai.json").read_text())
+        self.assertNotIn("Monster Hunter", bai["chu"])
+        chon_json = json.loads((self.ra_thu_dir / "chon.json").read_text())
+        self.assertEqual(chon_json["lan_chon"], 2)
+        self.assertTrue(any("cong tin gia truot" in b["ly"] for b in chon_json["bo"]))
+
+    def test_p2e_cong_truot_het_lan_thu_thi_khong_dang(self):
+        with mock.patch.object(chu, "cong", lambda k, t, s: ["luon sai"]):
+            kq, cong, phu = self.chay("fb", "that")
+        self.assertEqual(kq, 3)
+        self.assertEqual(self.su_kien, [])
+        self.assertTrue(any("cong tin gia truot" in str(a) for a in self.ntfy_loi))
+
+
+class DinhDangTien(unittest.TestCase):
+    def test_nghin_dung_giu_nguyen_gia_tri_khi_doc_lai_bang_tien_vnd(self):
+        from dang.chay import tien_vnd
+        for v, s in ((460000, "460 nghìn"), (72000, "72 nghìn"), (999000, "999 nghìn"), (1048000, "1.048.000đ"), (1000000, "1.000.000đ"),
+                     (72480, "72.480đ"), (1234567, "1.234.567đ"), (50500, "50.500đ")):
+            self.assertEqual(chon.nghin_dung(v), s)
+            self.assertEqual(tien_vnd(f"con {chon.nghin_dung(v)}."), [v], v)
+            self.assertEqual(tien_vnd(f"{chon.nghin_dung(v)}; xong"), [v], v)
+
+    def sv_gia(self, gia, kia):
+        sv = sv_fb()
+        sv.update(gia_vnd=gia, gia_mua=[gia], gia_da_kiem=[gia, kia], re_hon={"ten": "Singapore", "vnd": kia - gia},
+                  cua_hang=[{"ma": "SG", "ten": "Singapore", "vnd": kia}, {"ma": "US", "ten": "Mỹ", "vnd": gia}])
+        return sv
+
+    def test_fb_gia_lon_hon_1_trieu_va_khong_tron_nghin_duoc_cong_chap_nhan(self):
+        from dang.chay import tien_vnd
+        for gia, kia in ((1048000, 1328000), (72480, 150480), (1048000, 1500000)):
+            sv = self.sv_gia(gia, kia)
+            text = chu.dung_chu("fb", sv)["text"]
+            self.assertEqual(tien_vnd(text.split("\n")[0]), [gia])
+            self.assertIn(chon.nghin_dung(kia - gia), text)
+            self.assertEqual(chu.cong("fb", text, sv), [], text)
+            self.assertNotIn("triệu", text)
+
+    def test_ig_gia_lon_hon_1_trieu_cap_ten_gia_dung_dinh_dang(self):
+        sv = sv_ig(6, 7, 8, 11)
+        sv["game"][0]["gia_vnd"] = 1048000
+        sv["gia_mua"] = sorted({g["gia_vnd"] for g in sv["game"]})
+        sv["gia_da_kiem"] = sv["gia_mua"]
+        text = chu.dung_chu("ig", sv)["text"]
+        self.assertIn("– 1.048.000đ", text)
+        self.assertEqual(chu.cong("ig", text, sv), [], text)
+        self.assertTrue(chu.cong("ig", text.replace("– 1.048.000đ", "– 1.084.000đ"), sv))
+
+    def test_threads_gia_khong_tron_nghin(self):
+        sv = sv_th()
+        sv.update(gia_vnd=72480, gia_mua=[72480], gia_da_kiem=[72480])
+        r = chu.dung_chu("threads", sv, NGAY)
+        self.assertIn("72.480đ", r["text"])
+        self.assertEqual(chu.cong("threads", r["text"], sv), [])
+
+
+class CongNgoaiTe(unittest.TestCase):
+    def test_p2c_doi_gia_game_hoac_gia_goc_thi_truot(self):
+        sv = sv_fb()
+        text = chu.dung_chu("fb", sv)["text"]
+        self.assertEqual(chu.cong("fb", text, sv), [])
+        a = chu.cong("fb", text.replace("$4,79", "$99,99"), sv)
+        self.assertTrue(any("ngoai te" in l and "$99,99" in l for l in a), a)
+        b = chu.cong("fb", text.replace("$39,99", "$999,99"), sv)
+        self.assertTrue(any("ngoai te" in l and "$999,99" in l for l in b), b)
+        self.assertTrue(chu.cong("fb", text.replace("1 thẻ $5", "1 thẻ $50"), sv))                 # menh gia the la
+
+    def test_p2c_cac_ky_hieu_va_phan_tram(self):
+        sv = sv_fb()
+        text = chu.dung_chu("fb", sv)["text"]
+        for them in ("giá HK$36,96", "giá S$6,60", "giá Rp 73.792", "giá 154 THB 154", "giá ฿154", "giá SGD 6.60", "giá US$4,79"):
+            if them.startswith("giá US$4"):
+                continue
+            self.assertTrue(any("ngoai te" in l for l in chu.cong("fb", text + "\n" + them, sv)), them)
+        self.assertTrue(any("phan tram" in l for l in chu.cong("fb", text.replace("88%", "80%"), sv)))
+        self.assertTrue(any("phan tram" in l for l in chu.cong("fb", text + " Giảm thêm 10%", sv)))
+
+    def test_p2c_threads_va_ig(self):
+        sv = sv_th()
+        text = chu.dung_chu("threads", sv, NGAY)["text"]
+        self.assertEqual(chu.cong("threads", text, sv), [])
+        self.assertTrue(any("ngoai te" in l for l in chu.cong("threads", text.replace("$14,99", "$1,99"), sv)))
+        self.assertTrue(any("phan tram" in l for l in chu.cong("threads", text.replace("70%", "7%"), sv)))
+        sv = sv_ig(6, 7, 8, 11)
+        text = chu.dung_chu("ig", sv)["text"]
+        self.assertTrue(any("ngoai te" in l for l in chu.cong("ig", text + "\nChi $5", sv)))
 
 
 # ================================================================ nen tang that (Mang gia)
