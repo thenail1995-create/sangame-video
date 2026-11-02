@@ -1,6 +1,6 @@
 {
  "tiktok": {"ten": "TikTok", "tren": 240, "duoi": 1480, "trailer": 1000,
-  "ghi": "trailer sach y 0..1000; dai thong tin 1000..1480 (SAN-CHAT-LUONG #49); duoi 1480 = bong bong binh luan TikTok 1520"},
+  "ghi": "trailer sach y 0..1000; dai thong tin 1000..1480 (SAN-CHAT-LUONG #49); day co dinh 1520..1820 = bia + ten + PS STORE (bo cuc B 02/11, trung caption TikTok nen bi che khong mat tin)"},
  "reels": {"ten": "Reels", "tren": 269, "duoi": 1480, "trailer": 1000,
   "ghi": "trailer sach y 0..1000; ten kenh Reels tu y 1728, cot nut x>928 tu y 1240"},
  "shorts": {"ten": "Shorts", "tren": 288, "duoi": 1480, "trailer": 1000,
