@@ -49,7 +49,7 @@ subprocess.run([sys.executable,str(B/'dung.py'),'build',NT],check=True)
 d=json.loads(subprocess.run(['node',str(B/'kiem/kiem-dom.cjs'),NT],capture_output=True,text=True,check=True).stdout)
 ghi('Khong trung ma phan tu (id)',not d.get('trungId'),f"{len(d.get('trungId',[]))} id trung"+(f": {d['trungId'][:5]}" if d.get('trungId') else ''),'H31')
 nv=sum(len(v) for v in d['ngoaiVung'].values())
-ghi('Chu/bia trong vung an toan x 70-890, y 1004-1480 (moc dung yen cuoi moi canh)',nv==0,f"{nv} phan tu ngoai vung"+(f": {d['ngoaiVung']}" if nv else ''),'H6/#49')
+ghi('Chu trong vung an toan x 70-890, y 1004-1480; day co dinh (bia, ten, PS STORE) y 1500-1880 (moc dung yen cuoi moi canh)',nv==0,f"{nv} phan tu ngoai vung"+(f": {d['ngoaiVung']}" if nv else ''),'H6/#49')
 G=json.load(open(B/'flagship.json')); CFG=json.load(open(B/'cau-hinh.json')); ND=d['noiDung']
 CN=json.load(open(B/'canh.json')); KEYS=[c['k'] for c in CN]
 VUNG=G['vung'].upper(); sai=[]
@@ -96,7 +96,7 @@ else: ghi('D2 deal con it nhat 6 gio sau gio dang (endTime)',False,'khong tinh d
 DAIV=CN[-1]['b']; ghi('Do dai 15-27 s',15<=DAIV<=27,f"{DAIV:.2f} s",'#48')
 
 # 2b) TRAILER SACH (bo cuc A, SAN-CHAT-LUONG #49): do tren LOP CHU that (anh alpha) — vung trailer y 0..'trailer' (nen-tang.json) KHONG co diem anh do hoa nao
-#   (alpha >= 5%) o cac moc mo / dung yen / cuoi; dai y trailer..1480 phai la nen toi (alpha >= 0.85); y > 1480 la trailer mo toi (khong co do hoa).
+#   (alpha >= 5%) o cac moc mo / dung yen / cuoi; dai y trailer..1920 phai la nen toi (alpha >= 0.85) - bo cuc B 02/11: phan duoi kin, khong con trailer mo.
 if not SOM:   # can video da dung - KIEM SOM bo qua (bo kiem cuoi van chay)
     from PIL import Image
     MOC_H=[round(c['b']-0.3,2) for c in CN]+[round((c['a']+c['b'])/2,2) for c in CN]
@@ -107,9 +107,9 @@ if not SOM:   # can video da dung - KIEM SOM bo qua (bo kiem cuoi van chay)
     tren_ho=[];duoi_kin=[]
     for t in MOC_S:
         al=np.asarray(Image.open(B/'soi'/f'kiem-{NT}_{t:.2f}s.png').convert('RGBA'))[:,:,3]
-        tren_ho.append((al[:YP]>=13).mean()); duoi_kin.append((al[YP:1480,:]>=217).mean())
+        tren_ho.append((al[:YP]>=13).mean()); duoi_kin.append((al[YP:1920,:]>=217).mean())
     ghi(f'Trailer sach: vung y 0-{YP} khong co diem anh do hoa nao (alpha >= 5%) o moc mo/giua/cuoi tung canh, {len(MOC_S)} moc',max(tren_ho)<=0.0005,f"do hoa de len trailer toi da {max(tren_ho)*100:.3f}%",'N10/#49')
-    ghi('Dai thong tin phu nen toi (y trailer-1480, alpha >= 0.85; duoi 1480 chi con trailer mo, khong chu)',min(duoi_kin)>=0.995,f"kin toi thieu {min(duoi_kin)*100:.2f}%",'#49')
+    ghi('Dai thong tin phu nen toi (y trailer-1920, alpha >= 0.85)',min(duoi_kin)>=0.995,f"kin toi thieu {min(duoi_kin)*100:.2f}%",'#49')
 
 # 2c) NEN: khong khung toi (YAVG<20 keo >= 0,3 s), khong khung dung yen >= 1 s, khong mau me (ty le do bao hoa > 6%) — mau moi 0,25 s tren nen-<nt>.mp4
 if not SOM:

@@ -1,6 +1,6 @@
 // Kiem tren TRANG THAT (full-<nt>.build.html), cung cach capture.mjs seek (t = f/30). node kiem/kiem-dom.cjs <tiktok|reels|shorts>
 //  - trungId: id trung
-//  - ngoaiVung: chu/bia ngoai x 70..890, y 1004..1480 (dung sai 1 px) o cac moc dung yen (cuoi moi canh - 0,3 s)
+//  - ngoaiVung: chu ngoai x 70..890, y 1004..1480 (dung sai 1 px) o cac moc dung yen (cuoi moi canh - 0,3 s); DAY co dinh (bo cuc B 02/11: #tmo, #lblT, #cov) trong x 70..890, y 1500..1880
 //  - noiDung: chu THAT tren hinh o cac moc dung yen (D1)
 //  - soHien: moi chuoi SO dang hien o 10 khung/giay -> {so: giay hien dau} (D1-so, SAN #47)
 //  - kich: co chu (px) cua cac khoi chinh o moc dung yen
@@ -19,13 +19,15 @@ const r=await pg.evaluate(([V,CANH])=>{
  const tx=el=>el?el.textContent.replace(/\s+/g," ").trim():null;
  const CK=k=>CANH.find(c=>c.k===k);
  const MOC=CANH.map(c=>+(c.b-0.3).toFixed(2));
+ const DAY=["#tmo","#lblT"];
  const SEL=["#nmoT","#tmo","#pbigT","#chip","#giaT","#goc","#lblT","#tiles .tile .v","#vnd","#mt1","#mt2","#hlab","#hday","#hcon","#vcan","#vpsn","#kbrT","#kt1","#kt2"];
  for(const t of MOC){window.__seek(t);
    for(const sel of SEL)for(const e of document.querySelectorAll(sel)){if(!vis(e))continue;
      const rg=document.createRange();rg.selectNodeContents(e);const q=rg.getBoundingClientRect();if(!q.width)continue;
      const L=Math.round(q.left),R=Math.round(q.right),T=Math.round(q.top),Bm=Math.round(q.bottom);
-     if(L<69||R>891||T<1004-1||Bm>1480+1)(out.ngoaiVung[t]=out.ngoaiVung[t]||[]).push(sel+" x"+L+"-"+R+" y"+T+"-"+Bm)}
-   const cv=document.getElementById("cov");if(cv&&vis(cv)){const q=cv.getBoundingClientRect();if(q.left<69||q.right>891||q.top<1004||q.bottom>1480)(out.ngoaiVung[t]=out.ngoaiVung[t]||[]).push("#cov x"+Math.round(q.left)+"-"+Math.round(q.right)+" y"+Math.round(q.top)+"-"+Math.round(q.bottom))}}
+     const day=DAY.includes(sel),y0=day?1500:1004,y1=day?1880:1480;
+     if(L<69||R>891||T<y0-1||Bm>y1+1)(out.ngoaiVung[t]=out.ngoaiVung[t]||[]).push(sel+" x"+L+"-"+R+" y"+T+"-"+Bm)}
+   const cv=document.getElementById("cov");if(cv&&vis(cv)){const q=cv.getBoundingClientRect();if(q.left<69||q.right>891||q.top<1500||q.bottom>1880)(out.ngoaiVung[t]=out.ngoaiVung[t]||[]).push("#cov x"+Math.round(q.left)+"-"+Math.round(q.right)+" y"+Math.round(q.top)+"-"+Math.round(q.bottom))}}
  // D1: noi dung luc dung yen
  const nd={};const at=(k,fn)=>{if(!CK(k))return;window.__seek(+(CK(k).b-0.3).toFixed(2));nd[k]=fn()};
  const I=id=>document.getElementById(id);
@@ -67,7 +69,7 @@ const r=await pg.evaluate(([V,CANH])=>{
  const MN=[0,0.1,0.15,0.3,1.0].concat(CANH.map(c=>c.a),CANH.map(c=>+(c.a+0.1).toFixed(2)));
  for(const t of [...new Set(MN)].sort((a,b)=>a-b)){window.__seek(t);
    document.querySelectorAll("#sh *").forEach(e=>{if(!vis(e))return;let s="";e.childNodes.forEach(n=>{if(n.nodeType===3)s+=n.textContent});if(!s.trim())return;
-     const k=ink(e);if(!k)return;let L=0,R=1080,T=1004,Bm=1480;
+     const k=ink(e);if(!k)return;let L=0,R=1080,T=1004,Bm=1900;
      for(let c=e.parentElement;c;c=c.parentElement){const cs=getComputedStyle(c);if(cs.overflow!=="visible"||cs.overflowX!=="visible"||cs.overflowY!=="visible"){const q=c.getBoundingClientRect();L=Math.max(L,q.left);R=Math.min(R,q.right);T=Math.max(T,q.top);Bm=Math.min(Bm,q.bottom)}}
      const hit=k.r>L&&k.l<R&&k.b>T&&k.t<Bm; if(!hit)return;
      if(k.t<T-1||k.b>Bm+1||k.l<L-1||k.r>R+1)out.catNet.push("t="+t+" "+(e.id?"#"+e.id:e.className||e.tagName)+" «"+s.trim().slice(0,14)+"» ink y"+Math.round(k.t)+"-"+Math.round(k.b)+" x"+Math.round(k.l)+"-"+Math.round(k.r)+" vung y"+Math.round(T)+"-"+Math.round(Bm)+" x"+Math.round(L)+"-"+Math.round(R))})}
