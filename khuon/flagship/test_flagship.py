@@ -83,11 +83,14 @@ class TenDayDu(unittest.TestCase):
     def test_doc_duoc(self): self.assertTrue(td.doc_duoc('Resident Evil 4')); self.assertFalse(td.doc_duoc('NBA 2K27')); self.assertFalse(td.doc_duoc('FINAL FANTASY XVI'))
     def test_han_con_ngay(self):
         self.assertEqual(CF.han_con_ngay(END_OK,NGAY,'15:30'),8)   # 27/10 15:30 -> 5/11 14:59 = 8 ngay 23 gio (lam tron xuong)
+        self.assertEqual(CF.han_con_ngay(END_OK,'2026-11-03','15:30'),1)   # 03/11 15:30 -> 5/11 14:59 = 1 ngay 23 gio (run 41593967754)
+        self.assertIsNone(CF.han_con_ngay(END_OK,'2026-11-04','15:30'))   # 23,5 gio -> khong noi 'con 0 ngay'
         d,g,bo=0,0,0
     def test_loi_co_gia_goc_va_ngay_con(self):
         f=dict(vnd_doc='a',ten_doc='b',ma='US',giam=80,gia_doc='chín đô chín mươi chín',goc_doc='bốn mươi chín đô chín mươi chín',han_con_ngay=8,the_doc='Một thẻ mười đô',han_doc='ngày năm tháng mười một',moc=dict(loai='khong'))
         l=dict(lf.doan(f,NGAY)); self.assertEqual(l['gia'],'Đang giảm tám mươi phần trăm trên PS Store Mỹ, từ bốn mươi chín đô chín mươi chín còn chín đô chín mươi chín.')
-        self.assertEqual(l['han'],'Giảm giá tới ngày năm tháng mười một, còn tám ngày nữa.'); self.assertEqual(dict(lf.doan(dict(f,han_con_ngay=1),NGAY))['han'],'Giảm giá tới ngày năm tháng mười một.')
+        self.assertEqual(l['han'],'Giảm giá tới ngày năm tháng mười một, còn tám ngày nữa.'); self.assertEqual(dict(lf.doan(dict(f,han_con_ngay=1),NGAY))['han'],'Giảm giá tới ngày năm tháng mười một, còn một ngày nữa.')   # 03/11: hinh + D3 doi 'con 1 ngay'
+        self.assertEqual(dict(lf.doan(dict(f,han_con_ngay=None),NGAY))['han'],'Giảm giá tới ngày năm tháng mười một.')
     def test_qua_ngan_bi_loai(self):
         f=dict(vnd_doc='a',ten_doc='b',ma='US',giam=80,gia_doc='c',goc_doc='g',han_con_ngay=0,the_doc='x',han_doc='y',moc=dict(loai='khong'))
         ds,g,bo=lf.lap_loi(f,NGAY); self.assertIsNone(ds); self.assertLess(g,16)
