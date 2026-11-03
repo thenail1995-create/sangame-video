@@ -34,6 +34,12 @@ def khung_cat(cr,w,h,H):
     tw,th=tw//2*2,th//2*2
     return tw,th,cx+(cw-tw)//2,cy
 def vf_cat(box): return f'crop={box[0]}:{box[1]}:{box[2]}:{box[3]}'
+def khung_day(cr,w,h,box):
+    """Dải ĐÁY để soi phụ đề (tw,th,x,y): 30% dưới của khung dùng + phần 10% đáy bị cắt bỏ, tới hết nội dung (03/11 run 41597351024: phụ đề
+    tiếng Anh nằm vắt qua đường cắt 10% -> trên khung đã cắt chỉ còn nửa trên con chữ, OCR khung đã cắt không đọc ra nhưng vẫn lộ ở mép dải)."""
+    cw,ch,cx,cy=cr if cr else (w,h,0,0)
+    y0=(box[3]+int(box[1]*0.7))//2*2; y1=min(h,cy+ch)
+    return [box[0],max(2,(y1-y0)//2*2),box[2],y0]
 H0=cao('tiktok')
 def cat_vien(f,d=None):
     """Dải đen: cropdetect rải khắp giữa trailer, lấy HỢP (union) các hộp -> không cắt nhầm nội dung tối (end card đen)."""
@@ -97,8 +103,9 @@ def mau_quet(f,s0,dl,box):
     me=[float(((x[...,0]>110)&(x[...,0]>1.6*x[...,1])&(x[...,0]>1.6*x[...,2])).mean()) for x in fr]
     return float(ya.min()),max(me)
 def chay_b(a): return subprocess.run(a,capture_output=True,check=True).stdout
-def hop_le(f,s0,dl,box):
-    """Doan [s0,s0+dl) hop le? -> (ok, ly do). Soi tren DUNG khung da cat: quet 4 khung/s (toi, mau me) + OCR / giu cho / logo o 3 khung."""
+def hop_le(f,s0,dl,box,day=None):
+    """Doan [s0,s0+dl) hop le? -> (ok, ly do). Soi tren DUNG khung da cat: quet 15 khung/s (toi, mau me) + OCR / giu cho / logo o 3 khung;
+    + OCR dai DAY (khung_day, gom phan 10% bi cat) o 5 khung: phu de chi hien luc co loi noi nen soi day hon."""
     vf=vf_cat(box)
     ymin,me=mau_quet(f,s0,dl,box)
     if ymin<30: return False,f'toi (YAVG min {ymin:.0f})'
@@ -113,6 +120,13 @@ def hop_le(f,s0,dl,box):
         if MH.phang(png)[1]<2.5 and sum(Image.open(png).convert('L').resize((64,36)).getdata())/(64*36)>120: return False,'logo/the chu nen sang'
         c=co_chu(png)
         if c: return False,f'co chu «{c}»'
+    if day:
+        for fr in (0.08,0.3,0.5,0.7,0.92):
+            png=TS/'_fd.png'; png.unlink(missing_ok=True)
+            chay(['ffmpeg','-v','error','-y','-ss',f'{s0+dl*fr:.2f}','-i',f,'-frames:v','1','-vf',vf_cat(day)+',scale=1080:-2',str(png)])
+            if not png.exists(): return False,'khong chup duoc dai day'
+            c=co_chu(png)
+            if c: return False,f'chu o mep duoi / phu de «{c}»'
     return True,''
 DOAN=T/'nen-doan.json'
 cu=json.load(open(DOAN)) if DOAN.exists() else {}
@@ -129,7 +143,7 @@ else:
         global het
         try: f,w,h,d,steam,u=next(gen)
         except StopIteration: het=True; return False
-        cr=cat_vien(f,d); box=khung_cat(cr,w,h,H0)
+        cr=cat_vien(f,d); box=khung_cat(cr,w,h,H0); day=khung_day(cr,w,h,box)
         o=chay(['ffmpeg','-v','error','-i',f,'-vf','scdet=threshold=10,metadata=print:key=lavfi.scd.time:file=-','-an','-f','null','-'],timeout=900)
         cut=[0.0]+sorted(float(x) for x in re.findall(r'lavfi.scd.time=([\d.]+)',o.stdout))+[d]
         lo,hi=d*CAT_DAU,d*(1-CAT_CUOI)
@@ -137,7 +151,7 @@ else:
         n0=len(POOL)
         for a,b in zip(cut,cut[1:]):
             a2,b2=max(a,lo),min(b,hi)
-            if b2-a2>=1.2: POOL.append(dict(src=f,w=w,h=h,box=box,a=a2,b=b2,steam=steam,id=len(POOL),ok=None))
+            if b2-a2>=1.2: POOL.append(dict(src=f,w=w,h=h,box=box,day=day,a=a2,b=b2,steam=steam,id=len(POOL),ok=None))
         print(f'trailer {pathlib.Path(f).name} {d:.0f}s {w}x{h} box={box}: {len(POOL)-n0} shot dung duoc',[(round(x["a"],1),round(x["b"],1)) for x in POOL[n0:]],flush=True); return True
     them_trailer()
     while sum(1 for s_ in POOL if s_['b']-s_['a']>=3.6)<8 and them_trailer(): pass   # nap them trailer cho toi khi du shot DAI (it cat giua canh)
@@ -145,7 +159,7 @@ else:
     def kiem(sh,s0,dl):
         k=(sh['id'],round(s0,2),round(dl,2))
         if k not in CHE:
-            CHE[k]=hop_le(sh['src'],s0,dl,sh['box']); print(f"  shot {sh['id']} {pathlib.Path(sh['src']).name} {s0:.1f}+{dl:.1f}s:",'DAT' if CHE[k][0] else 'LOAI '+CHE[k][1],flush=True)
+            CHE[k]=hop_le(sh['src'],s0,dl,sh['box'],sh.get('day')); print(f"  shot {sh['id']} {pathlib.Path(sh['src']).name} {s0:.1f}+{dl:.1f}s:",'DAT' if CHE[k][0] else 'LOAI '+CHE[k][1],flush=True)
         return CHE[k]
     def chon_canh(i,dl):
         """Một đoạn liền nếu có shot đủ dài; không thì ghép vài shot ngắn (mỗi shot một đoạn con)."""
