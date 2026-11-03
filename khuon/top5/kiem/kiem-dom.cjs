@@ -50,11 +50,11 @@ const r=await pg.evaluate(([MOC_DUNG,V,CANH])=>{
  // V3b: gia tren THE o moc dung yen (tu luc cham dich TL +0,2 s toi het hang) = dung gia du lieu, khong con so dang chay
  out.giaDung=[];
  for(let r=1;r<=5;r++){const c=CANH.find(c=>c.k==="h"+r);for(const t of [+(window.__LAND[r]+.2).toFixed(2),+(c.b-0.3).toFixed(2)]){window.__seek(t);const e=document.getElementById("gia"+r);out.giaDung.push({r,t,hien:vis(e),got:tx(e),mong:TOP[r-1].gia})}}
- out.bang={};
+ out.bang=[];   // MANG [t,{...}] theo THU TU MOC (khong dung object: khoa so nguyen nhu "24" bi JS dua len dau -> lech thu tu mong doi, run 41574060674)
  for(const t of MOC_DUNG){window.__seek(t);const rows={};
    for(let r=1;r<=5;r++){const row=document.getElementById("row"+r),bar=document.getElementById("bar"+r).getBoundingClientRect();
      rows[r]={sang:+row.dataset.sang,w:+bar.width.toFixed(2),left:+bar.left.toFixed(2)}}
    const xl=document.getElementById("xl").getBoundingClientRect(),lb=document.getElementById("tem200").getBoundingClientRect();
-   out.bang[t]={rows,xl:+(xl.left+xl.width/2).toFixed(2),lbR:+lb.right.toFixed(2)}}
+   out.bang.push([t,{rows,xl:+(xl.left+xl.width/2).toFixed(2),lbR:+lb.right.toFixed(2)}])}
  return out},[MOC_DUNG,V,C]);
 console.log(JSON.stringify(r));await b.close()})();
