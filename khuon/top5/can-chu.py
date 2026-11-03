@@ -121,8 +121,23 @@ def neo_doan():
     # 15/10 (run 38675292407): Whisper keo dau tu 'Hạng' som vao quang lang truoc do (7,60 -> noi that 8,09; 16,88 -> 17,25) -> chu dau doan
     # dat len tieng tho, tieng dong so hang de len 'bốn:' (A3 -12,9 dB). Neo nam trong lang -> doi toi diem bat dau noi dau tien (<= 0,8 s),
     # chi khi doan giua neo va diem do TOAN LANG (khong nuot tieng noi that).
+    def _het_cum(k):   # khung ngay sau cum co tieng bat dau o k (khoang lang < 120 ms ben trong cum khong tach cum)
+        j=k
+        while j<len(v):
+            if v[j]: j+=1; continue
+            m=j
+            while m<len(v) and not v[m]: m+=1
+            if m<len(v) and m-j<12: j=m
+            else: break
+        return j
     def _bam(t):
         k=int(round(t*100))
+        # 03/11 (Top 5 run 41574060674): Whisper keo dau tu 'Còn' ve DUOI tu cuoi cau truoc ('Kông!'): neo 28,74 trong khi tieng noi that bat dau 29,70.
+        # Neo dang o mot cum co tieng NGAN (<= 0,30 s = duoi tu cu) roi toi khoang lang >= 0,25 s -> tieng noi cua doan nam SAU khoang lang do.
+        if v[k]:
+            j=_het_cum(k); m=j
+            while m<len(v) and not v[m]: m+=1
+            if j-k<=30 and m-j>=25 and m-k<=150 and m<len(v): return m*.01
         if v[k:k+8].sum()>=5: return t
         for j in range(k,min(len(v)-8,k+80)):
             if v[j] and v[j:j+8].sum()>=5: return j*.01
@@ -134,8 +149,25 @@ def neo_doan():
         # bo duoi lang cuoi doan: diem co tieng cuoi cung truoc ranh gioi
         ka,kb=int(a*100),int(b*100); vv=np.where(v[ka:kb])[0]
         if len(vv): b=min(b,(ka+vv[-1]+1)*.01+0.05)
-        wgt=[am_tiet(g['w']) for g in ws]; tot=sum(wgt); t=a; D=b-a
-        for g,wi in zip(ws,wgt): g['s']=t; t+=D*wi/tot; g['e']=t
+        wgt=[am_tiet(g['w']) for g in ws]; tot=sum(wgt)
+        # 03/11: chia chu theo am tiet CHI tren thoi gian CO TIENG (bo khoang lang >= 150 ms, dung nhu ghi chu o dau cach NEO DOAN). Truoc day chia deu ca doan
+        # ke ca quang nghi sau dau phay -> cua so chu 'giảm' (10,99-11,21) roi tron vao quang nghi (tieng that bat dau 11,20): A3 -17,7 dB.
+        act=v[ka:int(round(b*100))].copy(); n_=len(act); i0=0
+        while i0<n_:
+            if act[i0]: i0+=1; continue
+            j0=i0
+            while j0<n_ and not act[j0]: j0+=1
+            if 0<i0 and j0<n_ and j0-i0<15: act[i0:j0]=True
+            i0=j0
+        P=np.nonzero(act)[0]; N=len(P)
+        if N<len(ws)*2:   # qua it tieng de chia -> chia deu nhu cu
+            t=a; D=b-a
+            for g,wi in zip(ws,wgt): g['s']=t; t+=D*wi/tot; g['e']=t
+            continue
+        c=0
+        for i,(g,wi) in enumerate(zip(ws,wgt)):
+            lo=int(round(c/tot*N)); c+=wi; hi=max(lo+1,int(round(c/tot*N))) if i<len(ws)-1 else N
+            g['s']=a if i==0 else (ka+P[min(lo,N-1)])*.01; g['e']=(ka+P[hi-1]+1)*.01
     return [(a,b) for a,b in zip(bien,bien[1:])],f"{len(ds)} doan neo tai "+' '.join(f'{x:.2f}' for x in neo)
 ranh=None; ghi_chu='ep cach du_phong' if CACH_EP=='du_phong' else ''; CACH='du_phong'
 if CACH_EP in (None,'neo_doan'):
