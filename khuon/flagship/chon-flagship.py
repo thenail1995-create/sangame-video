@@ -56,7 +56,7 @@ def tinh_giam(gia_cuc_bo,goc):
 class Chon:
     """Moi phu thuoc ngoai (mang, lich su, deal_diem, video Steam) truyen qua ham/doi tuong de test khong mang."""
     def __init__(s,ngay,gio_dang,bang,gia_the,deal_diem,lay_trang,nb,video_steam):
-        s.ngay=ngay; s.gia_the=gia_the; s.dd=deal_diem; s.lay_trang=lay_trang; s.nb=nb; s.video_steam=video_steam
+        s.ngay=ngay; s.gia_the=gia_the; s.dd=deal_diem; s.lay_trang=lay_trang; s.nb=nb; s.video_steam=video_steam; s.bo_pid=set()
         s.gio=gio_dang; s.han_ms=int((datetime.datetime.fromisoformat(f'{ngay}T{gio_dang}:00+07:00')+datetime.timedelta(seconds=DEM_SAU_GIO)).timestamp()*1000)
         s.bang=bang; s.loai=[]; s.canh_bao=[]; s.kieu_mo=lf.kieu_mo(ngay)
     def ghi_loai(s,r,ly): s.loai.append(f"#{r.get('hang')} {str(r.get('ten'))[:40]} ({r.get('vung_re_nhat')}, {r.get('gia_vnd')}đ): {ly}")
@@ -72,6 +72,7 @@ class Chon:
         loc,pid=tach_link(r.get('link'))
         if not pid: return None,f"link không đúng dạng store.playstation.com/<loc>/product/<pid>: {r.get('link')}"
         if loc!=dt.LOC_CUA_MA[ma]: return None,f'locale {loc} lệch vùng {ma}'
+        if pid in s.bo_pid: return None,'loại tay khi dựng lại (BO_PID: không đủ đoạn trailer sạch)'
         ly=s.nb.trung(r['ten'],[pid])
         if ly: return None,f'đã nổi bật trong 3 ngày: {ly}'
         ten_goc=r['ten']
@@ -188,7 +189,7 @@ def main(argv=None,env=None):
                 except Exception: kq=[]
                 if kq: return kq
             return []
-        ch=Chon(ngay,gio,bang,gia_the,deal_diem,lay_trang_mang,nb,video_steam)
+        ch=Chon(ngay,gio,bang,gia_the,deal_diem,lay_trang_mang,nb,video_steam); ch.bo_pid={x.strip() for x in (env.get('BO_PID') or '').split(',') if x.strip()}
         f=ch.chon()
         (T/'tai-san').mkdir(exist_ok=True)
         for lan in range(3):
