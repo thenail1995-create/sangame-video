@@ -15,7 +15,7 @@ def doan(f,ngay_iso,co_moc=True):
         ('gia',f"Đang giảm {dt.so_chu(f['giam'])} phần trăm trên PS Store {v}, từ {f['goc_doc']} còn {f['gia_doc']}."),
         ('the',f"{f['the_doc']} là vừa khít, đúng {f['vnd_doc']}.")]
     if co_moc and (f.get('moc') or {}).get('loai') in ('tin','thap_nhat'): ra.append(('moc',f['moc']['cau']))
-    ra+= [('han',f"Giảm giá tới {f['han_doc']}"+(f", còn {dt.so_chu(f['han_con_ngay'])} ngày nữa." if (f.get('han_con_ngay') or 0)>=2 else '.')),('vung',f'Nhớ là cần tài khoản PSN {v}.'),('ket',SLOGAN)]
+    ra+= [('han',f"Giảm giá tới {f['han_doc']}"+(f", còn {dt.so_chu(f['han_con_ngay'])} ngày nữa." if (f.get('han_con_ngay') or 0)>=1 else '.')),('vung',f'Nhớ là cần tài khoản PSN {v}.'),('ket',SLOGAN)]
     return ra
 def _am_tiet(tu):
     t=tu.strip('.,!?:;')

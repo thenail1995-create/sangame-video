@@ -266,7 +266,7 @@ function ve(t){
   }
   /* ----- MOC: dong chu truot ra tu sau vach (#005) ----- */
   if(CO_MOC&&scene($('sMoc'),t,'moc')){
-    var lu2=t-(T.moc-.3), lg2=eio(p(lu2,.1,.4)); tf($('mdiv'),'scaleX('+lg2.toFixed(4)+')'); op($('mdiv'),lg2>.005?1:0);
+    var lu2=t-(Math.max(T.moc,C.moc.a+.14)-.3), lg2=eio(p(lu2,.1,.4)); tf($('mdiv'),'scaleX('+lg2.toFixed(4)+')'); op($('mdiv'),lg2>.005?1:0);
     tf($('mt1'),'translateY('+((1-eo5(p(lu2,.35,.65)))*230).toFixed(2)+'px)');
     tf($('mt2'),'translateY('+((1-eo5(p(lu2,.55,.6)))*-200).toFixed(2)+'px)');
   } else show($('sMoc'),false);

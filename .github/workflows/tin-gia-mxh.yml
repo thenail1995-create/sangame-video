@@ -130,7 +130,11 @@ jobs:
           set -euo pipefail
           THEM=()
           if [ "$CHE_DO" = "thu" ] && [ "$BO_NOI_BAT" = "true" ]; then THEM+=(--bo-noi-bat); fi
-          python -m dang.tin_gia_mxh --kenh "$KENH" --ngay "$NGAY" --che-do "$CHE_DO" --du-lieu "$DU_LIEU_REPO" "${THEM[@]}"
+          # ma thoat 3 = BO KHUNG co chu dich (khong tin dat cong, gia doi, qua gio...) da bao ntfy -> xanh, giong dung.yml (03/11 run 41575016441:
+          # Threads khong chon duoc tin -> ca workflow do, tuong may hong). Chi xanh khi ntfy da gui (DA_BAO_FILE); ma 1/2 van do.
+          set +e; python -m dang.tin_gia_mxh --kenh "$KENH" --ngay "$NGAY" --che-do "$CHE_DO" --du-lieu "$DU_LIEU_REPO" "${THEM[@]}"; rc=$?; set -e
+          if [ "$rc" = 3 ] && [ -e "$DA_BAO_FILE" ]; then echo "bo khung (ma 3), da bao ntfy"; exit 0; fi
+          exit "$rc"
       - name: Artifact pha thu (video/anh + caption + chon.json + kiem.json; KHONG co anh Sony)
         if: always() && inputs.che_do == 'thu' && steps.vao.outputs.chay == '1'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -42,9 +42,11 @@ def danh_gia_the(ma,gia_cuc_bo,tien_te,gia_the,ngay,deal_diem):
     return dict(the=the,tong_menh_gia=tong,thua=kq['thua'],vnd=kq['vnd']),None
 
 def han_con_ngay(end_ms,ngay,gio):
-    """So ngay con lai tu luc dang (ngay+gio VN) toi endTime, lam tron xuong."""
+    """So ngay con lai tu luc dang (ngay+gio VN) toi endTime, lam tron xuong. < 1 ngay -> None: khong noi/hien "con 0 ngay",
+    chi noi + hien ngay han (03/11 run 41593967754: loi doc bo "con N ngay" khi N < 2 trong khi hinh + D1 + D3 doi "CON N NGAY" -> truot D3)."""
     dang=datetime.datetime.fromisoformat(f'{ngay}T{gio}:00+07:00').timestamp()
-    return int((int(end_ms)/1000-dang)//86400)
+    n=int((int(end_ms)/1000-dang)//86400)
+    return n if n>=1 else None
 
 def tinh_giam(gia_cuc_bo,goc):
     """% giam tu gia goc + gia ban DOC TREN TRANG. Khong co goc / goc <= gia ban -> None."""
