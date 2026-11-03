@@ -65,7 +65,9 @@ def ung_vien():
     for k,u in enumerate(urls[:4]):
         r=tai(f'a{k}',u,steam0)
         if r: yield r+(steam0,u)
-    vs=[{'url':u} for u in (G.get('video_steam') or [])]
+    # 03/11 run 41600897026: video_steam trong flagship.json la dict(url,ten,app_id) -> boc lai thanh {'url':dict} lam tai() vo (AttributeError 'split');
+    # chung video nay da nam o G.trailer (nguon steam) -> bo trung, khong tai lai
+    vs=[v if isinstance(v,dict) else {'url':v} for v in (G.get('video_steam') or [])]; vs=[v for v in vs if v.get('url') and v['url'] not in urls[:4]]
     if not vs:
         for ten in dict.fromkeys([x for t0 in (G.get('ten'),G.get('ten_goc')) if t0 for x in (t0,re.sub(r'\s+(Deluxe|Ultimate|Definitive|Digital|Standard|Complete|Gold|Premium|Game of the Year|GOTY)\b.*$','',t0,flags=re.I).strip())]):
             vs=VS.tim_video(ten) if ten else []

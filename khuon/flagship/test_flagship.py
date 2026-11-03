@@ -217,3 +217,11 @@ class DealDiemThat(unittest.TestCase):
         g=json.load(open(repo/'du-lieu'/'gia-the.json')); th,ly=CF.danh_gia_the('US',19.99,'USD',g,g['ngay'],deal_diem)
         self.assertIsNone(ly); self.assertEqual((dt.so_tam(th['the']),th['vnd']%1000),(2,0))
 if __name__=='__main__': unittest.main()
+
+class BoPid(unittest.TestCase):
+    """03/11 run 41600897026: RE Revelations chi co trailer Steam day phu de -> het doan sach. Dung lai voi BO_PID phai chon game ke."""
+    def test_bo_pid_loai_dung_game(self):
+        P='UP0102-CUSA06314_00-RERHDPS400000000'
+        ch=CF.Chon.__new__(CF.Chon); ch.bo_pid={P}; ch.nb=None   # nb=None: loc BO_PID phai chan TRUOC khi xet trung / tai trang
+        r=dict(hang=1,ten='Resident Evil Revelations',nen_tang='ps',vung_re_nhat='US',da_kiem_trang=True,cach_quy='the',giam=75,link=f'https://store.playstation.com/en-us/product/{P}')
+        f,ly=ch.xet(r); self.assertIsNone(f); self.assertIn('BO_PID',ly)

@@ -60,6 +60,10 @@ on:
         description: che_do=thu - van tao Release pre-release thu-<ngay>-<dang> (de thu may dang E5)
         type: boolean
         default: false
+      bo_pid:
+        description: CHI flagship - PID loai khi dung lai (phay ngan cach), vd game khong co doan trailer sach -> chon game ke
+        required: false
+        type: string
       may:
         description: May cho 3 job nang (chon, chung, ban). Mac dinh ubuntu-24.04 = may GitHub MIEN PHI (repo cong khai, 4 nhan); ubicloud-standard-8 = 8 nhan, tinh tien, chi khi can gap
         type: choice
@@ -274,6 +278,7 @@ jobs:
           DU_LIEU_REPO: ${{ github.workspace }}/du-lieu
           KEO_DIR: ${{ github.workspace }}/keo-du-lieu
           CHE_DO: ${{ github.event.inputs.che_do || github.event.client_payload.che_do || 'thu' }}
+          BO_PID: ${{ github.event.inputs.bo_pid }}
         run: |
           set -uo pipefail
           rc=0; bash "khuon/$KHUON/chuan-bi.sh" || rc=$?   # shell GitHub chay bash -e: phai bat ma thoat kieu nay, khong thi 3/4 lam do job (11/10 run 38149526532)
