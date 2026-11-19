@@ -604,3 +604,36 @@ class NhoLe(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class KenhChay(unittest.TestCase):
+    """SG_DO_SO_BO_QUA: tat viec DO mot kenh da ngung dang (19/11/2026 - Instagram roi khoi Trang nen do no
+    lam workflow do ngay nao cung do). Kenh con bat van do va van bao loi nhu cu."""
+
+    def test_khong_dat_thi_do_du_kenh(self):
+        self.assertEqual([t for t, _ in chay.kenh_chay("")], [t for t, _ in chay.KENH])
+
+    def test_bo_mot_kenh(self):
+        ten = [t for t, _ in chay.kenh_chay("Instagram")]
+        self.assertNotIn("Instagram", ten)
+        self.assertEqual(len(ten), len(chay.KENH) - 1)
+        self.assertIn("Facebook", ten)
+
+    def test_khong_phan_biet_hoa_thuong_va_khoang_trang(self):
+        self.assertEqual([t for t, _ in chay.kenh_chay(" instagram , TIKTOK ")],
+                         [t for t, _ in chay.KENH if t not in ("Instagram", "TikTok")])
+
+    def test_ten_la_thi_bo_qua_khong_tat_nham(self):
+        self.assertEqual([t for t, _ in chay.kenh_chay("insta,facebok")], [t for t, _ in chay.KENH])
+
+    def test_doc_tu_bien_moi_truong(self):
+        import os
+        cu = os.environ.get("SG_DO_SO_BO_QUA")
+        os.environ["SG_DO_SO_BO_QUA"] = "Instagram"
+        try:
+            self.assertNotIn("Instagram", [t for t, _ in chay.kenh_chay()])
+        finally:
+            if cu is None:
+                os.environ.pop("SG_DO_SO_BO_QUA", None)
+            else:
+                os.environ["SG_DO_SO_BO_QUA"] = cu

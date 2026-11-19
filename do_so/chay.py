@@ -639,6 +639,16 @@ KENH = (("Facebook", do_facebook), ("Instagram", do_instagram), ("Threads", do_t
         ("YouTube", do_youtube), ("TikTok", do_tiktok), ("X", do_x))     # Facebook truoc Instagram (do_dai dung chung)
 
 
+def kenh_chay(bo_qua=None):
+    """Bo bot kenh theo SG_DO_SO_BO_QUA (ten kenh cach nhau bang dau phay, khong phan biet hoa thuong).
+    Dung khi mot kenh DA TAT (khong con dang bai): do no chi sinh bao dong gia moi luot.
+    Kenh con bat ma loi thi VAN do va VAN bao - bien nay khong che loi cua kenh dang chay.
+    Ten khong khop kenh nao -> bo qua, de sai chinh ta khong lam tat nham ca bo."""
+    nguon = os.environ.get("SG_DO_SO_BO_QUA", "") if bo_qua is None else bo_qua
+    bo = {x.strip().lower() for x in str(nguon).split(",") if x.strip()}
+    return [(ten, fn) for ten, fn in KENH if ten.lower() not in bo]
+
+
 def qua_nguong(so_bai, loi_bai):
     return loi_bai > 0 and loi_bai / (so_bai + loi_bai) > NGUONG_LOI_BAI
 
@@ -680,7 +690,12 @@ def chay(che_do, so_ngay, cong, ra=None):
         ngay += dt.timedelta(days=1)
     dong_so = [r for r in dong_so if r.get("trang_thai") == "da_dang" and r.get("id_bai") and r.get("kenh")]
     ctx = Ctx(cong, bat_dau, bay, dong_so)
-    kqs = [chay_kenh(ten, fn, ctx) for ten, fn in KENH]
+    ds_kenh = kenh_chay()
+    con = {ten for ten, _ in ds_kenh}
+    bo = [ten for ten, _ in KENH if ten not in con]
+    if bo:
+        chung.log("bo qua kenh (SG_DO_SO_BO_QUA): " + ", ".join(bo))
+    kqs = [chay_kenh(ten, fn, ctx) for ten, fn in ds_kenh]
     bai, kenh = {}, {}
     for kq in kqs:
         for d in kq.bai:
