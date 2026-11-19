@@ -1,6 +1,7 @@
 name: Do so lieu
 # cron-job.org goi workflow_dispatch luc 16:30 va 23:30 gio VN (job "SG Do so lieu ..."). KHONG co `schedule`.
-# Doc API chinh chu 5 kenh -> ghi sg_so_lieu / sg_so_kenh qua cong sg-cong (viec ghi_so_lieu). Khong in token, khong in so tung bai.
+# Doc API chinh chu cac kenh -> ghi sg_so_lieu / sg_so_kenh qua cong sg-cong (viec ghi_so_lieu). Khong in token, khong in so tung bai.
+# Bien repo SG_DO_SO_BO_QUA = kenh da NGUNG DANG, khong do nua (19/11/2026: Instagram - tai khoan khong con noi voi Trang).
 on:
   workflow_dispatch:
     inputs:
@@ -35,6 +36,7 @@ jobs:
           ZERNIO_KHOA: ${{ secrets.ZERNIO_KHOA }}
           NTFY_BAO_LOI: ${{ secrets.NTFY_BAO_LOI }}
           CHE_DO: ${{ inputs.che_do }}
+          SG_DO_SO_BO_QUA: ${{ vars.SG_DO_SO_BO_QUA }}   # ten kenh KHONG do nua (vd Instagram), cach nhau bang dau phay
           DA_BAO_FILE: ${{ runner.temp }}/do-so-da-bao   # chay.py tao file nay khi ntfy da gui THANH CONG
         run: |
           set -euo pipefail
