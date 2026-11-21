@@ -367,6 +367,7 @@ jobs:
             video/fixture/${{ env.FX_DIR }}
           persist-credentials: false
       - name: ffmpeg tinh (ghim sha256)
+        timeout-minutes: 5     # binh thuong 5 giay; tai qua mang nen cung treo duoc
         run: |
           set -euo pipefail
           mkdir -p cong-cu/bin
@@ -386,6 +387,7 @@ jobs:
           path: ~/apt-debs
           key: apt-deb-tesseract-ubuntu-24.04-${{ steps.apt.outputs.tuan }}
       - name: tesseract (OCR bat anh giu cho PS Store - K18) tu cache .deb, thieu thi apt
+        timeout-minutes: 5     # binh thuong 5 giay; apt-get cung treo duoc
         run: |
           set -euo pipefail
           D="$HOME/apt-debs"; mkdir -p "$D"
@@ -409,6 +411,9 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('cong-cu/package-lock.json') }}
       - name: Playwright (ban ghim trong package-lock) + Chromium
+        # 20/11/2026: buoc nay treo >60 phut (run 44666455098) -> job `chung` an het tran 60 phut,
+        # luot 10:45 xep hang 32 phut, Release ra 12:05, lo ca hai luot dang. Binh thuong 12 giay.
+        timeout-minutes: 10
         run: |
           set -euo pipefail
           cd cong-cu && npm ci --ignore-scripts
@@ -622,6 +627,7 @@ jobs:
             video/tai-san/ffmpeg
           persist-credentials: false
       - name: ffmpeg tinh (ghim sha256)
+        timeout-minutes: 5     # binh thuong 5 giay; tai qua mang nen cung treo duoc
         run: |
           set -euo pipefail
           mkdir -p cong-cu/bin
@@ -641,6 +647,7 @@ jobs:
           path: ~/apt-debs
           key: apt-deb-tesseract-ubuntu-24.04-${{ steps.apt.outputs.tuan }}
       - name: tesseract (OCR bat anh giu cho PS Store - K18) tu cache .deb, thieu thi apt
+        timeout-minutes: 5     # binh thuong 5 giay; apt-get cung treo duoc
         run: |
           set -euo pipefail
           D="$HOME/apt-debs"; mkdir -p "$D"
@@ -664,6 +671,9 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('cong-cu/package-lock.json') }}
       - name: Playwright (ban ghim trong package-lock) + Chromium
+        # 20/11/2026: buoc nay treo >60 phut (run 44666455098) -> job `chung` an het tran 60 phut,
+        # luot 10:45 xep hang 32 phut, Release ra 12:05, lo ca hai luot dang. Binh thuong 12 giay.
+        timeout-minutes: 10
         run: |
           set -euo pipefail
           cd cong-cu && npm ci --ignore-scripts
