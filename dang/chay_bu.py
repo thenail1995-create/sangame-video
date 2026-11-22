@@ -383,13 +383,16 @@ def quyet_dinh(trang_thai: TrangThai | dict, bay_gio: dt.datetime) -> list[Viec]
 
 
 # ---------------------------------------------------------------- GitHub API client + doc trang thai
-def _bao(tieu_de: str, noi_dung: str, click: str | None = None):
+def _bao(tieu_de: str, noi_dung: str, click: str | None = None) -> bool:
+    """-> True neu ntfy gui duoc."""
     chung.log_loi(f"chay_bu: {tieu_de}: {noi_dung}")
-    if ntfy.loi(tieu_de, noi_dung, click=click) is True and os.environ.get("DA_BAO_FILE"):
+    da_gui = ntfy.loi(tieu_de, noi_dung, click=click) is True
+    if da_gui and os.environ.get("DA_BAO_FILE"):
         try:
             open(os.environ["DA_BAO_FILE"], "w").close()
         except OSError:
             pass
+    return da_gui
 
 
 def nap_kiem_do_moi():
@@ -632,7 +635,8 @@ def doc_trang_thai(
     cb = [(r, tv, nd) for r, tv, nd in co_nhan if nd["pha"] == "chuan-bi"]
     if cb:
         r_cb, tv_cb, nd_cb = max(cb, key=lambda x: x[1])
-        if r_cb.get("status") == "completed" and r_cb.get("conclusion") == "success" and not any(
+        # vong 2: nhan ca chuan-bi do mot phan (failure); quyet_dinh con doi dong chuan_bi_xong that su ton tai
+        if r_cb.get("status") == "completed" and r_cb.get("conclusion") in ("success", "failure") and not any(
             nd["pha"] == "cong-khai" and tv >= tv_cb for _r, tv, nd in co_nhan
         ):
             cho_ck = nd_cb["gio_bu"] or GIO_DANG_TOP5
@@ -770,8 +774,8 @@ def thuc_thi(ds_viec: list[Viec], cong, gh, *, bay_gio_fn=None, ngu_fn=None) -> 
     # 1. Thong bao bo ngay + mo khung so-va-dat
     for v in ds_viec:
         if v.loai == "bo_ngay":
-            _bao(f"Chạy bù {v.dang}: bỏ ngày {ngay}", v.ly_do)
-            chung.log(f"chay_bu: DA_BAO qua-22h:{v.dang}")   # doc_trang_thai cua luot sau doc dong nay (soi cheo #4)
+            if _bao(f"Chạy bù {v.dang}: bỏ ngày {ngay}", v.ly_do):   # vong 2 soi cheo: ntfy hong -> luot sau bao lai
+                chung.log(f"chay_bu: DA_BAO qua-22h:{v.dang}")   # doc_trang_thai cua luot sau doc dong nay (soi cheo #4)
         elif v.loai == "mo_khung":
             tong = 0
             loi_mo: str | None = None
@@ -847,12 +851,25 @@ def thuc_thi(ds_viec: list[Viec], cong, gh, *, bay_gio_fn=None, ngu_fn=None) -> 
             _bao(f"Đăng bù Top 5 {ngay}: đợi pha chuẩn bị lỗi", chung.cat(f"{type(e).__name__}: {e}", 300))
             return 1
         if r_cb.get("conclusion") != "success":
+            # vong 2 soi cheo: chuan-bi do khi CHI MOT kenh loi (16-21/11 gan nhu moi luot chuan-bi deu do). Lich thuong 12:00 van
+            # cong khai cac kenh da chuan_bi_xong -> chay bu lam giong vay; khong kenh nao san sang moi dung.
+            try:
+                san_sang = [r.get("kenh") for r in cong.doc_dang(ngay, ngay, "that")
+                            if r.get("dang") == v.dang and r.get("trang_thai") == "chuan_bi_xong"]
+            except Exception as e:   # noqa: BLE001
+                san_sang, loi_doc = [], f"{type(e).__name__}: {e}"
+            else:
+                loi_doc = ""
             _bao(
                 f"Đăng bù Top 5 {ngay}: pha chuẩn bị lỗi",
-                f"Run {rid_cb} kết thúc với conclusion={r_cb.get('conclusion')!r}, dừng không công khai.",
+                f"Run {rid_cb} kết thúc với conclusion={r_cb.get('conclusion')!r}. "
+                + (f"Vẫn công khai kênh đã sẵn sàng: {', '.join(sorted(map(str, san_sang)))}." if san_sang
+                   else f"Không kênh nào sẵn sàng, dừng không công khai.{(' ' + chung.cat(loi_doc, 150)) if loi_doc else ''}"),
                 click=r_cb.get("html_url"),
             )
-            return 1
+            if not san_sang or r_cb.get("conclusion") != "failure":
+                return 1
+            loi = True
         dich = _moc_tu_hhmm(ngay, v.gio_bu)
         con = (dich - _sang_vn(bay_gio_fn())).total_seconds()
         if con > 0:
@@ -860,7 +877,7 @@ def thuc_thi(ds_viec: list[Viec], cong, gh, *, bay_gio_fn=None, ngu_fn=None) -> 
             ngu_fn(con)
         if _cong_khai_top5(gh, v.workflow, {**v.inputs, "pha": "cong-khai"}, ngay, bay_gio_fn) != 0:
             return 1
-        chung.log(f"chay_bu: dang bu Top 5 {ngay} (gio_bu={v.gio_bu}) hoan tat")
+        chung.log(f"chay_bu: dang bu Top 5 {ngay} (gio_bu={v.gio_bu}) hoan tat{' (chuan-bi co kenh loi)' if loi else ''}")
     elif ck_lai is not None:
         chung.log(f"chay_bu: {ck_lai.ly_do} -> goi lai cong-khai gio_bu={ck_lai.gio_bu or GIO_DANG_TOP5}")
         if _cong_khai_top5(gh, ck_lai.workflow, ck_lai.inputs, ngay, bay_gio_fn) != 0:

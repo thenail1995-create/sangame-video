@@ -658,8 +658,9 @@ class SoiCheo2211Test(unittest.TestCase):
         runs = {"dang.yml": [run_gia(826, vn(14, 40), "Dang video [chuan-bi top5 that bu 15:10]", _inputs={"pha": "chuan-bi"})]}
         self.assertEqual(self._ke_chuan_bi_xong(runs, vn(16, 35))[1], [])
 
-    def test_chuan_bi_loi_thi_khong_cong_khai_lai(self):
-        runs = {"dang.yml": [run_gia(827, vn(14, 40), "Dang video [chuan-bi top5 that bu 15:10]", conclusion="failure",
+    def test_chuan_bi_het_gio_thi_khong_cong_khai_lai(self):
+        # failure (do một phần) thì vẫn công khai lại - xem SoiCheo2211Vong2Test; timed_out/cancelled thì không
+        runs = {"dang.yml": [run_gia(827, vn(14, 40), "Dang video [chuan-bi top5 that bu 15:10]", conclusion="timed_out",
                                      _inputs={"pha": "chuan-bi"})]}
         self.assertEqual(self._ke_chuan_bi_xong(runs, vn(15, 30))[1], [])
 
@@ -732,6 +733,63 @@ class SoiCheo2211Test(unittest.TestCase):
             chay_bu.thuc_thi([chay_bu.Viec(loai="bo_ngay", dang="top5", ly_do="qua 22h")], CongGia(), GitHubGia(),
                              bay_gio_fn=lambda: vn(22, 20), ngu_fn=lambda s: None)
         self.assertIn("DA_BAO qua-22h:top5", buf.getvalue())
+
+
+class SoiCheo2211Vong2Test(unittest.TestCase):
+    """Vòng 2 soi chéo: chuẩn bị đỏ một phần vẫn công khai các kênh đã chuan_bi_xong (giống lịch 12:00); DA_BAO chỉ khi ntfy gửi được."""
+
+    def _cong(self, tt_youtube):
+        cong = CongGia()
+        for k, t in (("youtube", tt_youtube), ("fb", "that_bai")):
+            r = dong_dang(k, t, None)
+            cong.dong[(r["ngay"], r["dang"], r["kenh"], r["che_do"])] = r
+        return cong
+
+    def _chay(self, cong):
+        gh = GitHubGia(co_release=True, ket_qua_run=["failure", "success"])
+        v = chay_bu.Viec(loai="dang_bu_top5", dang="top5", workflow="dang.yml", gio_bu="15:10",
+                         inputs={"dang": "top5", "ngay": NGAY, "che_do": "that", "gio_bu": "15:10"})
+        with mock.patch.object(ntfy, "loi", return_value=True):
+            rc = chay_bu.thuc_thi([v], cong, gh, bay_gio_fn=lambda: vn(15, 10), ngu_fn=lambda s: None)
+        return rc, [i.get("pha") for _w, i in gh.da_dispatch]
+
+    def test_chuan_bi_do_mot_phan_van_cong_khai_kenh_da_san_sang(self):
+        rc, pha = self._chay(self._cong("chuan_bi_xong"))
+        self.assertEqual(pha, ["chuan-bi", "cong-khai"])
+        self.assertEqual(rc, 1)   # vẫn báo đỏ vì chuẩn bị có kênh lỗi
+
+    def test_chuan_bi_do_khong_kenh_nao_san_sang_thi_khong_cong_khai(self):
+        rc, pha = self._chay(self._cong("that_bai"))
+        self.assertEqual(pha, ["chuan-bi"])
+        self.assertEqual(rc, 1)
+
+    def test_cong_khai_lai_nhan_ca_chuan_bi_do_mot_phan(self):
+        cong = self._cong("chuan_bi_xong")
+        runs = {"dang.yml": [run_gia(851, vn(14, 40), "Dang video [chuan-bi top5 that bu 15:10]", conclusion="failure",
+                                     _inputs={"pha": "chuan-bi"})]}
+        gh = GitHubGia(co_release=True, runs=runs)
+        gh.thong_tin_release = lambda tag: (True, vn(14, 30))
+        tt = chay_bu.doc_trang_thai(ngay=NGAY, cong=cong, gh=gh, du_lieu_moi=True, co_keo_ps=False,
+                                    sg_dang_bat="top5", sg_kenh_bat="top5:youtube", x_goc_bat=False)
+        self.assertEqual(tt.cho_cong_khai_top5, "15:10")
+        self.assertEqual([v.loai for v in chay_bu.quyet_dinh(tt, vn(15, 30))], ["cong_khai_bu_top5"])
+
+    def test_chuan_bi_bi_huy_thi_khong_cong_khai_lai(self):
+        cong = self._cong("chuan_bi_xong")
+        runs = {"dang.yml": [run_gia(852, vn(14, 40), "Dang video [chuan-bi top5 that bu 15:10]", conclusion="cancelled",
+                                     _inputs={"pha": "chuan-bi"})]}
+        gh = GitHubGia(co_release=True, runs=runs)
+        gh.thong_tin_release = lambda tag: (True, vn(14, 30))
+        tt = chay_bu.doc_trang_thai(ngay=NGAY, cong=cong, gh=gh, du_lieu_moi=True, co_keo_ps=False,
+                                    sg_dang_bat="top5", sg_kenh_bat="top5:youtube", x_goc_bat=False)
+        self.assertIsNone(tt.cho_cong_khai_top5)
+
+    def test_ntfy_hong_thi_khong_ghi_da_bao(self):
+        buf = io.StringIO()
+        with mock.patch.object(ntfy, "loi", return_value=False), contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+            chay_bu.thuc_thi([chay_bu.Viec(loai="bo_ngay", dang="top5", ly_do="qua 22h")], CongGia(), GitHubGia(),
+                             bay_gio_fn=lambda: vn(22, 20), ngu_fn=lambda s: None)
+        self.assertNotIn("DA_BAO", buf.getvalue())
 
 
 if __name__ == "__main__":
