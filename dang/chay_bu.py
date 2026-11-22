@@ -455,7 +455,15 @@ class GitHubClient:
 
     def dispatch(self, workflow: str, inputs: dict, luc: dt.datetime | None = None) -> int:
         luc_gui = luc or self._bay_gio()
-        ids_cu = {r.get("id") for r in self.danh_sach_runs(workflow, "") if r.get("id")}
+        # 22/11 18:05 (run 45013057732): URLError o lan doc nay sau 30 phut ngu -> mat luot cong-khai. Thu lai nhu doi_run.
+        for lan in range(5):
+            try:
+                ids_cu = {r.get("id") for r in self.danh_sach_runs(workflow, "") if r.get("id")}
+                break
+            except LoiChayBu:
+                if lan == 4:
+                    raise
+                self._ngu(15)
         url = f"{manifest.API}/repos/{self.repo}/actions/workflows/{workflow}/dispatches"
         body_chi_tiet = {"ref": self.ref, "inputs": inputs, "return_run_details": True}
         try:
