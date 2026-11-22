@@ -592,6 +592,32 @@ class Luong(unittest.TestCase):
             self.assertEqual(self.chay(cong=CongXG([], self.su_kien), m=Mang()), 3)
         self.assertTrue(f.exists())
 
+    def test_dang_bu_gio_bu_thay_gio_khung_va_giu_cong_kiem(self):
+        self.bay_gio = dt.datetime(2026, 10, 28, 13, 10, tzinfo=chung.VN)
+        # Khong co gio_bu: da qua 10:00 VN -> thoat 3 nhu cu
+        self.assertEqual(self.chay(m=Mang()), 3)
+        # Co gio_bu=13:30 (qua env DANG_BU_GIO hoac --gio-bu): len lich 13:30 VN = 06:30:00Z
+        self.ntfy.clear()
+        with mock.patch.dict(os.environ, {"DANG_BU_GIO": "13:30"}):
+            self.assertEqual(self.chay(), 0, self.log)
+        q = [kw["json_body"]["query"] for mt, u, kw in self.m.goi if "api.buffer.com" in u and "createPost" in kw["json_body"]["query"]]
+        self.assertEqual(len(q), 1)
+        self.assertIn('dueAt: "2026-10-28T06:30:00Z"', q[0])
+        self.assertEqual(self.dong()["gio_du_kien"], "2026-10-28T06:30:00Z")
+
+    def test_dang_bu_qua_gio_bu_hoac_sai_dinh_dang(self):
+        self.bay_gio = dt.datetime(2026, 10, 28, 13, 29, tzinfo=chung.VN)
+        a = self.args()
+        a.gio_bu = "13:30"
+        buf = io.StringIO()
+        with mock.patch.object(http, "gui", Mang()), contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+            self.assertEqual(x_goc.chay(a, CongXG(su_kien=self.su_kien), chup_gia()), 3)
+        for sai in ("25:00", "9:30", "13h30"):
+            a_sai = self.args()
+            a_sai.gio_bu = sai
+            with mock.patch.object(http, "gui", Mang()), contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+                self.assertEqual(x_goc.chay(a_sai, CongXG(su_kien=self.su_kien), chup_gia()), 2)
+
 
 class TaiAnhZernio(unittest.TestCase):
     def test_presign_png_va_che_url(self):

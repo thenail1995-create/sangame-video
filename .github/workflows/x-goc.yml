@@ -22,6 +22,11 @@ on:
         description: "Ngay DANG (gio VN) YYYY-MM-DD. De trong = hom nay gio VN"
         required: false
         type: string
+      gio_bu:
+        description: "DANG BU (de trong khi chay theo lich): HH:MM gio VN moi trong CUNG ngay"
+        required: false
+        type: string
+run-name: ${{ inputs.gio_bu && format('X bai goc (bu {0})', inputs.gio_bu) || 'X bai goc' }}
 permissions: {}
 concurrency:
   group: x-goc-${{ inputs.che_do }}   # thu khong chan that
@@ -37,6 +42,7 @@ jobs:
       CHE_DO: ${{ inputs.che_do }}
       KHUNG: ${{ inputs.khung }}
       NGAY_VAO: ${{ inputs.ngay }}
+      DANG_BU_GIO: ${{ inputs.gio_bu }}
       BAT: ${{ vars.SG_X_GOC_BAT }}
     steps:
       - name: Quyet dinh chay (pha that can SG_X_GOC_BAT=1) + kiem ngay
@@ -49,6 +55,7 @@ jobs:
           fi
           NGAY="${NGAY_VAO:-$(TZ=Asia/Ho_Chi_Minh date +%F)}"
           [[ "$NGAY" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "ngay khong hop le"; exit 1; }
+          [[ -z "$DANG_BU_GIO" || "$DANG_BU_GIO" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]] || { echo "gio_bu sai (HH:MM)"; exit 1; }
           { echo "chay=1"; echo "ngay=$NGAY"; } >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: steps.vao.outputs.chay == '1'

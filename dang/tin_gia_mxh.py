@@ -72,8 +72,19 @@ def kenh_bat_rieng(gia_tri, dang, kenh):
 
 
 # ---------------------------------------------------------------- nap phu thuoc that
-def gio_du_kien(ngay, kenh):
-    h, m = (int(p) for p in chon.GIO[kenh].split(":"))
+def _doc_gio_bu(a):
+    raw = getattr(a, "gio_bu", None)
+    bu = (raw if isinstance(raw, str) else os.environ.get("DANG_BU_GIO") or "").strip()
+    if not bu:
+        return None
+    if not re.fullmatch(r"([01]\d|2[0-3]):([0-5]\d)", bu):
+        raise ValueError(f"gio_bu sai dinh dang HH:MM: {bu!r}")
+    return bu
+
+
+def gio_du_kien(ngay, kenh, gio_bu=None):
+    gio = gio_bu or chon.GIO[kenh]
+    h, m = (int(p) for p in gio.split(":"))
     return dt.datetime(ngay.year, ngay.month, ngay.day, h, m, tzinfo=chung.VN)
 
 
@@ -531,7 +542,7 @@ def lam(a, cong, phu, thu_muc):
     kenh, che_do = a.kenh, a.che_do
     ngay = dt.date.fromisoformat(a.ngay)
     dang = chon.DANG[kenh]
-    due = gio_du_kien(ngay, kenh)
+    due = gio_du_kien(ngay, kenh, _doc_gio_bu(a))
     ra, ts = pathlib.Path(a.ra) if a.ra else pathlib.Path(thu_muc) / "ra", pathlib.Path(thu_muc) / "tai-san"
     ra.mkdir(parents=True, exist_ok=True)
     ts.mkdir(parents=True, exist_ok=True)
@@ -703,10 +714,16 @@ def chay(a, cong=None, phu=None):
     if che_do == "that" and not kenh_bat_rieng(os.environ.get("SG_KENH_BAT"), dang, kenh):
         chung.log(f"tin_gia_mxh: SG_KENH_BAT khong co muc rieng {dang}:{kenh} - pha that dang tat, khong lam gi (khong giu so, khong goi nen tang)")
         return 0
+    try:
+        gio_bu = _doc_gio_bu(a)
+    except ValueError as e:
+        _bao("Tin giá " + kenh + ": sai gio_bu", str(e))
+        return 2
     ngay = dt.date.fromisoformat(a.ngay)
-    due = gio_du_kien(ngay, kenh)
+    due = gio_du_kien(ngay, kenh, gio_bu)
+    gio_hien = gio_bu or chon.GIO[kenh]
     if che_do == "that" and chung.bay_gio() > due - dt.timedelta(minutes=QUA_GIO_PHUT):
-        _bao("Tin giá " + kenh + ": quá giờ", f"bây giờ đã quá {chon.GIO[kenh]} VN - {QUA_GIO_PHUT} phút, không đăng bù")
+        _bao("Tin giá " + kenh + ": quá giờ", f"bây giờ đã quá {gio_hien} VN - {QUA_GIO_PHUT} phút, không đăng bù")
         return 3
     try:
         cong = cong or so.Cong()
@@ -746,6 +763,7 @@ def main(argv=None):
     ap.add_argument("--gia-the", default=None)
     ap.add_argument("--bo-noi-bat", action="store_true", help="CHI che do thu: bo loc game da noi bat o khuon khac (xem mau bai khi hom nay het ung vien)")
     ap.add_argument("--ra", default=None, help="thu muc ra (mac dinh: thu muc tam, chi RA_THU duoc chep)")
+    ap.add_argument("--gio-bu", default=os.environ.get("DANG_BU_GIO", ""), help="HH:MM gio VN dang bu cung ngay")
     a = ap.parse_args(argv)
     try:
         dt.date.fromisoformat(a.ngay)
