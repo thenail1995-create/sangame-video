@@ -792,5 +792,24 @@ class SoiCheo2211Vong2Test(unittest.TestCase):
         self.assertNotIn("DA_BAO", buf.getvalue())
 
 
+class DispatchThuLaiTest(unittest.TestCase):
+    def test_doc_runs_truoc_dispatch_loi_mang_tam_thoi_van_dispatch(self):
+        # 22/11 18:05 run 45013057732: URLError khi doc runs truoc dispatch cong-khai -> mat luot dang
+        m = Mang()
+        m.them("GET", "/workflows/dang.yml/runs", [
+            http.LoiMang("URLError"),
+            P(200, {"workflow_runs": []}),
+            P(200, {"workflow_runs": [{"id": 21, "status": "queued", "event": "workflow_dispatch", "created_at": "2026-11-22T11:20:01Z"}]}),
+        ])
+        m.them("POST", "/workflows/dang.yml/dispatches", P(204, raw=b""))
+        gio = [vn(18, 20)]
+        with mock.patch.object(http, "gui", m):
+            gh = chay_bu.GitHubClient(repo="thenail1995-create/sangame-video", token="ghs_x",
+                                      ngu_fn=lambda s: gio.__setitem__(0, gio[0] + dt.timedelta(seconds=s)),
+                                      bay_gio_fn=lambda: gio[0])
+            self.assertEqual(gh.dispatch("dang.yml", {"pha": "cong-khai"}, luc=vn(18, 20)), 21)
+        self.assertEqual(m.dem("POST", "/dispatches"), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
