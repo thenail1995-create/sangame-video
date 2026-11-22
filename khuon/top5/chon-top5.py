@@ -57,6 +57,39 @@ def video_steam(h):
         kq=VS.tim_video(ten)
         if kq: break
     _steam[h['khoa']]=kq; return kq
+# 22/11/2026 (run 45005642234): Mafia DE chi co 1 video Steam «Accolades - ESRB» (toan chu) -> job chung chet "KHONG video nao co doan
+# sang du dai", mat Top 5 ca ngay (14-15/11 game 4 cung vay: 43550656601, 43553232993, 43671507620, 43673756123). Do o buoc CHON bang
+# DUNG ham chon doan cua nen-top5.py (doan_nen.py): khong video Steam nao chon duoc doan -> LOAI game, lay game ke (giong chon-keo.py 19/10).
+import tempfile
+import doan_nen as DN
+DL_KIEM=3.2   # giay/doan: canh hang ~5,8 s chia 2 doan (19/11 run 44450132132: 2,92 s) - nhinh len de chua bien
+SO_VIDEO_KIEM=3   # nen-top5 thu toi 4 video Steam; do 3 cai dau (it hon -> chi co the loai nham, khong lot)
+NGAN_SACH_KIEM=480   # giay cho ca buoc chon (job chon 20 phut); het -> khong do nua, KHONG loai
+_giay_kiem=[0.0]
+def cao_trailer(): return int(json.load(open(T/'nen-tang.json'))['tiktok'].get('trailer',960))//2*2
+def kiem_video_steam(urls):
+    """-> None neu co it nhat 1 video Steam chon duoc doan nen (hoac khong do duoc / het ngan sach - khong loai vi ha tang); -> ly do loai."""
+    if _giay_kiem[0]>NGAN_SACH_KIEM:
+        print(f'    CANH BAO: het ngan sach do trailer Steam ({_giay_kiem[0]:.0f}s) - khong do, khong loai'); return None
+    t0=time.time(); loi=[]
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            for k,u in enumerate(urls[:SO_VIDEO_KIEM]):
+                f=os.path.join(td,f'v{k}.mp4')
+                r=DN.chay(['ffmpeg','-v','error','-y','-i',u,'-t','150','-vf','scale=-2:720','-c:v','libx264','-preset','veryfast','-crf','20',
+                           '-pix_fmt','yuv420p','-an',f],timeout=600)
+                if r.returncode!=0 or not os.path.exists(f): loi.append(f'#{k} tai loi'); continue
+                w,hh,dd=DN.thong(f); crop=DN.doc_crop(DN.cat_vien(f),w,hh,cao_trailer())
+                try:
+                    try: DN.chon_doan(f,dd,2,DL_KIEM,crop,3.0,4.0,tmp=td)
+                    except SystemExit: DN.chon_doan(f,dd,2,DL_KIEM,crop,3.0,4.0,long=True,tmp=td)
+                    print(f'    trailer Steam #{k} chon duoc doan nen ({time.time()-t0:.0f}s do)'); return None
+                except SystemExit as e: loi.append(f'#{k} khong co doan sang du dai')
+    except Exception as e:   # mang/ffmpeg/ha tang: khong loai game vi chuyen nay (nen-top5 se thu lai luc dung)
+        print(f'    CANH BAO: khong do duoc trailer Steam ({str(e)[:80]}) - khong loai'); return None
+    finally: _giay_kiem[0]+=time.time()-t0
+    if not loi or all(x.endswith('tai loi') for x in loi): return None   # khong tai duoc cai nao: khong ket luan
+    return f"trailer Steam khong chon duoc doan nen ({len(loi)} video da do: {'; '.join(loi)})"
 def xet(h):
     """Ung vien -> dict hoac None (kem ly do). Goi trang PS Store DUNG vung cua gia duoc chon."""
     k=dong_game(h['ten'])
@@ -84,6 +117,8 @@ def xet(h):
         vsteam=video_steam(h)
         if not vsteam: return None,'khong co video game (PS Store khong co trailer, Steam khong co app khop/khong co video)'
         trailer=[v['url'] for v in vsteam]; nguon='steam'
+        ly_tr=kiem_video_steam(trailer)
+        if ly_tr: return None,ly_tr
     return dict(h=h,pid=pid,loc=loc,trailer=trailer,nguon_video=nguon,video_steam=vsteam,anh_chup=m['anh_chup'][:6],endTime=g['endTime'],gia_cuc_bo=g['gia_cuc_bo'],tien_te=g['tien_te'] or TIEN_TE.get(ma)),None
 def ung_vien(X):
     u=[h for h in d['hangs'] if h['khoa'] in th and th[h['khoa']][0]+1<=HANG_DEM and h['giam']>0 and h['vnd'] is not None
