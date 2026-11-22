@@ -25,6 +25,10 @@ SCRIPT_KIEM_MOI = REPO_ROOT / "cong-cu" / "kiem_do_moi.py"
 MOC_DUNG_TOP5 = (10, 50)
 MOC_DANG_TOP5 = (11, 35)
 GIO_TOI_DA_BU = (22, 0)
+GIO_CHOT_CONG_KHAI = (22, 15)   # 22/11 soi cheo #3: khong dispatch cong-khai Top 5 sau moc nay (chuan-bi chay lau)
+GIO_DANG_TOP5 = "12:00"         # gio cong-khai thuong cua Top 5 (cron-job.org)
+PHUT_CHO_CONG_KHAI_MAT = 15     # 22/11 soi cheo #2: chuan-bi xong ma qua gio cong-khai >= 15 phut chua co luot cong-khai -> goi lai
+PHUT_CUA_SO_CONG_KHAI_LAI = 80  # < TRE_TOI_DA 90 phut cua chay.py (cong-khai tu chan neu tre hon)
 PHUT_BU_TOP5 = 30
 PHUT_BU_TIN_GIA = 30
 PHUT_BU_X_GOC = 20
@@ -37,7 +41,7 @@ class LoiChayBu(Exception):
 
 @dataclass(frozen=True)
 class Viec:
-    loai: str                       # mo_khung | dung_bu | dang_bu_top5 | dang_bu_x_goc | dang_bu_tin_gia | bo_ngay
+    loai: str                       # mo_khung | dung_bu | dang_bu_top5 | cong_khai_bu_top5 | dang_bu_x_goc | dang_bu_tin_gia | bo_ngay
     dang: str                       # top5 | x-goc | threads-gia | fb-gia | ig-gia
     workflow: str = ""              # dung.yml | dang.yml | x-goc.yml | tin-gia-mxh.yml
     inputs: dict = field(default_factory=dict)
@@ -69,6 +73,7 @@ class TrangThai:
     so_lan_bu_tin_gia: dict[str, int] = field(default_factory=dict)
     gio_tiktok: list[dt.datetime] = field(default_factory=list)
     da_bao: set[str] = field(default_factory=set)
+    cho_cong_khai_top5: str | None = None   # HH:MM gio dang cua lan chuan-bi Top 5 thanh cong chua co luot cong-khai sau no
 
 
 # ---------------------------------------------------------------- tien ich thuan
@@ -176,6 +181,24 @@ def _dieu_chinh_gio_tiktok(gio_bu_dt: dt.datetime, bay_gio_vn: dt.datetime, gio_
     return ung
 
 
+# 22/11 soi cheo #1: dung.yml/dang.yml mang run-name co nhan [..] de tach Top 5 khoi khung khac (flagship 13:35/14:05...)
+#   dung.yml: "Dung video [<dang> <che_do>]"   dang.yml: "Dang video [<pha> <dang> <che_do>[ bu HH:MM]]"
+_NHAN_RUN = re.compile(r"\[([^\[\]]*)\]\s*$")
+
+
+def nhan_run(r: dict) -> list[str] | None:
+    """-> cac tu trong nhan [..] cua run-name; None = run cu chua co nhan (truoc 22/11)."""
+    m = _NHAN_RUN.search(str(r.get("display_title") or ""))
+    return m.group(1).split() if m else None
+
+
+def nhan_dang(r: dict) -> dict | None:
+    n = nhan_run(r)
+    if n is None or len(n) < 3:
+        return None
+    return {"pha": n[0], "dang": n[1], "che_do": n[2], "gio_bu": n[4] if len(n) >= 5 and n[3] == "bu" else ""}
+
+
 # ---------------------------------------------------------------- ham quyet dinh THUAN
 def quyet_dinh(trang_thai: TrangThai | dict, bay_gio: dt.datetime) -> list[Viec]:
     """Ham quyet dinh thuan (khong mang, khong dong ho that): (trang_thai, bay_gio) -> list[Viec]."""
@@ -202,6 +225,27 @@ def quyet_dinh(trang_thai: TrangThai | dict, bay_gio: dt.datetime) -> list[Viec]
             r.get("trang_thai") != "bo" or not la_loi_thieu_du_lieu_hoac_release(r.get("loi"))
             for r in dong_chan
         )
+        # 22/11 soi cheo #2: chuan-bi da xong (dong chuan_bi_xong) ma mat luot cong-khai (dispatch/doi loi, runner chet, cron 12:00 khong goi)
+        # -> khung khoa vinh vien ca ngay. Goi lai cong-khai voi CUNG gio cua lan chuan-bi, trong cua so +15..+80 phut va truoc 22:15.
+        if (
+            tt.cho_cong_khai_top5
+            and not tt.dang_top5_dang_chay
+            and any(r.get("trang_thai") == "chuan_bi_xong" for r in dong_top5)
+        ):
+            moc_ck = _moc_tu_hhmm(ngay, tt.cho_cong_khai_top5)
+            if (
+                moc_ck + dt.timedelta(minutes=PHUT_CHO_CONG_KHAI_MAT) <= bay_vn
+                <= min(moc_ck + dt.timedelta(minutes=PHUT_CUA_SO_CONG_KHAI_LAI), _moc_vn(ngay, *GIO_CHOT_CONG_KHAI))
+            ):
+                gio_bu_ck = "" if tt.cho_cong_khai_top5 == GIO_DANG_TOP5 else tt.cho_cong_khai_top5
+                viec.append(Viec(
+                    loai="cong_khai_bu_top5",
+                    dang="top5",
+                    workflow="dang.yml",
+                    gio_bu=gio_bu_ck,
+                    inputs={"pha": "cong-khai", "dang": "top5", "ngay": ngay, "che_do": "that", "gio_bu": gio_bu_ck},
+                    ly_do=f"chuan-bi Top 5 (gio {tt.cho_cong_khai_top5}) xong nhung chua co luot cong-khai",
+                ))
         if not khung_khoa_vinh_vien:
             kenh_can_mo = tuple(sorted({str(r["kenh"]) for r in dong_chan if r.get("trang_thai") == "bo" and r.get("kenh")}))
             if not tt.co_release_top5:
@@ -426,19 +470,34 @@ class GitHubClient:
         moc_tu = luc_gui - dt.timedelta(seconds=15)
         for _ in range(18):
             self._ngu(5)
-            for run in self.danh_sach_runs(workflow, ""):
+            try:
+                ds_moi = self.danh_sach_runs(workflow, "")
+            except LoiChayBu:
+                continue   # 22/11 soi cheo #2: loi tam thoi khi tim run vua dispatch -> thu lai, khong mat dau
+            for run in ds_moi:
                 rid = run.get("id")
                 tao = x_goc._tg(run.get("created_at"))
                 if rid and rid not in ids_cu and run.get("event") == "workflow_dispatch" and (tao is None or tao >= moc_tu):
                     return int(rid)
         raise LoiChayBu(f"da dispatch {workflow} nhung khong tim thay run moi sau 90 giay")
 
-    def doi_run(self, run_id: int, toi_da_giay: int = 2700) -> dict:
+    def doi_run(self, run_id: int, toi_da_giay: int = 2700, loi_lien_toi_da: int = 4) -> dict:
         han = self._bay_gio() + dt.timedelta(seconds=toi_da_giay)
+        loi_lien = 0
         while True:
-            r = self._get(f"/repos/{self.repo}/actions/runs/{run_id}")
-            if r.status != 200:
-                raise LoiChayBu(f"doc run {run_id}: HTTP {r.status}")
+            # 22/11 soi cheo #2: mot lan 5xx / loi mang khi doc KHONG duoc lam mat dau luot dang (khung se ket chuan_bi_xong)
+            try:
+                r = self._get(f"/repos/{self.repo}/actions/runs/{run_id}")
+                ly_do = "" if r.status == 200 else f"HTTP {r.status}"
+            except LoiChayBu as e:
+                r, ly_do = None, str(e)
+            if ly_do:
+                loi_lien += 1
+                if loi_lien > loi_lien_toi_da or self._bay_gio() >= han:
+                    raise LoiChayBu(f"doc run {run_id}: {ly_do} ({loi_lien} lan lien)")
+                self._ngu(15)
+                continue
+            loi_lien = 0
             j = r.json()
             if isinstance(j, dict) and j.get("status") == "completed":
                 return j
@@ -511,9 +570,25 @@ def doc_trang_thai(
         co_rel, rel_tao_luc = gh.co_release_tag(tag_top5), None
 
     # --- dung.yml & dang.yml (Top 5)
-    runs_dung = gh.danh_sach_runs("dung.yml", ngay)
-    dung_chay = _co_run_dang_chay(runs_dung)
     moc_1050 = _moc_vn(ngay, *MOC_DUNG_TOP5)
+
+    def _la_dung_top5(r: dict) -> bool:
+        n = nhan_run(r)
+        if n is not None:
+            return len(n) >= 2 and n[0] == "top5" and n[1] == "that"
+        # run cu chua co nhan: lich thuong cua Top 5 la 10:15/10:45; sau 10:50 la khung khac (flagship 13:35/14:05) -> bo,
+        # tru khi con dang chay (than trong: doi luot sau)
+        t = x_goc._tg(r.get("created_at"))
+        return r.get("status") != "completed" or (t is not None and t.astimezone(chung.VN) < moc_1050)
+
+    def _la_dang_top5(r: dict) -> bool:
+        nd = nhan_dang(r)
+        if nd is not None:
+            return nd["dang"] == "top5" and nd["che_do"] == "that"
+        return r.get("status") != "completed"   # run cu chua nhan: chi tinh khi con chay (than trong)
+
+    runs_dung = [r for r in gh.danh_sach_runs("dung.yml", ngay) if _la_dung_top5(r)]
+    dung_chay = _co_run_dang_chay(runs_dung)
     so_dung_bu = 0
     for r, tv in _runs_hom_nay(runs_dung, ngay):
         if r.get("conclusion") in ("skipped", "cancelled"):   # 22/11: lượt bị huỷ (tay) không phải một lần dựng đã thử
@@ -534,7 +609,7 @@ def doc_trang_thai(
                 continue   # luot thoat o kiem-moi vi du lieu chua moi / khung dong -> khong phai da dung bu
         so_dung_bu += 1
 
-    runs_dang = gh.danh_sach_runs("dang.yml", ngay)
+    runs_dang = [r for r in gh.danh_sach_runs("dang.yml", ngay) if _la_dang_top5(r)]
     dang_chay = _co_run_dang_chay(runs_dang)
     moc_1140 = _moc_vn(ngay, 11, 40)
     moc_dang_bu = max(moc_1140, _sang_vn(rel_tao_luc) - dt.timedelta(seconds=5)) if rel_tao_luc is not None else moc_1140
@@ -549,6 +624,18 @@ def doc_trang_thai(
         kiem_job = next((j for j in jobs if j.get("name") == "kiem"), None)
         if kiem_job and kiem_job.get("conclusion") != "skipped":
             so_dang_bu += 1   # pha=chuan-bi chay sau khi co Release = luot dang bu
+
+    # 22/11 soi cheo #2: lan chuan-bi Top 5 thanh cong gan nhat hom nay ma chua co luot cong-khai nao tao sau no
+    cho_ck: str | None = None
+    co_nhan = [(r, tv, nhan_dang(r)) for r, tv in _runs_hom_nay(runs_dang, ngay)]
+    co_nhan = [(r, tv, nd) for r, tv, nd in co_nhan if nd is not None]
+    cb = [(r, tv, nd) for r, tv, nd in co_nhan if nd["pha"] == "chuan-bi"]
+    if cb:
+        r_cb, tv_cb, nd_cb = max(cb, key=lambda x: x[1])
+        if r_cb.get("status") == "completed" and r_cb.get("conclusion") == "success" and not any(
+            nd["pha"] == "cong-khai" and tv >= tv_cb for _r, tv, nd in co_nhan
+        ):
+            cho_ck = nd_cb["gio_bu"] or GIO_DANG_TOP5
 
     # --- x-goc.yml
     x_dang_chay = False
@@ -604,13 +691,13 @@ def doc_trang_thai(
             except chung.LoiDang as e:
                 chung.log_loi(f"chay_bu: khong doc duoc gio TikTok Zernio: {e}")
 
-    # --- Chong gui lap ntfy qua 22:00 luc dem
+    # --- Chong gui lap ntfy qua 22:00 luc dem: 22/11 soi cheo #4 - chi tinh muc da THAT SU bao (dong "DA_BAO qua-22h:<dang>"
+    # trong log cua luot chay-bu truoc), khong suy tu "luot sau 21:31 xanh" (luot thoat som vi du lieu cu cung xanh)
     da_bao: set[str] = set()
     moc_2131 = _moc_vn(ngay, 21, 31)
     for r, tv in _runs_hom_nay(gh.danh_sach_runs("chay-bu.yml", ngay), ngay):
-        if tv >= moc_2131 and r.get("status") == "completed" and r.get("conclusion") == "success":
-            da_bao.update({"qua-22h:top5", "qua-22h:x-goc", "qua-22h:threads-gia", "qua-22h:fb-gia", "qua-22h:ig-gia"})
-            break
+        if tv >= moc_2131 and r.get("status") == "completed" and r.get("conclusion") not in ("skipped", "cancelled"):
+            da_bao.update(re.findall(r"DA_BAO (qua-22h:[a-z0-9-]+)", gh.log_job_thuong("chay-bu.yml", r["id"])))
 
     return TrangThai(
         ngay=ngay,
@@ -634,10 +721,35 @@ def doc_trang_thai(
         so_lan_bu_tin_gia=so_bu_tg,
         gio_tiktok=gio_tt,
         da_bao=da_bao,
+        cho_cong_khai_top5=cho_ck,
     )
 
 
 # ---------------------------------------------------------------- thuc thi
+def _cong_khai_top5(gh, workflow: str, inputs: dict, ngay: str, bay_gio_fn) -> int:
+    """Dispatch dang.yml pha=cong-khai Top 5 roi doi. 0 = xanh; 1 = loi (da ntfy). Khong dispatch sau 22:15 VN (soi cheo #3)."""
+    bay = _sang_vn(bay_gio_fn())
+    if bay > _moc_vn(ngay, *GIO_CHOT_CONG_KHAI):
+        _bao(f"Đăng bù Top 5 {ngay}: quá 22:15, không công khai",
+             f"Pha chuẩn bị xong lúc {bay:%H:%M} VN (gio_bu={inputs.get('gio_bu') or GIO_DANG_TOP5}) - bỏ công khai hôm nay.")
+        return 1
+    try:
+        rid_ck = gh.dispatch(workflow, inputs, luc=bay_gio_fn())
+        chung.log(f"chay_bu: da dispatch {workflow} pha=cong-khai gio_bu={inputs.get('gio_bu')} -> run {rid_ck}")
+        r_ck = gh.doi_run(rid_ck)
+    except Exception as e:   # noqa: BLE001
+        _bao(f"Đăng bù Top 5 {ngay}: pha công khai lỗi", chung.cat(f"{type(e).__name__}: {e}", 300))
+        return 1
+    if r_ck.get("conclusion") != "success":
+        _bao(
+            f"Đăng bù Top 5 {ngay}: pha công khai lỗi",
+            f"Run {rid_ck} kết thúc với conclusion={r_ck.get('conclusion')!r}.",
+            click=r_ck.get("html_url"),
+        )
+        return 1
+    return 0
+
+
 def thuc_thi(ds_viec: list[Viec], cong, gh, *, bay_gio_fn=None, ngu_fn=None) -> int:
     """Thuc hien danh sach Viec. Tra 0 neu on, 1 neu co buoc loi (da ntfy)."""
     bay_gio_fn = bay_gio_fn or chung.bay_gio
@@ -659,6 +771,7 @@ def thuc_thi(ds_viec: list[Viec], cong, gh, *, bay_gio_fn=None, ngu_fn=None) -> 
     for v in ds_viec:
         if v.loai == "bo_ngay":
             _bao(f"Chạy bù {v.dang}: bỏ ngày {ngay}", v.ly_do)
+            chung.log(f"chay_bu: DA_BAO qua-22h:{v.dang}")   # doc_trang_thai cua luot sau doc dong nay (soi cheo #4)
         elif v.loai == "mo_khung":
             tong = 0
             loi_mo: str | None = None
@@ -693,8 +806,12 @@ def thuc_thi(ds_viec: list[Viec], cong, gh, *, bay_gio_fn=None, ngu_fn=None) -> 
 
     # 2. Uu tien Top 5: dispatch dung_bu hoac pha chuan-bi cua dang_bu_top5 TRUOC
     cho_top5: tuple[Viec, int] | None = None
+    ck_lai: Viec | None = None
     for v in ds_viec:
         if not duoc_phep(v.dang):
+            continue
+        if v.loai == "cong_khai_bu_top5":
+            ck_lai = v
             continue
         try:
             if v.loai == "dung_bu":
@@ -741,22 +858,14 @@ def thuc_thi(ds_viec: list[Viec], cong, gh, *, bay_gio_fn=None, ngu_fn=None) -> 
         if con > 0:
             chung.log(f"chay_bu: pha chuan-bi Top 5 xong, ngu {int(con)} giay toi gio_bu {v.gio_bu} VN")
             ngu_fn(con)
-        inp_ck = {**v.inputs, "pha": "cong-khai"}
-        try:
-            rid_ck = gh.dispatch(v.workflow, inp_ck, luc=bay_gio_fn())
-            chung.log(f"chay_bu: da dispatch {v.workflow} pha=cong-khai gio_bu={v.gio_bu} -> run {rid_ck}")
-            r_ck = gh.doi_run(rid_ck)
-        except Exception as e:   # noqa: BLE001
-            _bao(f"Đăng bù Top 5 {ngay}: pha công khai lỗi", chung.cat(f"{type(e).__name__}: {e}", 300))
-            return 1
-        if r_ck.get("conclusion") != "success":
-            _bao(
-                f"Đăng bù Top 5 {ngay}: pha công khai lỗi",
-                f"Run {rid_ck} kết thúc với conclusion={r_ck.get('conclusion')!r}.",
-                click=r_ck.get("html_url"),
-            )
+        if _cong_khai_top5(gh, v.workflow, {**v.inputs, "pha": "cong-khai"}, ngay, bay_gio_fn) != 0:
             return 1
         chung.log(f"chay_bu: dang bu Top 5 {ngay} (gio_bu={v.gio_bu}) hoan tat")
+    elif ck_lai is not None:
+        chung.log(f"chay_bu: {ck_lai.ly_do} -> goi lai cong-khai gio_bu={ck_lai.gio_bu or GIO_DANG_TOP5}")
+        if _cong_khai_top5(gh, ck_lai.workflow, ck_lai.inputs, ngay, bay_gio_fn) != 0:
+            return 1
+        chung.log(f"chay_bu: cong-khai lai Top 5 {ngay} hoan tat")
 
     return 1 if loi else 0
 

@@ -20,7 +20,7 @@ jobs:
   chay-bu:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
-    timeout-minutes: 95
+    timeout-minutes: 125   # 22/11 soi cheo #5: doi chuan-bi <=45 + ngu toi gio_bu + doi cong-khai <=45 + tim run ~3 = ~95 phut toi da
     permissions:
       actions: write
       contents: read
@@ -42,7 +42,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Quyet dinh va chay bu
-        timeout-minutes: 90
+        timeout-minutes: 120
         env:
           SG_CONG_KHOA: ${{ secrets.SG_CONG_KHOA }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

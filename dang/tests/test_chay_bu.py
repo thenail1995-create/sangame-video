@@ -55,6 +55,11 @@ class GitHubGia:
             ten = f"X bai goc (bu {inputs['gio_bu']})"
         elif workflow == "tin-gia-mxh.yml" and inputs.get("gio_bu"):
             ten = f"Tin gia MXH ({inputs['kenh']} bu {inputs['gio_bu']})"
+        elif workflow == "dung.yml":
+            ten = f"Dung video [{inputs.get('dang')} {inputs.get('che_do')}]"
+        elif workflow == "dang.yml":
+            bu = f" bu {inputs['gio_bu']}" if inputs.get("gio_bu") else ""
+            ten = f"Dang video [{inputs.get('pha')} {inputs.get('dang')} {inputs.get('che_do')}{bu}]"
         r = {
             "id": rid,
             "name": ten,
@@ -98,6 +103,9 @@ class GitHubGia:
         return []
 
     def log_job_thuong(self, workflow, run_id):
+        for r in self.runs.get(workflow, []):
+            if r["id"] == run_id:
+                return r.get("_log", "")
         return ""
 
 
@@ -555,6 +563,175 @@ class DocTrangThaiVaGitHubClientTest(unittest.TestCase):
                 rc = chay_bu.main(["--ngay", NGAY, "--du-lieu", d])
             self.assertEqual(rc, 0)
             self.assertIn("chua co du lieu moi", buf.getvalue())
+
+
+def run_gia(rid, gio_vn, ten, status="completed", conclusion="success", **them):
+    return {"id": rid, "status": status, "conclusion": conclusion if status == "completed" else None,
+            "event": "workflow_dispatch", "created_at": chung.iso(gio_vn), "display_title": ten, "name": ten, **them}
+
+
+class SoiCheo2211Test(unittest.TestCase):
+    """22/11 soi chéo độc lập: 5 lỗi, mỗi lỗi một phép thử tái hiện."""
+
+    def _tt(self, runs, sg_dang=None, co_release=False, rel_luc=None):
+        cong = CongGia()
+        for r in (bo_5_kenh() if sg_dang is None else sg_dang):
+            cong.dong[(r["ngay"], r["dang"], r["kenh"], r["che_do"])] = dict(r)
+        gh = GitHubGia(co_release=co_release, runs=runs)
+        if co_release:
+            gh.thong_tin_release = lambda tag: (True, rel_luc or vn(14, 30))
+        return chay_bu.doc_trang_thai(ngay=NGAY, cong=cong, gh=gh, du_lieu_moi=True, co_keo_ps=False,
+                                      sg_dang_bat="top5,flagship", sg_kenh_bat="top5:youtube", x_goc_bat=False)
+
+    # --- Lỗi 1: lượt của khung khác (flagship 13:35/14:05) bị đếm là "đã dựng bù / đã đăng bù Top 5"
+    def test_luot_dung_flagship_co_nhan_khong_tinh_la_dung_bu_top5(self):
+        runs = {"dung.yml": [run_gia(801, vn(13, 35), "Dung video [flagship that]", conclusion="failure")]}
+        tt = self._tt(runs)
+        self.assertEqual(tt.so_lan_dung_bu_top5, 0)
+        self.assertEqual([v.loai for v in chay_bu.quyet_dinh(tt, vn(15, 30))], ["mo_khung", "dung_bu"])
+
+    def test_luot_dung_cu_chua_nhan_sau_10_50_la_khung_khac_khong_tinh(self):
+        # Ca thật 22/11: 13:35 và 14:05 "Dung video" (chưa có nhãn) thất bại -> chạy khô 15:30 chỉ còn Threads
+        runs = {"dung.yml": [run_gia(803, vn(14, 5), "Dung video", conclusion="failure"),
+                             run_gia(802, vn(13, 35), "Dung video", conclusion="failure")]}
+        tt = self._tt(runs)
+        self.assertEqual(tt.so_lan_dung_bu_top5, 0)
+        self.assertEqual([v.loai for v in chay_bu.quyet_dinh(tt, vn(15, 30))], ["mo_khung", "dung_bu"])
+
+    def test_luot_dung_top5_that_co_nhan_sau_10_50_van_tinh(self):
+        runs = {"dung.yml": [run_gia(804, vn(13, 0), "Dung video [top5 that]", conclusion="failure")]}
+        self.assertEqual(self._tt(runs).so_lan_dung_bu_top5, 1)
+
+    def test_luot_dung_top5_thu_khong_tinh(self):
+        runs = {"dung.yml": [run_gia(805, vn(13, 0), "Dung video [top5 thu]", conclusion="failure")]}
+        self.assertEqual(self._tt(runs).so_lan_dung_bu_top5, 0)
+
+    def test_luot_dang_flagship_sau_release_khong_tinh_la_dang_bu_top5(self):
+        runs = {"dang.yml": [run_gia(811, vn(15, 5), "Dang video [chuan-bi flagship that]", conclusion="failure")]}
+        tt = self._tt(runs, co_release=True, rel_luc=vn(14, 30))
+        self.assertEqual(tt.so_lan_dang_bu_top5, 0)
+        self.assertEqual([v.loai for v in chay_bu.quyet_dinh(tt, vn(15, 20))], ["mo_khung", "dang_bu_top5"])
+
+    def test_luot_dang_top5_chuan_bi_co_nhan_sau_release_van_tinh(self):
+        runs = {"dang.yml": [run_gia(812, vn(15, 5), "Dang video [chuan-bi top5 that bu 15:35]", conclusion="failure",
+                                     _inputs={"pha": "chuan-bi"})]}
+        self.assertEqual(self._tt(runs, co_release=True, rel_luc=vn(14, 30)).so_lan_dang_bu_top5, 1)
+
+    def test_luot_dung_flagship_dang_chay_khong_chan_top5(self):
+        runs = {"dung.yml": [run_gia(806, vn(13, 35), "Dung video [flagship that]", status="in_progress")]}
+        self.assertFalse(self._tt(runs).dung_top5_dang_chay)
+
+    # --- Lỗi 2: chuẩn bị xong mà mất dấu, không có lượt công khai -> khung kẹt ở chuan_bi_xong cả ngày
+    def _ke_chuan_bi_xong(self, runs, bay):
+        sg = [dong_dang(k, "chuan_bi_xong", None) for k in ("youtube",)] + [dong_dang(k, "bo") for k in ("fb", "ig", "tiktok", "x")]
+        tt = self._tt(runs, sg_dang=sg, co_release=True, rel_luc=vn(14, 30))
+        return tt, chay_bu.quyet_dinh(tt, bay)
+
+    def test_chuan_bi_bu_xong_mat_cong_khai_thi_cong_khai_lai_cung_gio_bu(self):
+        runs = {"dang.yml": [run_gia(821, vn(14, 40), "Dang video [chuan-bi top5 that bu 15:10]", _inputs={"pha": "chuan-bi"})]}
+        tt, ds = self._ke_chuan_bi_xong(runs, vn(15, 30))
+        self.assertEqual(tt.cho_cong_khai_top5, "15:10")
+        self.assertEqual([v.loai for v in ds], ["cong_khai_bu_top5"])
+        self.assertEqual(ds[0].inputs, {"pha": "cong-khai", "dang": "top5", "ngay": NGAY, "che_do": "that", "gio_bu": "15:10"})
+
+    def test_chuan_bi_thuong_1135_mat_cong_khai_12h_thi_cong_khai_lai_khong_gio_bu(self):
+        runs = {"dang.yml": [run_gia(822, vn(11, 35), "Dang video [chuan-bi top5 that]", _inputs={"pha": "chuan-bi"})]}
+        _tt, ds = self._ke_chuan_bi_xong(runs, vn(12, 20))
+        self.assertEqual([v.loai for v in ds], ["cong_khai_bu_top5"])
+        self.assertEqual(ds[0].inputs["gio_bu"], "")
+
+    def test_chua_toi_gio_cong_khai_thuong_thi_khong_cong_khai_lai(self):
+        runs = {"dang.yml": [run_gia(823, vn(11, 35), "Dang video [chuan-bi top5 that]", _inputs={"pha": "chuan-bi"})]}
+        self.assertEqual(self._ke_chuan_bi_xong(runs, vn(11, 50))[1], [])
+        self.assertEqual(self._ke_chuan_bi_xong(runs, vn(12, 10))[1], [])
+
+    def test_da_co_luot_cong_khai_sau_chuan_bi_thi_khong_cong_khai_lai(self):
+        runs = {"dang.yml": [
+            run_gia(825, vn(15, 10), "Dang video [cong-khai top5 that bu 15:10]", conclusion="failure", _inputs={"pha": "cong-khai"}),
+            run_gia(824, vn(14, 40), "Dang video [chuan-bi top5 that bu 15:10]", _inputs={"pha": "chuan-bi"}),
+        ]}
+        tt, ds = self._ke_chuan_bi_xong(runs, vn(15, 30))
+        self.assertIsNone(tt.cho_cong_khai_top5)
+        self.assertEqual(ds, [])
+
+    def test_qua_cua_so_80_phut_thi_khong_cong_khai_lai(self):
+        runs = {"dang.yml": [run_gia(826, vn(14, 40), "Dang video [chuan-bi top5 that bu 15:10]", _inputs={"pha": "chuan-bi"})]}
+        self.assertEqual(self._ke_chuan_bi_xong(runs, vn(16, 35))[1], [])
+
+    def test_chuan_bi_loi_thi_khong_cong_khai_lai(self):
+        runs = {"dang.yml": [run_gia(827, vn(14, 40), "Dang video [chuan-bi top5 that bu 15:10]", conclusion="failure",
+                                     _inputs={"pha": "chuan-bi"})]}
+        self.assertEqual(self._ke_chuan_bi_xong(runs, vn(15, 30))[1], [])
+
+    def test_doi_run_chiu_duoc_loi_tam_thoi(self):
+        m = Mang()
+        m.them("GET", "/actions/runs/11", [
+            P(502, {}),
+            P(200, {"id": 11, "status": "in_progress", "conclusion": None}),
+            P(503, {}),
+            P(200, {"id": 11, "status": "completed", "conclusion": "success"}),
+        ])
+        gio = [vn(12, 20)]
+        with mock.patch.object(http, "gui", m):
+            gh = chay_bu.GitHubClient(repo="thenail1995-create/sangame-video", token="ghs_x",
+                                      ngu_fn=lambda s: gio.__setitem__(0, gio[0] + dt.timedelta(seconds=s)),
+                                      bay_gio_fn=lambda: gio[0])
+            self.assertEqual(gh.doi_run(11)["conclusion"], "success")
+
+    def test_doi_run_loi_lien_tiep_qua_nhieu_thi_dung(self):
+        m = Mang()
+        m.them("GET", "/actions/runs/11", [P(502, {})] * 10)
+        gio = [vn(12, 20)]
+        with mock.patch.object(http, "gui", m):
+            gh = chay_bu.GitHubClient(repo="thenail1995-create/sangame-video", token="ghs_x",
+                                      ngu_fn=lambda s: gio.__setitem__(0, gio[0] + dt.timedelta(seconds=s)),
+                                      bay_gio_fn=lambda: gio[0])
+            with self.assertRaises(chay_bu.LoiChayBu):
+                gh.doi_run(11)
+
+    # --- Lỗi 3: chuẩn bị chạy lâu -> công khai sau 22:00
+    def test_chuan_bi_xong_sau_22_15_thi_khong_cong_khai(self):
+        ntfy_ds = []
+        gio = [vn(21, 40)]
+        with mock.patch.object(ntfy, "loi", side_effect=lambda *a, **k: (ntfy_ds.append(a), True)[1]):
+            gh = GitHubGia(co_release=True)
+            orig = gh.doi_run
+
+            def doi_lau(rid, toi_da_giay=2700):
+                gio[0] = vn(22, 20)   # chuẩn bị chạy 40 phút
+                return orig(rid, toi_da_giay)
+            gh.doi_run = doi_lau
+            v = chay_bu.Viec(loai="dang_bu_top5", dang="top5", workflow="dang.yml", gio_bu="22:00",
+                             inputs={"dang": "top5", "ngay": NGAY, "che_do": "that", "gio_bu": "22:00"})
+            rc = chay_bu.thuc_thi([v], CongGia(), gh, bay_gio_fn=lambda: gio[0], ngu_fn=lambda s: None)
+        self.assertEqual(rc, 1)
+        self.assertEqual([i.get("pha") for _w, i in gh.da_dispatch], ["chuan-bi"])
+        self.assertTrue(any("22" in str(a) for a in ntfy_ds))
+
+    def test_thuc_thi_cong_khai_bu_top5_dispatch_va_doi(self):
+        gh = GitHubGia(co_release=True)
+        v = chay_bu.Viec(loai="cong_khai_bu_top5", dang="top5", workflow="dang.yml", gio_bu="15:10",
+                         inputs={"pha": "cong-khai", "dang": "top5", "ngay": NGAY, "che_do": "that", "gio_bu": "15:10"})
+        rc = chay_bu.thuc_thi([v], CongGia(), gh, bay_gio_fn=lambda: vn(15, 30), ngu_fn=lambda s: None)
+        self.assertEqual(rc, 0)
+        self.assertEqual(gh.da_dispatch, [("dang.yml", v.inputs)])
+
+    # --- Lỗi 4: lượt 21:50 thoát sớm (dữ liệu cũ) không được coi là đã báo "bỏ ngày"
+    def test_luot_chay_bu_sau_21_31_khong_bao_gi_thi_chua_tinh_da_bao(self):
+        runs = {"chay-bu.yml": [run_gia(831, vn(21, 50), "Chay bu San Game", _log="chay_bu: chua co du lieu moi -> khong lam gi")]}
+        self.assertEqual(self._tt(runs).da_bao, set())
+
+    def test_luot_chay_bu_da_bao_qua_22h_thi_tinh_dung_muc_da_bao(self):
+        runs = {"chay-bu.yml": [run_gia(832, vn(22, 20), "Chay bu San Game",
+                                        _log="... chay_bu: DA_BAO qua-22h:top5\n... chay_bu: DA_BAO qua-22h:threads-gia\n")]}
+        self.assertEqual(self._tt(runs).da_bao, {"qua-22h:top5", "qua-22h:threads-gia"})
+
+    def test_bo_ngay_ghi_dau_da_bao_vao_log(self):
+        buf = io.StringIO()
+        with mock.patch.object(ntfy, "loi", return_value=True), contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+            chay_bu.thuc_thi([chay_bu.Viec(loai="bo_ngay", dang="top5", ly_do="qua 22h")], CongGia(), GitHubGia(),
+                             bay_gio_fn=lambda: vn(22, 20), ngu_fn=lambda s: None)
+        self.assertIn("DA_BAO qua-22h:top5", buf.getvalue())
 
 
 if __name__ == "__main__":
