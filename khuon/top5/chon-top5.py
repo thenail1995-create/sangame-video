@@ -57,6 +57,54 @@ def video_steam(h):
         kq=VS.tim_video(ten)
         if kq: break
     _steam[h['khoa']]=kq; return kq
+# 22/11/2026 (run 45005642234): Mafia DE chi co 1 video Steam «Accolades - ESRB» (toan chu) -> job chung chet "KHONG video nao co doan
+# sang du dai", mat Top 5 ca ngay (14-15/11 game 4 cung vay: 43550656601, 43553232993, 43671507620, 43673756123). Do o buoc CHON bang
+# DUNG ham chon doan cua nen-top5.py (doan_nen.py): khong video Steam nao chon duoc doan -> LOAI game, lay game ke (giong chon-keo.py 19/10).
+import tempfile
+import doan_nen as DN
+# Loc NGHIEM HON luc dung (chi duoc loai nham - game ke thay vao - khong duoc lot): doan dai DL_KIEM > doan that (19/11 run 44450132132:
+# 1,94-2,92 s), cung loc K18 cua tai_mot (nen-top5.py), tai DU phan giai nhu nen-top5. Van la loc mot phan: canh dai bat thuong co the can doan dai hon.
+DL_KIEM=4.0
+SO_VIDEO_KIEM=4   # = so video Steam nen-top5 thu
+NGAN_SACH_KIEM=480   # giay cho ca buoc chon (job chon 20 phut); het -> khong do nua, KHONG loai
+_giay_kiem=[0.0]
+def cao_trailer(): return int(json.load(open(T/'nen-tang.json'))['tiktok'].get('trailer',960))//2*2
+def k18_trailer(f,dd,td):
+    """Giong tai_mot cua nen-top5.py: chu giu cho o 1 khung -> bo; mang mau phang chi bo khi CA 3 khung."""
+    phang=[]
+    for fr in (0.3,0.5,0.7):
+        png=os.path.join(td,'_kt.png'); DN.chay(['ffmpeg','-v','error','-y','-ss',f'{dd*fr:.2f}','-i',f,'-frames:v','1','-vf','scale=960:-2',png])
+        if os.path.exists(png) and (ly:=DN.MH.la_giu_cho(png)):
+            if not ly.startswith('mang mau phang'): return ly
+            phang.append(ly)
+    return f'ca 3 khung {phang}' if len(phang)==3 else None
+def kiem_video_steam(urls):
+    """-> None neu co it nhat 1 video Steam chon duoc doan nen (hoac khong do duoc / het ngan sach - khong loai vi ha tang); -> ly do loai."""
+    if _giay_kiem[0]>NGAN_SACH_KIEM:
+        print(f'    CANH BAO: het ngan sach do trailer Steam ({_giay_kiem[0]:.0f}s) - khong do, khong loai'); return None
+    t0=time.time(); loi=[]
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            for k,u in enumerate(urls[:SO_VIDEO_KIEM]):
+                f=os.path.join(td,f'v{k}.mp4')
+                r=DN.chay(['ffmpeg','-v','error','-y','-i',u,'-t','150','-c:v','libx264','-preset','veryfast','-crf','18',
+                           '-pix_fmt','yuv420p','-an',f],timeout=600)
+                if r.returncode!=0 or not os.path.exists(f):
+                    print(f'    CANH BAO: video Steam #{k} tai loi - khong loai game'); return None   # nen-top5 co the dung video nay
+                w,hh,dd=DN.thong(f)
+                ly_k18=k18_trailer(f,dd,td)
+                if ly_k18: loi.append(f'#{k} K18 {ly_k18}'); continue
+                crop=DN.doc_crop(DN.cat_vien(f),w,hh,cao_trailer())
+                try:
+                    try: DN.chon_doan(f,dd,2,DL_KIEM,crop,3.0,4.0,tmp=td)
+                    except SystemExit: DN.chon_doan(f,dd,2,DL_KIEM,crop,3.0,4.0,long=True,tmp=td)
+                    print(f'    trailer Steam #{k} chon duoc doan nen ({time.time()-t0:.0f}s do)'); return None
+                except SystemExit as e: loi.append(f'#{k} khong co doan sang du dai')
+    except Exception as e:   # mang/ffmpeg/ha tang: khong loai game vi chuyen nay (nen-top5 se thu lai luc dung)
+        print(f'    CANH BAO: khong do duoc trailer Steam ({str(e)[:80]}) - khong loai'); return None
+    finally: _giay_kiem[0]+=time.time()-t0
+    if not loi: return None
+    return f"trailer Steam khong chon duoc doan nen ({len(loi)} video da do: {'; '.join(loi)})"
 def xet(h):
     """Ung vien -> dict hoac None (kem ly do). Goi trang PS Store DUNG vung cua gia duoc chon."""
     k=dong_game(h['ten'])
@@ -84,6 +132,8 @@ def xet(h):
         vsteam=video_steam(h)
         if not vsteam: return None,'khong co video game (PS Store khong co trailer, Steam khong co app khop/khong co video)'
         trailer=[v['url'] for v in vsteam]; nguon='steam'
+        ly_tr=kiem_video_steam(trailer)
+        if ly_tr: return None,ly_tr
     return dict(h=h,pid=pid,loc=loc,trailer=trailer,nguon_video=nguon,video_steam=vsteam,anh_chup=m['anh_chup'][:6],endTime=g['endTime'],gia_cuc_bo=g['gia_cuc_bo'],tien_te=g['tien_te'] or TIEN_TE.get(ma)),None
 def ung_vien(X):
     u=[h for h in d['hangs'] if h['khoa'] in th and th[h['khoa']][0]+1<=HANG_DEM and h['giam']>0 and h['vnd'] is not None
