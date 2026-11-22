@@ -851,7 +851,7 @@ def thuc_thi(ds_viec: list[Viec], cong, gh, *, bay_gio_fn=None, ngu_fn=None) -> 
             _bao(f"Đăng bù Top 5 {ngay}: đợi pha chuẩn bị lỗi", chung.cat(f"{type(e).__name__}: {e}", 300))
             return 1
         if r_cb.get("conclusion") != "success":
-            # vong 2 soi cheo: chuan-bi do khi CHI MOT kenh loi (16-21/11 gan nhu moi luot chuan-bi deu do). Lich thuong 12:00 van
+            # vong 2 soi cheo: chuan-bi do khi chi MOT kenh loi thi cac kenh khac van chuan_bi_xong. Lich thuong 12:00 van
             # cong khai cac kenh da chuan_bi_xong -> chay bu lam giong vay; khong kenh nao san sang moi dung.
             try:
                 san_sang = [r.get("kenh") for r in cong.doc_dang(ngay, ngay, "that")
