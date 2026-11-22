@@ -71,6 +71,8 @@ on:
         default: ubuntu-24.04
   repository_dispatch:
     types: [dung]
+# 22/11: nhan [dang che_do] de chay-bu.yml tach Top 5 khoi khung khac (dang/chay_bu.py nhan_run) - DOI NHAN thi sua ca chay_bu
+run-name: ${{ format('Dung video [{0} {1}]', github.event.inputs.dang || github.event.client_payload.dang, github.event.inputs.che_do || github.event.client_payload.che_do || 'thu') }}
 permissions: {}
 # Cung KHUON chung 1 hang doi (lan 2 cho lan 1 xong roi thay Release da co -> khong dung lai). Ba khung Keo (keo-thom-2/keo-thom/keo-thom-3) cung nhom
 # `dung-keo-thom` de cac luot Keo chay TUAN TU toi luc tao Release (chon-keo.py doc lich su Release -> hai luot chong nhau co the chon cung 1 game).

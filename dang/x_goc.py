@@ -515,6 +515,16 @@ def dang_bai(cong, che_do, ngay, goi, buffer_khoa, zernio_khoa):
     return 0
 
 
+def _doc_gio_bu(a):
+    raw = getattr(a, "gio_bu", None)
+    bu = (raw if isinstance(raw, str) else os.environ.get("DANG_BU_GIO") or "").strip()
+    if not bu:
+        return None
+    if not re.fullmatch(r"([01]\d|2[0-3]):([0-5]\d)", bu):
+        raise ValueError(f"gio_bu sai dinh dang HH:MM: {bu!r}")
+    return bu
+
+
 def chay(a, cong=None, chup=chup_trang):
     ngay_1_chuoi = os.environ.get("SG_X_GOC_NGAY_1", "").strip()
     try:
@@ -530,7 +540,12 @@ def chay(a, cong=None, chup=chup_trang):
     if a.khung != hom_nay:
         chung.log(f"x_goc: không phải khung hôm nay (ngày {a.ngay} là khung {hom_nay}, đã gọi khung {a.khung}) - không làm gì")
         return 0
-    gio = GIO_KHUNG[a.khung]
+    try:
+        gio_bu = _doc_gio_bu(a)
+    except ValueError as e:
+        _bao("X goc: sai gio_bu", str(e))
+        return 2
+    gio = gio_bu or GIO_KHUNG[a.khung]
     try:
         cong = cong or so.Cong()
     except so.LoiCong as e:
@@ -562,6 +577,7 @@ def main(argv=None):
     ap.add_argument("--khung", required=True, choices=["sang", "toi"])
     ap.add_argument("--che-do", required=True, choices=["thu", "that"])
     ap.add_argument("--gia-the", default="du-lieu/du-lieu/gia-the.json")
+    ap.add_argument("--gio-bu", default=os.environ.get("DANG_BU_GIO", ""), help="HH:MM gio VN dang bu cung ngay")
     a = ap.parse_args(argv)
     try:
         dt.date.fromisoformat(a.ngay)

@@ -1,0 +1,74 @@
+name: Chay bu San Game
+# Khi Mac bat muon -> du lieu kenh-game-du-lieu + sg_keo ve tre. Luoi an toan moi 30 phut + workflow_dispatch:
+# kiem du lieu moi -> doc sg_dang + Release + runs -> mo lai khung bo (chi khi thieu du lieu/Release) -> dung bu / dang bu.
+# Mot nhom concurrency, KHONG huy luot dang chay (luot dang bu Top 5 doi chuan-bi -> ngu toi gio_bu -> cong-khai trong cung job).
+on:
+  workflow_dispatch:
+    inputs:
+      kho_chay:
+        description: "Chi in quyet dinh, khong ghi so, khong dispatch"
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    - cron: "20,50 * * * *"
+permissions: {}
+concurrency:
+  group: chay-bu
+  cancel-in-progress: false
+jobs:
+  chay-bu:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 125   # 22/11 soi cheo #5: doi chuan-bi <=45 + ngu toi gio_bu + doi cong-khai <=45 + tim run ~3 = ~95 phut toi da
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Du lieu rieng tu - chi du-lieu/ (kiem do moi)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: thenail1995-create/kenh-game-du-lieu
+          ref: main
+          ssh-key: ${{ secrets.DATA_DEPLOY_KEY }}
+          path: du-lieu
+          sparse-checkout: |
+            du-lieu
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+      - name: Quyet dinh va chay bu
+        timeout-minutes: 120
+        env:
+          SG_CONG_KHOA: ${{ secrets.SG_CONG_KHOA }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          NTFY_TIN: ${{ secrets.NTFY_TIN }}
+          NTFY_BAO_LOI: ${{ secrets.NTFY_BAO_LOI }}
+          ZERNIO_KHOA: ${{ secrets.ZERNIO_KHOA }}
+          SG_DANG_BAT: ${{ vars.SG_DANG_BAT }}
+          SG_KENH_BAT: ${{ vars.SG_KENH_BAT }}
+          SG_X_GOC_BAT: ${{ vars.SG_X_GOC_BAT }}
+          SG_X_GOC_NGAY_1: ${{ vars.SG_X_GOC_NGAY_1 }}
+          KHO_CHAY: ${{ inputs.kho_chay || 'false' }}
+          DA_BAO_FILE: ${{ runner.temp }}/chay-bu-da-bao
+        run: |
+          set -euo pipefail
+          if [ "$KHO_CHAY" = "true" ]; then
+            python -m dang.chay_bu --du-lieu du-lieu --kho-chay
+          else
+            python -m dang.chay_bu --du-lieu du-lieu
+          fi
+      - name: Bao loi workflow (setup / het gio / loi ngoai script)
+        if: failure()
+        env:
+          NTFY_BAO_LOI: ${{ secrets.NTFY_BAO_LOI }}
+          DA_BAO_FILE: ${{ runner.temp }}/chay-bu-da-bao
+          LIEN_KET: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -e "$DA_BAO_FILE" ]; then echo "da bao ntfy trong script"; exit 0; fi
+          python3 -c "import os; from dang import ntfy; l = os.environ['LIEN_KET']; ntfy.loi('Chạy bù Săn Game: workflow lỗi', l, click=l)"

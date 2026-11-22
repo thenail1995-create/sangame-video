@@ -1682,3 +1682,49 @@ def test_sol_luot3_mat_quyen_va_trung_game_khong_ghi_so():
     i_quyen = src.index("Sol luot 3: dong da sang luot khac")
     i_nhuong = src.index("kiem trung game LAN 2")
     assert i_quyen < i_nhuong
+
+
+class DangBuTinGiaTest(Luong):
+    def test_gio_bu_threads_thay_gio_du_kien_va_giu_cong_kiem(self):
+        d = keo(6, 7, 8, 11)
+        # 13:10 VN: khong co gio_bu -> da qua 11:30 VN -> thoat 3 nhu cu
+        self.t = dt.datetime(2026, 11, 2, 13, 10, tzinfo=chung.VN)
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(mxh.chay(self.args("threads", "that"), CongTG(d, self.su_kien), self.phu("threads", d)), 3)
+        # Co gio_bu=13:40: ngu 30 phut toi 13:40 VN, kiem_lai nhan dung 13:40 VN, dang thanh cong
+        self.su_kien.clear()
+        self.ngu.clear()
+        kls = []
+        self.t = dt.datetime(2026, 11, 2, 13, 10, tzinfo=chung.VN)
+        cong = CongTG(d, self.su_kien)
+        phu = self.phu("threads", d, kiem_lai=lambda muc, g: (kls.append(g), ([], []))[1])
+        a = self.args("threads", "that")
+        a.gio_bu = "13:40"
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            kq = mxh.chay(a, cong, phu)
+        self.assertEqual(kq, 0)
+        self.assertEqual(cong.cap_cuoi("threads")["trang_thai"], "da_dang")
+        self.assertEqual(cong.cap_cuoi("threads")["gio_du_kien"], "2026-11-02T06:40:00Z")
+        self.assertEqual(kls, [dt.datetime(2026, 11, 2, 13, 40, tzinfo=chung.VN)])
+        self.assertEqual(self.ngu, [30 * 60.0])
+
+    def test_gio_bu_qua_som_qua_tre_hoac_sai_dinh_dang(self):
+        d = keo(6, 7, 8, 11)
+        # Qua som (> 45 phut truoc gio_bu) -> thoat 3
+        self.t = dt.datetime(2026, 11, 2, 12, 40, tzinfo=chung.VN)
+        a_som = self.args("threads", "that")
+        a_som.gio_bu = "13:40"
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(mxh.chay(a_som, CongTG(d, self.su_kien), self.phu("threads", d)), 3)
+        # Qua tre (< 2 phut truoc gio_bu) -> thoat 3
+        self.t = dt.datetime(2026, 11, 2, 13, 39, tzinfo=chung.VN)
+        a_tre = self.args("threads", "that")
+        a_tre.gio_bu = "13:40"
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(mxh.chay(a_tre, CongTG(d, self.su_kien), self.phu("threads", d)), 3)
+        # Sai dinh dang HH:MM -> thoat 2
+        for sai in ("24:00", "8:30", "13h40"):
+            a_sai = self.args("threads", "that")
+            a_sai.gio_bu = sai
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(mxh.chay(a_sai, CongTG(d, self.su_kien), self.phu("threads", d)), 2)

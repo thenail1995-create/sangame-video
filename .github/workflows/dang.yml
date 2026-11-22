@@ -28,6 +28,8 @@ on:
         description: "DANG BU (de trong khi chay theo lich): HH:MM gio VN moi trong CUNG ngay - thay gio cua manifest cho chot som/tre + kiem gia"
         required: false
         type: string
+# 22/11: nhan [pha dang che_do( bu HH:MM)] de chay-bu.yml tach Top 5 + biet gio cua lan chuan-bi (dang/chay_bu.py nhan_dang) - DOI NHAN thi sua ca chay_bu
+run-name: ${{ format('Dang video [{0} {1} {2}{3}]', inputs.pha, inputs.dang, inputs.che_do, inputs.gio_bu && format(' bu {0}', inputs.gio_bu) || '') }}
 permissions: {}
 concurrency:
   # Moi pha 1 nhom; queue: max de dispatch moi KHONG thay the luot cong-khai dang cho (mac dinh chi giu 1 pending va huy cai cu)
